@@ -14,7 +14,7 @@ function Login() {
           {/* Botão de Voltar Flutuante */}
           <Link
             to="/"
-            className="btn btn-light position-absolute m-4 fw-bold d-flex align-items-center"
+            className="btn btn-light position-absolute m-4 fw-bold d-flex align-items-center btn-voltar-custom"
             style={{
               zIndex: 10,
               borderRadius: '50px',
@@ -26,7 +26,7 @@ function Login() {
               boxShadow: '0 4px 15px rgba(0, 0, 0, 0.6)'
             }}
           >
-            <span className="me-2">←</span> Voltar para o site
+            <span className="me-2 btn-voltar-custom">←</span> Voltar para o site
           </Link>
 
           <img
@@ -65,7 +65,7 @@ function Login() {
             {/* O Formulário do Bootstrap */}
             <Form>
               <Form.Group className="mb-3" controlId="formBasicEmail">
-                <Form.Control
+                <Form.Control 
                   type="email"
                   placeholder="Insira seu email"
                   className="rounded-pill p-3 border-0"
@@ -87,8 +87,8 @@ function Login() {
               <Button
                 variant="warning"
                 type="submit"
-                className="w-100 rounded-pill p-3 fw-bold text-white mb-3"
-                style={{ backgroundColor: '#f37321', border: 'none', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.7)' }}
+                className="w-100 rounded-pill p-3 fw-bold text-white mb-4 btn-login-custom"
+                style={{ backgroundColor: '#f37321', border: 'none', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.7)', fontSize: '20px' }}
               >
                 Login
               </Button>

@@ -87,3 +87,45 @@
     background: #223A5E;
     background: linear-gradient(180deg, rgba(34, 58, 94, 1) 21%, rgba(59, 99, 153, 1) 72%, rgba(65, 106, 163, 1) 100%);
 }
+
+.btn-login-custom {
+    transition: all 0.3s ease;
+}
+
+.btn-login-custom:hover {
+    background-color: #d65a0f !important;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.btn-login-custom:active {
+    transform: translateY(-1px);
+}
+
+.btn-voltar-custom {
+    transition: all 0.3s ease;
+}
+
+.btn-voltar-custom:hover {
+    background-color: #ff6200 !important;
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    color: #ffff !important;
+}
+
+.btn-voltar-custom:active {
+    transform: translateY(-1px);
+}
+
+.input-custom {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+/* Efeito quando o usuário clica para digitar (Focus) */
+.input-custom:focus {
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+    transform: scale(1.01);
+    /* Dá um leve zoom ao clicar */
+    outline: none;
+}
