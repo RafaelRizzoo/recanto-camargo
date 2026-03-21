@@ -1,6 +1,6 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import logoPng from '../assets/img/logo.PNG';
+import logoPng from '../assets/img/logo.png';
 import basilicaPng from '../assets/img/basilica.png';
 
 function Login() {
