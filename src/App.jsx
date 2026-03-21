@@ -30,7 +30,7 @@ function AppContent() {
 
 function App() {
   return (
-    <HashRouter basename="/recanto-camargo">
+    <HashRouter>
       <AppContent />
     </HashRouter>
   );
