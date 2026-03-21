@@ -9,6 +9,10 @@ permissions:
   pages: write
   id-token: write
 
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -23,7 +27,13 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+        
+      - name: Debug
+        run: |
+          node -v
+          npm -v
+          ls -la
 
       - name: Build
         run: npm run build
@@ -34,7 +44,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # O Vite joga os arquivos prontos aqui
+          path: './dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
