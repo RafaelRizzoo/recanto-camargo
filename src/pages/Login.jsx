@@ -1,6 +1,6 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import logoPng from '../assets/img/logo.PNG';
+import logoPng from '../assets/img/logo.png';
 import basilicaPng from '../assets/img/basilica.png';
 
 function Login() {
@@ -107,7 +107,7 @@ function Login() {
               {/* Link Criar Conta*/}
               <div className="text-center">
                 <a href="#esqueci" className="text-white text-decoration-none small" style={{ opacity: 0.8, fontSize: '20px' }}>
-                  Esqueceu sua senha?
+                  Esqueceu sua senha? aaaaaaaaaa
                 </a>
               </div>
             </Form>

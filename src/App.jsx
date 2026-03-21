@@ -12,7 +12,7 @@ function AppContent() {
   const location = useLocation();
 
   // Se a rota for '/login', não mostra o Menu principal
-  const mostrarMenuNormal = location.pathname !== '/login' && location.pathname !== '/Cadastro';
+  const mostrarMenuNormal = location.pathname !== '/Login' && location.pathname !== '/Cadastro';
 
   return (
     <>

@@ -29,7 +29,7 @@ function Menu() {
             </LinkContainer>
 
             {/* Botão de Login com destaque */}
-            <LinkContainer to="/login">
+            <LinkContainer to="/Login">
               <Nav.Link className="mx-lg-2">Login</Nav.Link>
             </LinkContainer>
 

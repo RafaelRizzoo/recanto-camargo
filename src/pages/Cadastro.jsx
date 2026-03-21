@@ -1,6 +1,6 @@
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import logoPng from '../assets/img/logo.PNG';
+import logoPng from '../assets/img/logo.png';
 import basilicaPng from '../assets/img/basilica.png';
 
 function Login() {
@@ -104,6 +104,17 @@ function Login() {
                 Cadastrar
               </Button>
             </Form>
+
+            <div className="text-center mt-3">
+              {/* Usamos o to="/cadastro" para apontar para a nova rota */}
+              <Link
+                to="/Login"
+                className="text-white text-decoration-none fw-bold"
+                style={{ opacity: 0.9, fontSize: '22px' }}
+              >
+                ←Voltar para o <span style={{ color: '#ee7f01' }}>login</span>
+              </Link>
+            </div>
 
           </div>
         </Col>
