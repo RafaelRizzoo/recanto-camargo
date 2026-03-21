@@ -9,6 +9,7 @@ import Cadastro from './pages/Cadastro';
 
 function AppContent() {
   const location = useLocation();
+  
   const mostrarMenu = location.pathname !== '/Login' && location.pathname !== '/Cadastro';
 
   return (

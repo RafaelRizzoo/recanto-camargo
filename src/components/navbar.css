@@ -1,0 +1,178 @@
+/* ============================================
+   NAVBAR - FUNDO ESCURO (IGUAL IMAGEM)
+   ============================================ */
+.navbar-moderna {
+  padding: 0.8rem 0 !important;
+  background: linear-gradient(
+    180deg, 
+    #050a10 0%, 
+    #0d1b2a 50%, 
+    #1a2f4a 100%
+  ) !important;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* ============================================
+   LOGO
+   ============================================ */
+.navbar-brand-moderna {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.navbar-logo {
+  height: 50px;
+  width: auto;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.navbar-brand-moderna:hover .navbar-logo {
+  transform: translateY(-3px) scale(1.05);
+  filter: drop-shadow(0 4px 8px rgba(255, 146, 17, 0.5));
+}
+
+.brand-text {
+  color: #ffffff !important;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.navbar-brand-moderna:hover .brand-text {
+  transform: translateY(-3px);
+  color: #ffffff !important;
+}
+
+/* ============================================
+   LINKS
+   ============================================ */
+.nav-link-moderna {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ffffff !important;
+  font-weight: 600;
+  padding: 0.5rem 1rem !important;
+  margin: 0 0.25rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.nav-link-moderna svg {
+  transition: all 0.3s ease;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.nav-link-moderna:hover {
+  background: transparent;
+}
+
+.nav-link-moderna:hover svg {
+  transform: scale(1.1);
+  stroke: #ff9211;
+}
+
+.nav-link-moderna::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #ff9211, #ffad33);
+  transition: width 0.3s ease;
+}
+
+.nav-link-moderna:hover::after {
+  width: 60%;
+}
+
+/* ============================================
+   BOTÃO RESERVAR - AZUL COM GLOW
+   ============================================ */
+.btn-reservar-moderna {
+  background: linear-gradient(135deg, #3b6399 0%, #416aa3 100%) !important;
+  border: none !important;
+  border-radius: 50px;
+  padding: 0.75rem 2rem;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #ffffff !important;
+  margin-left: 1.5rem;
+  box-shadow: 0 4px 15px rgba(59, 99, 153, 0.5);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.btn-reservar-moderna:hover {
+  background: linear-gradient(135deg, #416aa3 0%, #4a7ab8 100%) !important;
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 25px rgba(65, 106, 163, 0.6),
+    0 0 20px rgba(65, 106, 163, 0.4),
+    0 0 40px rgba(65, 106, 163, 0.3);
+}
+
+.btn-reservar-moderna:active {
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   MOBILE
+   ============================================ */
+.navbar-toggle {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.navbar-toggle .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba(255, 255, 255, 1)' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
+@media (max-width: 991px) {
+  .navbar-moderna {
+    background: linear-gradient(
+      180deg, 
+      #050a10 0%, 
+      #0d1b2a 50%, 
+      #1a2f4a 100%
+    ) !important;
+    padding: 0.8rem 0 !important;
+  }
+
+  .navbar-brand-moderna {
+    gap: 0.5rem;
+  }
+
+  .navbar-logo {
+    height: 40px;
+  }
+
+  .brand-text {
+    font-size: 1.1rem;
+  }
+
+  .nav-link-moderna {
+    padding: 0.75rem 1rem !important;
+    margin: 0.25rem 0;
+    border-radius: 8px;
+  }
+
+  .btn-reservar-moderna {
+    margin: 1rem 0 0 0;
+    width: 100%;
+  }
+}

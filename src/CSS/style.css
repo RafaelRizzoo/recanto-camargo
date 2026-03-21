@@ -35,33 +35,6 @@
   flex-direction: column;
 }
 
-/* ============================================
-   NAVBAR
-   ============================================ */
-.navbar-principal {
-  background-color: var(--azul-escuro) !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-}
-
-.navbar-transparente {
-  background-color: transparent !important;
-  box-shadow: none !important;
-  position: absolute;
-  width: 100%;
-  z-index: 1000;
-  border-bottom: none !important;
-}
-
-.navbar-transparente .nav-link,
-.navbar-transparente .navbar-brand {
-  color: var(--branco) !important;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
-}
-
-.navbar-brand-custom {
-  cursor: pointer;
-  font-weight: bold;
-}
 
 /* ============================================
    FONTES
@@ -83,3 +56,4 @@
 .container-link-autenticacao {
   margin-top: 1rem;
 }
+
