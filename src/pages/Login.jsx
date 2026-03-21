@@ -59,7 +59,7 @@ function Login() {
 
             {/* Texto de Acesso */}
             <h2 className="fonte-logo text-center text-white mb-5 mt-2" style={{ fontSize: '2.5rem' }}>
-              PENIS ERETOOO
+              Acesse sua conta
             </h2>
 
             {/* O Formulário do Bootstrap */}
