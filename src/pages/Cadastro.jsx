@@ -1,127 +1,84 @@
-import { Container, Row, Col, Form, Button } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Form } from 'react-bootstrap';
+import LayoutAutenticacao from '../components/UI/LayoutAutenticacao';
+import Entrada from '../components/UI/Entrada';
+import EntradaSenha from '../components/UI/EntradaSenha';
+import Botao from '../components/UI/Botao';
+import LinkAutenticacao from '../components/UI/LinkAutenticacao';
 import logoPng from '../assets/img/logo.png';
 import basilicaPng from '../assets/img/basilica.png';
 
-function Login() {
+function Cadastro() {
+  const [dados, setDados] = useState({
+    email: '',
+    senha: '',
+    confirmacaoSenha: ''
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setDados(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (dados.senha !== dados.confirmacaoSenha) {
+      alert('As senhas não coincidem!');
+      return;
+    }
+    
+    console.log('Cadastro:', dados);
+  };
+
   return (
-    <Container fluid className="vh-100 p-0 m-0 overflow-hidden">
-      <Row className="h-100 g-0 m-0">
+    <LayoutAutenticacao
+      imagemFundo={basilicaPng}
+      imagemLogo={logoPng}
+      titulo="Crie sua conta"
+    >
+      <Form onSubmit={handleSubmit}>
+        <Entrada
+          tipo="email"
+          nome="email"
+          placeholder="Insira seu email"
+          valor={dados.email}
+          onChange={handleChange}
+          required
+        />
 
-        {/* COLUNA ESQUERDA: Imagem + Botão Voltar */}
-        <Col md={8} className="d-none d-md-block position-relative p-0 gradiente-fundo">
+        <EntradaSenha
+          nome="senha"
+          placeholder="Insira sua senha"
+          valor={dados.senha}
+          onChange={handleChange}
+          required
+        />
 
-          {/* Botão de Voltar Flutuante */}
-          <Link
-            to="/"
-            className="btn btn-light position-absolute m-4 fw-bold d-flex align-items-center btn-voltar-custom"
-            style={{
-              zIndex: 10,
-              borderRadius: '50px',
-              padding: '10px 20px',
-              backgroundColor: 'rgba(255, 255, 255, 0.85)',
-              border: 'none',
-              backdropFilter: 'blur(5px)',
-              color: '#1a3c6d',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.6)'
-            }}
-          >
-            <span className="me-2 btn-voltar-custom">←</span> Voltar para o site
-          </Link>
+        <EntradaSenha
+          nome="confirmacaoSenha"
+          placeholder="Repita sua senha"
+          valor={dados.confirmacaoSenha}
+          onChange={handleChange}
+          required
+        />
 
-          <img
-            src={basilicaPng}
-            alt="Santuário Nacional de Aparecida"
-            className="w-100 h-100"
-            style={{
-              objectFit: 'cover',
-              objectPosition: 'left',
-              display: 'block'
-            }}
-          />
-        </Col>
+        <Botao larguraTotal>
+          Cadastrar
+        </Botao>
 
-        {/* COLUNA DIREITA: Formulário */}
-        <Col xs={12} md={4} className="h-100 d-flex align-items-center justify-content-center p-0 gradiente-formulario"
-          style={{ zIndex: 10, boxShadow: '-15px 0 30px rgba(0, 0, 0, 0.4)' }}>
-
-          <div className="p-5 w-100" style={{ maxWidth: '450px' }}>
-
-            {/* O Logo Png */}
-            <div className="text-center" style={{ marginBottom: '-50px' }}>
-              <img
-                src={logoPng}
-                alt="Recanto Camargo"
-                className="img-fluid"
-                style={{ width: '100%', height: 'auto', maxWidth: '600px' }}
-              />
-            </div>
-
-            {/* Texto de Acesso */}
-            <h2 className="fonte-logo text-center text-white mb-5 mt-2" style={{ fontSize: '2.5rem' }}>
-              Crie sua conta
-            </h2>
-
-            {/* O Formulário do Bootstrap */}
-            <Form>
-              <Form.Group className="mb-3" controlId="formBasicEmail">
-                <Form.Control
-                  type="email"
-                  placeholder="Insira seu email"
-                  className="rounded-pill p-3 border-0"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-4 position-relative" controlId="formBasicPassword">
-                <Form.Control
-                  type="password"
-                  placeholder="Insira sua senha"
-                  className="rounded-pill p-3 border-0"
-                />
-                <span className="position-absolute end-0 top-50 translate-middle-y me-3 text-muted" style={{ cursor: 'pointer' }}>
-                  👁️
-                </span>
-              </Form.Group>
-
-              <Form.Group className="mb-4 position-relative" controlId="formBasicPassword">
-                <Form.Control
-                  type="password"
-                  placeholder="Repita sua senha"
-                  className="rounded-pill p-3 border-0"
-                />
-                <span className="position-absolute end-0 top-50 translate-middle-y me-3 text-muted" style={{ cursor: 'pointer' }}>
-                  👁️
-                </span>
-              </Form.Group>
-
-              {/* Botão Login Laranja */}
-              <Button
-                variant="warning"
-                type="submit"
-                className="w-100 rounded-pill p-3 fw-bold text-white mb-4 btn-login-custom"
-                style={{ backgroundColor: '#f37321', border: 'none', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.7)', fontSize: '20px' }}
-              >
-                Cadastrar
-              </Button>
-            </Form>
-
-            <div className="text-center mt-3">
-              {/* Usamos o to="/cadastro" para apontar para a nova rota */}
-              <Link
-                to="/Login"
-                className="text-white text-decoration-none fw-bold"
-                style={{ opacity: 0.9, fontSize: '22px' }}
-              >
-                ←Voltar para o <span style={{ color: '#ee7f01' }}>login</span>
-              </Link>
-            </div>
-
-          </div>
-        </Col>
-
-      </Row>
-    </Container>
+        <div className="container-link-autenticacao text-center mt-3">
+          <span className="text-white">Voltar para o </span>
+          <LinkAutenticacao para="/Login" variante="destaque">
+            Login
+          </LinkAutenticacao>
+        </div>
+      </Form>
+    </LayoutAutenticacao>
   );
 }
 
-export default Login;
+export default Cadastro;

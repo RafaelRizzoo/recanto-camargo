@@ -3,11 +3,10 @@ import { LinkContainer } from 'react-router-bootstrap';
 
 function Menu() {
   return (
-    <Navbar style={{ backgroundColor: '#1a3c6d' }} expand="lg" variant="dark" className="shadow">
+    <Navbar expand="lg" variant="dark" className="navbar-principal">
       <Container>
-        {/* Logo ou Nome do Cliente */}
         <LinkContainer to="/">
-          <Navbar.Brand className="fw-bold text-primary" style={{ cursor: 'pointer' }}>
+          <Navbar.Brand className="navbar-brand-custom">
             RECANTO CAMARGO
           </Navbar.Brand>
         </LinkContainer>
@@ -28,12 +27,10 @@ function Menu() {
               <Nav.Link>Roteiros Aparecida</Nav.Link>
             </LinkContainer>
 
-            {/* Botão de Login com destaque */}
             <LinkContainer to="/Login">
               <Nav.Link className="mx-lg-2">Login</Nav.Link>
             </LinkContainer>
 
-            {/* Chamada para ação principal: Reserva Direta */}
             <Button variant="primary" className="ms-lg-3 rounded-pill px-4">
               Reservar Agora
             </Button>
