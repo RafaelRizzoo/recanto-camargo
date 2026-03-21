@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route, useLocation } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './CSS/style.css';
 
@@ -12,6 +12,7 @@ function AppContent() {
   const location = useLocation();
 
   // Se a rota for '/login', não mostra o Menu principal
+  // Nota: com HashRouter, o pathname vem como /Login (sem o #)
   const mostrarMenuNormal = location.pathname !== '/Login' && location.pathname !== '/Cadastro';
 
   return (
@@ -22,7 +23,6 @@ function AppContent() {
         <Route path="/" element={<Home />} />
         <Route path="/Cadastro" element={<Cadastro />} />
         <Route path="/Login" element={<Login />} />
-
       </Routes>
     </>
   );
@@ -30,9 +30,9 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter basename="/recanto-camargo">
       <AppContent />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
