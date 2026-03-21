@@ -107,7 +107,7 @@ function Login() {
               {/* Link Criar Conta*/}
               <div className="text-center">
                 <a href="#esqueci" className="text-white text-decoration-none small" style={{ opacity: 0.8, fontSize: '20px' }}>
-                  Esqueceu sua senha? aaaaaaaaaa
+                  Esqueceu sua senha?
                 </a>
               </div>
             </Form>
