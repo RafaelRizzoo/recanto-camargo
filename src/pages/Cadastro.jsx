@@ -59,7 +59,7 @@ function Login() {
 
             {/* Texto de Acesso */}
             <h2 className="fonte-logo text-center text-white mb-5 mt-2" style={{ fontSize: '2.5rem' }}>
-              Acesse sua conta
+              Crie sua conta
             </h2>
 
             {/* O Formulário do Bootstrap */}
@@ -83,6 +83,17 @@ function Login() {
                 </span>
               </Form.Group>
 
+              <Form.Group className="mb-4 position-relative" controlId="formBasicPassword">
+                <Form.Control
+                  type="password"
+                  placeholder="Repita sua senha"
+                  className="rounded-pill p-3 border-0"
+                />
+                <span className="position-absolute end-0 top-50 translate-middle-y me-3 text-muted" style={{ cursor: 'pointer' }}>
+                  👁️
+                </span>
+              </Form.Group>
+
               {/* Botão Login Laranja */}
               <Button
                 variant="warning"
@@ -90,26 +101,8 @@ function Login() {
                 className="w-100 rounded-pill p-3 fw-bold text-white mb-4 btn-login-custom"
                 style={{ backgroundColor: '#f37321', border: 'none', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.7)', fontSize: '20px' }}
               >
-                Login
+                Cadastrar
               </Button>
-
-              <div className="text-center mt-3">
-                {/* Usamos o to="/cadastro" para apontar para a nova rota */}
-                <Link
-                  to="/Cadastro"
-                  className="text-white text-decoration-none fw-bold"
-                  style={{ opacity: 0.9, fontSize: '18px' }}
-                >
-                  Ainda não tem conta? <span style={{ color: '#ffad33' }}>Criar conta</span>
-                </Link>
-              </div>
-
-              {/* Link Criar Conta*/}
-              <div className="text-center">
-                <a href="#esqueci" className="text-white text-decoration-none small" style={{ opacity: 0.8, fontSize: '20px' }}>
-                  Esqueceu sua senha?
-                </a>
-              </div>
             </Form>
 
           </div>

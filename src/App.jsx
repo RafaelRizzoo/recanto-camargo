@@ -5,13 +5,14 @@ import './CSS/style.css';
 import Menu from './components/navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Cadastro from './pages/Cadastro';
 
 // Criamos esse componente interno para poder usar o 'useLocation'
 function AppContent() {
   const location = useLocation();
 
   // Se a rota for '/login', não mostra o Menu principal
-  const mostrarMenuNormal = location.pathname !== '/login';
+  const mostrarMenuNormal = location.pathname !== '/login' && location.pathname !== '/Cadastro';
 
   return (
     <>
@@ -19,7 +20,9 @@ function AppContent() {
 
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/Cadastro" element={<Cadastro />} />
+        <Route path="/Login" element={<Login />} />
+
       </Routes>
     </>
   );
