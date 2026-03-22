@@ -35,8 +35,9 @@ function AppContent() {
 
       {/* O Footer agora respeita a ordem e só aparece se não for Login/Cadastro */}
       {mostrarMenu && <Footer />}
+      {mostrarMenu && <BotaoWhats />}
 
-      <BotaoWhats />
+      
     </div>
   );
 }

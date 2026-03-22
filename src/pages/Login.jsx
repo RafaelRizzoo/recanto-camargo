@@ -71,13 +71,15 @@ function Login() {
           </LinkAutenticacao>
         </div>
 
-        <hr className="border-white opacity-25 my-4" />
+        <div className="d-lg-none">
+          <hr className="border-white opacity-25 my-4" />
 
-        <div className="text-center">
-          <LinkAutenticacao para="/" variante="secundario">
-            <i className="bi bi-arrow-left me-2"></i>
-            Voltar para o site
-          </LinkAutenticacao>
+          <div className="text-center mb-4">
+            <LinkAutenticacao para="/" variante="secundario">
+              <i className="bi bi-arrow-left me-2"></i>
+              Voltar para o site
+            </LinkAutenticacao>
+          </div>
         </div>
       </Form>
     </LayoutAutenticacao>
