@@ -1,9 +1,7 @@
 import { Container, Row, Col, Carousel } from "react-bootstrap";
-// Importação dos componentes da pasta UI
 import Botao from "../components/UI/Botao";
 import Entrada from "../components/UI/Entrada";
 
-// Importação das imagens - Carrossel
 import BanheiroImg from "../assets/img/comodos/Banheiro.png";
 import ChurrasqueiraImg from "../assets/img/comodos/Churrasqueira.png";
 import CozinhaImg from "../assets/img/comodos/Cozinha.png";
@@ -13,7 +11,6 @@ import Quarto2Img from "../assets/img/comodos/QuartoDois.png";
 import Quarto1Img from "../assets/img/comodos/QuartoUm.png";
 import SalaImg from "../assets/img/comodos/Sala.png";
 
-// Importação das imagens - Turismo
 import BasilicaTurismo from "../assets/img/turismo/BasilicaTurismo.png";
 import CruzeiroTurismo from "../assets/img/turismo/CruzeiroTurismo.png";
 import FeiraTurismo from "../assets/img/turismo/FeiraTurismo.png";
@@ -26,7 +23,7 @@ import "../CSS/style.css";
 function Home() {
   return (
     <>
-      {/* 1. SEÇÃO HERO (Fundo Azul Marinho) */}
+      {/* 1. SEÇÃO HERO */}
       <div className="wrapper-home">
         <Container className="container-home">
           <Row className="align-items-center mb-5 hero-section">
@@ -137,7 +134,7 @@ function Home() {
         </Container>
       </div>
 
-      {/* 2. SEÇÃO DE COMODIDADES (Recuperada!) */}
+      {/* 2. SEÇÃO DE COMODIDADES */}
       <section className="comodidades-section py-5 bg-white">
         <Container>
           <div className="text-center mb-5">
@@ -213,7 +210,7 @@ function Home() {
         </Container>
       </section>
 
-      {/* 3. SEÇÃO: EXPLORE APARECIDA (Pontos Turísticos) */}
+      {/* 3. SEÇÃO: EXPLORE APARECIDA  */}
       <section
         className="roteiros-section-moderna py-5"
         style={{ backgroundColor: "#f0f4f8" }}
@@ -343,10 +340,9 @@ function Home() {
       <section className="reserva-final-section py-5">
         <Container>
           <Row className="align-items-center g-5">
-            {/* LADO ESQUERDO: MAPA (Google Maps API ou Iframe) */}
+            {/* LADO ESQUERDO: MAPA */}
             <Col lg={7}>
               <div className="mapa-container shadow-lg">
-                {/* Aqui você pode futuramente colocar a API Key, por enquanto o Iframe resolve com o endereço exato */}
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1279.723618367829!2d-45.23822072662757!3d-22.84648000473076!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ccc3d5a125211b%3A0x240324a5c110d090!2sRecanto%20Camargo!5e0!3m2!1sen!2sbr!4v1774143793114!5m2!1sen!2sbr" 
                   width="100%"
@@ -358,7 +354,7 @@ function Home() {
               </div>
             </Col>
 
-            {/* LADO DIREITO: CHAMADA PARA AÇÃO (GANCHO DO LEAD) */}
+            {/* LADO DIREITO: CHAMADA PARA AÇÃO*/}
             <Col lg={5} className="text-white">
               <div className="cta-reserva-card p-4">
                 <h2 className="fonte-logo mb-3" style={{ fontSize: "2.5rem" }}>
