@@ -1,130 +1,77 @@
-import { Container, Row, Col, Form, Button } from 'react-bootstrap';
-import { Link } from 'react-router-dom';
-import logoPng from '../assets/img/logo.png';
-import basilicaPng from '../assets/img/basilica.png';
+import { useState } from 'react';
+import { Form } from 'react-bootstrap';
+import LayoutAutenticacao from '../components/UI/LayoutAutenticacao';
+import Entrada from '../components/UI/Entrada';
+import EntradaSenha from '../components/UI/EntradaSenha';
+import Botao from '../components/UI/Botao';
+import LinkAutenticacao from '../components/UI/LinkAutenticacao';
+
+// Assets
+import logoPng from '../assets/img/artes/logo.png';
+import basilicaPng from '../assets/img/artes/basilica.png';
 
 function Login() {
+  const [dados, setDados] = useState({
+    email: '',
+    senha: ''
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setDados(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log('Login solicitado:', dados);
+  };
+
   return (
-    <Container fluid className="vh-100 p-0 m-0 overflow-hidden">
-      <Row className="h-100 g-0 m-0">
+    <LayoutAutenticacao
+      imagemFundo={basilicaPng}
+      imagemLogo={logoPng}
+      titulo="Acesse sua conta"
+      subtitulo="Bem-vindo ao seu recanto de paz"
+    >
+      <Form onSubmit={handleSubmit}>
+        <Entrada
+          tipo="email"
+          nome="email"
+          placeholder="Insira seu email"
+          valor={dados.email}
+          onChange={handleChange}
+          required
+        />
 
-        {/* COLUNA ESQUERDA: Imagem + Botão Voltar */}
-        <Col md={8} className="d-none d-md-block position-relative p-0 gradiente-fundo">
+        <EntradaSenha
+          nome="senha"
+          placeholder="Insira sua senha"
+          valor={dados.senha}
+          onChange={handleChange}
+          required
+        />
 
-          {/* Botão de Voltar Flutuante */}
-          <Link
-            to="/"
-            className="btn btn-light position-absolute m-4 fw-bold d-flex align-items-center btn-voltar-custom"
-            style={{
-              zIndex: 10,
-              borderRadius: '50px',
-              padding: '10px 20px',
-              backgroundColor: 'rgba(255, 255, 255, 0.85)',
-              border: 'none',
-              backdropFilter: 'blur(5px)',
-              color: '#1a3c6d',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.6)'
-            }}
-          >
-            <span className="me-2 btn-voltar-custom">←</span> Voltar para o site
-          </Link>
+        <Botao larguraTotal efeitoOnda type="submit">
+          Login
+        </Botao>
 
-          <img
-            src={basilicaPng}
-            alt="Santuário Nacional de Aparecida"
-            className="w-100 h-100"
-            style={{
-              objectFit: 'cover',
-              objectPosition: 'left',
-              display: 'block'
-            }}
-          />
-        </Col>
+        <div className="container-link-autenticacao text-center mt-3">
+          <span className="text-white">Ainda não tem conta? </span>
+          <LinkAutenticacao para="/Cadastro" variante="destaque">
+            Criar conta
+          </LinkAutenticacao>
+        </div>
 
-        {/* COLUNA DIREITA: Formulário */}
-        <Col xs={12} md={4} className="h-100 d-flex align-items-center justify-content-center p-0 gradiente-formulario"
-          style={{ zIndex: 10, boxShadow: '-15px 0 30px rgba(0, 0, 0, 0.4)' }}>
-
-          <div className="p-5 w-100" style={{ maxWidth: '450px' }}>
-
-            {/* O Logo Png */}
-            <div className="text-center" style={{ marginBottom: '-50px' }}>
-              <img
-                src={logoPng}
-                alt="Recanto Camargo"
-                className="img-fluid"
-                style={{ width: '100%', height: 'auto', maxWidth: '600px' }}
-              />
-            </div>
-
-            {/* Texto de Acesso */}
-            <h2 className="fonte-logo text-center text-white mb-5 mt-2" style={{ fontSize: '2.5rem' }}>
-              Acesse sua conta
-            </h2>
-
-            {/* O Formulário do Bootstrap */}
-            <Form>
-              <Form.Group className="mb-3" controlId="formBasicEmail">
-                <Form.Control
-                  type="email"
-                  placeholder="Insira seu email"
-                  className="rounded-pill p-3 border-0"
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-4 position-relative" controlId="formBasicPassword">
-                <Form.Control
-                  type="password"
-                  placeholder="Insira sua senha"
-                  className="rounded-pill p-3 border-0"
-                />
-                <span className="position-absolute end-0 top-50 translate-middle-y me-3 text-muted" style={{ cursor: 'pointer' }}>
-                  👁️
-                </span>
-              </Form.Group>
-
-              {/* Botão Login Laranja */}
-              <Button
-                variant="warning"
-                type="submit"
-                className="w-100 rounded-pill p-3 fw-bold text-white mb-4 btn-login-custom"
-                style={{ backgroundColor: '#ff9211', border: 'none', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.7)', fontSize: '20px' }}
-              >
-                Login
-              </Button>
-
-              <div className="text-center mt-3" style={{ fontSize: '22px', opacity: 0.9 }}>
-                {/* Texto estático (não clicável) */}
-                <span className="text-white me-2">
-                  Ainda não tem cadastro?
-                </span>
-
-                {/* Link (única parte clicável) */}
-                <Link
-                  to="/Cadastro"
-                  className="fw-bold"
-                  style={{
-                    color: '#ff9211',
-                    textDecoration: 'underline'
-                  }}
-                >
-                  Criar conta
-                </Link>
-              </div>
-
-              {/* Link Criar Conta*/}
-              <div className="text-center">
-                <a href="#esqueci" className="text-white text-decoration-none small" style={{ opacity: 1, fontSize: '22px' }}>
-                  Esqueceu sua senha?
-                </a>
-              </div>
-            </Form>
-
-          </div>
-        </Col>
-
-      </Row>
-    </Container>
+        <div className="text-center mt-2">
+          <LinkAutenticacao para="/recuperar-senha" variante="secundario">
+            Esqueceu sua senha?
+          </LinkAutenticacao>
+        </div>
+      </Form>
+    </LayoutAutenticacao>
   );
 }
 

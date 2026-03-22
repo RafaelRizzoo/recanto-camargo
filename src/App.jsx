@@ -1,38 +1,51 @@
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import './CSS/style.css';
+import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "./CSS/style.css";
 
-import Menu from './components/navbar';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Cadastro from './pages/Cadastro';
+import Menu from "./components/navbar";
+import Footer from "./components/footer";
+import Home from "./pages/Home";
+import Login from "./pages/Login";
+import Cadastro from "./pages/Cadastro";
+import BotaoWhats from "./components/UI/BotaoWhats";
 
-// Criamos esse componente interno para poder usar o 'useLocation'
 function AppContent() {
   const location = useLocation();
 
-  // Se a rota for '/login', não mostra o Menu principal
-  const mostrarMenuNormal = location.pathname !== '/Login' && location.pathname !== '/Cadastro';
+  const mostrarMenu =
+    location.pathname !== "/Login" && location.pathname !== "/Cadastro";
 
   return (
-    <>
-      {mostrarMenuNormal && <Menu />}
+    // Usamos um Flexbox aqui para garantir que o Footer fique sempre no pé da página
+    <div
+      style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
+    >
+      {mostrarMenu && <Menu />}
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/Cadastro" element={<Cadastro />} />
-        <Route path="/Login" element={<Login />} />
+      {/* Esta div 'flex-grow-1' faz com que o conteúdo das páginas ocupe todo o espaço 
+          disponível, empurrando o Footer para o final, mesmo que a página tenha pouco texto.
+      */}
+      <div className="flex-grow-1">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/Cadastro" element={<Cadastro />} />
+          <Route path="/Login" element={<Login />} />
+        </Routes>
+      </div>
 
-      </Routes>
-    </>
+      {/* O Footer agora respeita a ordem e só aparece se não for Login/Cadastro */}
+      {mostrarMenu && <Footer />}
+
+      <BotaoWhats />
+    </div>
   );
 }
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AppContent />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

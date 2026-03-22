@@ -1,0 +1,39 @@
+.link-autenticacao {
+  text-decoration: none;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.link-primario {
+  color: #ffffff;
+  opacity: 0.9;
+  font-size: 1.1rem;
+}
+
+.link-primario:hover {
+  opacity: 1;
+}
+
+.link-destaque {
+  color: #ffad33;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 2px;
+}
+
+.link-destaque:hover {
+  color: #ff9211;
+  border-bottom-color: #ff9211;
+  text-decoration: none;
+}
+
+.link-secundario {
+  color: #ffffff;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+.link-secundario:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
