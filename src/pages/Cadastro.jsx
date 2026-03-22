@@ -25,12 +25,12 @@ function Cadastro() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (dados.senha !== dados.confirmacaoSenha) {
       alert('As senhas não coincidem!');
       return;
     }
-    
+
     console.log('Cadastro:', dados);
   };
 
@@ -74,6 +74,15 @@ function Cadastro() {
           <span className="text-white">Voltar para o </span>
           <LinkAutenticacao para="/Login" variante="destaque">
             Login
+          </LinkAutenticacao>
+        </div>
+        
+        <hr className="border-white opacity-25 my-4" />
+
+        <div className="text-center">
+          <LinkAutenticacao para="/" variante="secundario">
+            <i className="bi bi-arrow-left me-2"></i>
+            Voltar para o site
           </LinkAutenticacao>
         </div>
       </Form>

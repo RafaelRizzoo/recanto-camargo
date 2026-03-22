@@ -60,6 +60,11 @@ body {
    HOME PAGE
    ============================================================ */
 
+.descricao {
+  max-width: 90%;
+  font-size: 22px;
+}
+
 .wrapper-home {
   background-color: #1a3c6d;
   min-height: 100vh;
@@ -281,6 +286,12 @@ HEAD .btn-login-custom:hover {
   margin-bottom: 8px;
   margin-left: 15px;
 }
+
+.barra-disponibilidade {
+    border-radius: 20px;
+    margin: 2rem auto -40px auto;
+    padding: 1.5rem;
+  }
 
 /* ============================================================
    ESTILOS BASE (Desktop Primeiro)

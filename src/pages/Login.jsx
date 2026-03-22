@@ -70,6 +70,15 @@ function Login() {
             Esqueceu sua senha?
           </LinkAutenticacao>
         </div>
+
+        <hr className="border-white opacity-25 my-4" />
+
+        <div className="text-center">
+          <LinkAutenticacao para="/" variante="secundario">
+            <i className="bi bi-arrow-left me-2"></i>
+            Voltar para o site
+          </LinkAutenticacao>
+        </div>
       </Form>
     </LayoutAutenticacao>
   );
