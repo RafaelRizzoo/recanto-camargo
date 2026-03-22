@@ -10,18 +10,18 @@
   --azul-medio: #2f4f7c;
   --azul: #3b6399;
   --azul-claro: #416aa3;
-  
+
   /* Cores Complementares */
   --cinza-escuro: #2b2b2b;
   --cinza-claro: #dedee0;
   --branco: #ffffff;
   --branco-transparente: rgba(255, 255, 255, 0.85);
-  
+
   /* Sombras */
   --sombra-suave: 0 4px 15px rgba(0, 0, 0, 0.6);
   --sombra-forte: 0 10px 30px rgba(0, 0, 0, 0.7);
   --sombra-btn: 0 10px 20px rgba(0, 0, 0, 0.2);
-  
+
   /* Transições */
   --transicao-padrao: all 0.3s ease;
 }
@@ -35,19 +35,302 @@
   flex-direction: column;
 }
 
-
 /* ============================================
    FONTES
    ============================================ */
 .fonte-logo {
-  font-family: 'Oleo Script Swash Caps', cursive;
+  font-family: "Oleo Script Swash Caps", cursive;
 }
 
-/* ============================================
-   HOME
-   ============================================ */
+/* ============================================================
+   HOME PAGE
+   ============================================================ */
+
+.wrapper-home {
+  background-color: #1a3c6d;
+  min-height: 100vh;
+  display: flex;
+  align-items: center; /* Isso centraliza o conteúdo verticalmente na tela */
+  padding-top: 80px; /* Apenas o necessário para a Navbar fixa */
+}
+
 .container-home {
-  margin-top: 5rem;
+  /* Removemos o padding-top exagerado e o margin-top lá de baixo */
+  padding-bottom: 60px;
+  width: 100%;
+}
+
+.carousel-moldura {
+  border-radius: 30px;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+}
+
+.img-carousel-home {
+  height: 400px;
+  object-fit: cover;
+}
+
+.comodidades-section {
+  background-color: #f8f9fa; /* Um cinza bem clarinho para destacar do fundo azul */
+  color: #1a3c6d;
+}
+
+.icone-circulo {
+  background-color: #1a3c6d;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+  color: white;
+  font-size: 2rem;
+  transition: transform 0.3s ease;
+}
+
+.comodidade-item:hover .icone-circulo {
+  transform: translateY(-5px);
+  background-color: #f37321; /* Troca para o seu laranja no hover! */
+}
+
+.comodidade-titulo {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+/* BACKGROUND CINZA AZULADO */
+.roteiros-section-moderna {
+  background-color: #f0f4f8; /* O tom que escolhemos */
+  padding: 80px 0;
+}
+
+.titulo-secao-azul {
+  color: #1a3c6d;
+  font-weight: 800;
+  font-size: 2.5rem;
+  margin-top: 10px;
+}
+
+.badge-topo {
+  background-color: rgba(243, 115, 33, 0.1);
+  color: #f37321;
+  padding: 5px 15px;
+  border-radius: 50px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+/* CARDS BRANCOS SOBRE O FUNDO CINZA */
+.card-turismo {
+  background-color: #ffffff;
+  border-radius: 25px;
+  overflow: hidden;
+  border: none;
+  transition: all 0.4s ease;
+}
+
+.card-turismo:hover {
+  transform: translateY(-12px);
+  box-shadow: 0 15px 30px rgba(26, 60, 109, 0.15) !important;
+}
+
+.img-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.img-container img {
+  height: 220px;
+  width: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.card-turismo:hover .img-container img {
+  transform: scale(1.1);
+}
+
+.tempo-tag {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  background: rgba(26, 60, 109, 0.85);
+  backdrop-filter: blur(5px);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.card-conteudo h4 {
+  color: #1a3c6d;
+  font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.card-conteudo p {
+  color: #5a7184;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.reserva-final-section {
+  background: linear-gradient(
+    135deg,
+    #f37321 0%,
+    #d65a0f 100%
+  ); /* Laranja potente */
+  border-radius: 50px 50px 0 0; /* Curva opcional no topo para suavizar a transição */
+  margin-top: -30px; /* Sobrepõe levemente a seção anterior se quiser */
+}
+
+.mapa-container {
+  border-radius: 20px;
+  overflow: hidden;
+  border: 5px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Estilo Base */
+.reserva-final-section .btn-reserva-claro {
+  background-color: #ffffff !important;
+  color: #f37321 !important;
+  border: none !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease-in-out !important; /* Forçamos a nossa transição */
+}
+
+/* O "Pulo do Gato": Forçar o estado HOVER e ACTIVE */
+.reserva-final-section .btn-reserva-claro:hover,
+.reserva-final-section .btn-reserva-claro:focus,
+.reserva-final-section .btn-reserva-claro:active {
+  background-color: #1a3c6d !important;
+  background-image: none !important; /* Caso o componente original use gradiente */
+  color: #ffffff !important;
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
+}
+
+.btn-outline-whats {
+  border: 2px solid white;
+  color: white;
+  border-radius: 50px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-outline-whats:hover {
+  background-color: white;
+  color: #25d366; /* Cor do Whats no hover */
+}
+
+/* Estilo da Barra Branca de Busca */
+.barra-disponibilidade {
+  background-color: white;
+  border-radius: 50px;
+  padding: 2rem 2.5rem;
+  margin-top: -20px;
+  position: relative; /* Garante que fique acima de outros elementos */
+  z-index: 5;
+  margin-bottom: -40px; /* Isso faz ela "invadir" a próxima seção */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.label-dispo {
+  display: block;
+  font-weight: bold;
+  color: #1a3c6d;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+  margin-left: 15px;
+}
+
+/* ============================================================
+   ESTILOS BASE (Desktop Primeiro)
+   ============================================================ */
+
+.wrapper-home {
+  background-color: #1a3c6d;
+  min-height: 100vh; /* Ocupa a tela toda */
+  display: flex;
+  align-items: center; /* Centraliza verticalmente */
+  padding-top: 80px; /* Respiro para a Navbar */
+}
+
+.container-home {
+  /* Sem margin-top fixo aqui para não brigar com o Flexbox */
+  padding-bottom: 60px;
+}
+
+.img-carousel-home {
+  height: 450px; /* Altura boa para telas grandes */
+  object-fit: cover;
+}
+
+/* ============================================================
+   RESPONSIVIDADE (Tablets e Celulares - até 992px)
+   ============================================================ */
+@media (max-width: 992px) {
+  /* 1. Levantamos o Container inteiro para dar espaço para o texto */
+  .container-home {
+    /* Aumentamos de 100px para 150px (ou mais) para compensar a quebra do texto */
+    padding-top: 150px !important;
+    text-align: center;
+  }
+
+  /* 2. Diminuímos a fonte do título "Nosso espaço" */
+  /* Certifique-se de aplicar no H1 ou na classe correta que você usou lá */
+  .container-home h1,
+  .wrapper-home h1 {
+    font-size: 2.2rem !important; /* Diminuímos para caber sem cortar */
+    line-height: 1.2; /* Ajustamos o espaçamento entre linhas */
+    margin-bottom: 20px;
+  }
+
+  /* 3. Ajuste do Carrossel e Barra Branca (Mantendo o que já estava) */
+  .img-carousel-home {
+    height: 300px; /* Foto menor no tablet */
+  }
+
+  .barra-disponibilidade {
+    border-radius: 20px;
+    margin: 2rem 10px -40px 10px; /* Overlap menor */
+    padding: 1.5rem;
+  }
+
+  .label-dispo {
+    text-align: left;
+  }
+}
+
+/* ============================================================
+   RESPONSIVIDADE (Celulares - ate 576px)
+   ============================================================ */
+@media (max-width: 576px) {
+  h1 {
+    font-size: 2.2rem !important; /* Diminui o título para não quebrar feio */
+  }
+
+  .img-carousel-home {
+    height: 250px; /* Foto menor para o usuário não ter que dar muito scroll */
+  }
+
+  .barra-disponibilidade {
+    padding: 1rem;
+    margin-bottom: -30px; /* Overlap sutil no celular */
+  }
+
+  .label-dispo {
+    text-align: left;
+    margin-left: 5px;
+    font-size: 0.75rem;
+  }
 }
 
 /* ============================================
@@ -56,4 +339,3 @@
 .container-link-autenticacao {
   margin-top: 1rem;
 }
-

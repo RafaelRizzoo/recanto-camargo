@@ -1,0 +1,43 @@
+.btn-whats-flutuante {
+  position: fixed;
+  width: 60px;
+  height: 60px;
+  bottom: 30px;
+  right: 30px;
+
+  /* GRADIENTE: Seguindo o estilo do seu botão de reserva, mas no tom Verde WhatsApp */
+  background: linear-gradient(135deg, #25d366 0%, #128c7e 100%) !important;
+
+  border: none !important;
+  border-radius: 50%; /* Mantém redondo para o ícone */
+  color: #ffffff !important;
+
+  /* BRILHO: Mesma proporção do seu (0 4px 15px), mas em verde */
+  box-shadow: 0 4px 15px rgba(37, 211, 102, 0.5);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  text-decoration: none;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.btn-whats-flutuante:hover {
+  /* Efeito de hover seguindo a lógica do seu botão moderno */
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 7px 40px rgba(37, 211, 102, 1.2);
+  color: #ffffff !important;
+}
+
+/* Ajuste para o seu notebook (telas menores) */
+@media (max-width: 768px) {
+  .btn-whats-flutuante {
+    width: 50px;
+    height: 50px;
+    bottom: 20px;
+    right: 20px;
+    font-size: 25px;
+  }
+}

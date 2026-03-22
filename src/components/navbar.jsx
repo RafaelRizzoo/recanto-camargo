@@ -1,6 +1,6 @@
 import { Navbar, Nav, Container, Button } from 'react-bootstrap';
 import { LinkContainer } from 'react-router-bootstrap';
-import logoPng from '../assets/img/logo.png';
+import logoPng from '../assets/img/artes/logo.png';
 import './navbar.css';
 
 // Ícones SVG
