@@ -88,25 +88,33 @@ function Login() {
                 variant="warning"
                 type="submit"
                 className="w-100 rounded-pill p-3 fw-bold text-white mb-4 btn-login-custom"
-                style={{ backgroundColor: '#f37321', border: 'none', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.7)', fontSize: '20px' }}
+                style={{ backgroundColor: '#ff9211', border: 'none', boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.7)', fontSize: '20px' }}
               >
                 Login
               </Button>
 
-              <div className="text-center mt-3">
-                {/* Usamos o to="/cadastro" para apontar para a nova rota */}
+              <div className="text-center mt-3" style={{ fontSize: '22px', opacity: 0.9 }}>
+                {/* Texto estático (não clicável) */}
+                <span className="text-white me-2">
+                  Ainda não tem cadastro?
+                </span>
+
+                {/* Link (única parte clicável) */}
                 <Link
                   to="/Cadastro"
-                  className="text-white text-decoration-none fw-bold"
-                  style={{ opacity: 0.9, fontSize: '18px' }}
+                  className="fw-bold"
+                  style={{
+                    color: '#ff9211',
+                    textDecoration: 'underline'
+                  }}
                 >
-                  Ainda não tem conta? <span style={{ color: '#ffad33' }}>Criar conta</span>
+                  Criar conta
                 </Link>
               </div>
 
               {/* Link Criar Conta*/}
               <div className="text-center">
-                <a href="#esqueci" className="text-white text-decoration-none small" style={{ opacity: 0.8, fontSize: '20px' }}>
+                <a href="#esqueci" className="text-white text-decoration-none small" style={{ opacity: 1, fontSize: '22px' }}>
                   Esqueceu sua senha?
                 </a>
               </div>
