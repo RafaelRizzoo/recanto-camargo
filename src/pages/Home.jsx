@@ -258,7 +258,7 @@ function Home() {
                 <div className="card-conteudo p-4">
                   <h4>Passarela da Fé</h4>
                   <p>
-                    Caminho que liga a Basílica Velha ao Santuário Nacional.
+                    Caminho que liga a Basílica Velha ao Santuário.
                   </p>
                 </div>
               </div>

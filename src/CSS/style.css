@@ -1,3 +1,17 @@
+/* Trava global contra scroll lateral */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  overflow-x: hidden;
+  width: 100%;
+}
+
 /* ============================================
    VARIÁVEIS GLOBAIS
    ============================================ */
@@ -281,11 +295,15 @@ HEAD .btn-login-custom:hover {
   /* Centraliza verticalmente */
   padding-top: 80px;
   /* Respiro para a Navbar */
+  overflow: hidden;
+  /* TRAVA 1: Garante que nada vaze nesta seção */
 }
 
 .container-home {
   /* Sem margin-top fixo aqui para não brigar com o Flexbox */
   padding-bottom: 60px;
+  width: 100%;
+  /* TRAVA 2: Garante que o container ocupe toda a largura */
 }
 
 .img-carousel-home {
@@ -295,44 +313,51 @@ HEAD .btn-login-custom:hover {
 }
 
 /* ============================================================
-   RESPONSIVIDADE (Tablets e Celulares - até 992px)
+   RESPONSIVIDADE (Tablets e Notebooks Pequenos - até 992px)
    ============================================================ */
 @media (max-width: 992px) {
-
-  /* 1. Levantamos o Container inteiro para dar espaço para o texto */
-  .container-home {
-    /* Aumentamos de 100px para 150px (ou mais) para compensar a quebra do texto */
-    padding-top: 150px !important;
-    text-align: center;
+  .wrapper-home {
+    min-height: auto;
+    /* Conteúdo dita a altura no mobile */
+    padding-top: 120px;
+    /* Respiro para o menu no tablet */
+    padding-bottom: 50px;
   }
 
-  /* 2. Diminuímos a fonte do título "Nosso espaço" */
-  /* Certifique-se de aplicar no H1 ou na classe correta que você usou lá */
+  .container-home {
+    text-align: center;
+    padding-left: 15px;
+    /* TRAVA 3: Respiro lateral nas inputs */
+    padding-right: 15px;
+  }
+
+  /* Ajustamos o título para não cortar (conforme print image_3) */
   .container-home h1,
   .wrapper-home h1 {
     font-size: 2.2rem !important;
-    /* Diminuímos para caber sem cortar */
     line-height: 1.2;
-    /* Ajustamos o espaçamento entre linhas */
     margin-bottom: 20px;
   }
 
-  /* 3. Ajuste do Carrossel e Barra Branca (Mantendo o que já estava) */
   .img-carousel-home {
-    height: 300px;
+    height: 350px;
     /* Foto menor no tablet */
   }
 
   .barra-disponibilidade {
     border-radius: 20px;
-    margin: 2rem 10px -40px 10px;
-    /* Overlap menor */
+    /* Ajuste de margens: 2rem topo, automática nas laterais para centralizar, -40px overlap */
+    margin: 2rem auto -40px auto;
     padding: 1.5rem;
+    max-width: 95%;
+    /* TRAVA 4: Garante que a barra não vaze a tela */
   }
 
   .label-dispo {
     text-align: left;
     color: #1a3c6d;
+    margin-left: 5px;
+    /* Alinhamento sutil no tablet */
   }
 }
 
@@ -340,25 +365,29 @@ HEAD .btn-login-custom:hover {
    RESPONSIVIDADE (Celulares - ate 576px)
    ============================================================ */
 @media (max-width: 576px) {
-  h1 {
-    font-size: 2.2rem !important;
-    /* Diminui o título para não quebrar feio */
+  .wrapper-home {
+    padding-top: 100px;
+    /* Menu menor no celular */
+  }
+
+  .container-home h1 {
+    font-size: 1.8rem !important;
+    /* Diminui mais no celular para não cortar */
   }
 
   .img-carousel-home {
     height: 250px;
-    /* Foto menor para o usuário não ter que dar muito scroll */
+    /* Foto menor no celular */
   }
 
   .barra-disponibilidade {
     padding: 1rem;
     margin-bottom: -30px;
     /* Overlap sutil no celular */
+    border-radius: 15px;
   }
 
   .label-dispo {
-    text-align: left;
-    margin-left: 5px;
     font-size: 0.75rem;
   }
 }
