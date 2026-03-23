@@ -5,6 +5,8 @@ import Entrada from '../components/UI/Entrada';
 import EntradaSenha from '../components/UI/EntradaSenha';
 import Botao from '../components/UI/Botao';
 import LinkAutenticacao from '../components/UI/LinkAutenticacao';
+
+// Assets
 import logoPng from '../assets/img/artes/logo.png';
 import basilicaPng from '../assets/img/artes/basilica.png';
 
@@ -24,7 +26,7 @@ function Login() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Login:', dados);
+    console.log('Login solicitado:', dados);
   };
 
   return (
@@ -34,7 +36,6 @@ function Login() {
       titulo="Acesse sua conta"
       subtitulo="Bem-vindo ao seu recanto de paz"
     >
-      {/* REMOVAU O FadeIn - só deixa o Form direto */}
       <Form onSubmit={handleSubmit}>
         <Entrada
           tipo="email"
@@ -53,7 +54,7 @@ function Login() {
           required
         />
 
-        <Botao larguraTotal efeitoOnda>
+        <Botao larguraTotal efeitoOnda type="submit">
           Login
         </Botao>
 
@@ -68,6 +69,17 @@ function Login() {
           <LinkAutenticacao para="/recuperar-senha" variante="secundario">
             Esqueceu sua senha?
           </LinkAutenticacao>
+        </div>
+
+        <div className="d-lg-none">
+          <hr className="border-white opacity-25 my-4" />
+
+          <div className="text-center mb-4">
+            <LinkAutenticacao para="/" variante="secundario">
+              <i className="bi bi-arrow-left me-2"></i>
+              Voltar para o site
+            </LinkAutenticacao>
+          </div>
         </div>
       </Form>
     </LayoutAutenticacao>

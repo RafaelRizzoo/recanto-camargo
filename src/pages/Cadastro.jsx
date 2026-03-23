@@ -25,12 +25,12 @@ function Cadastro() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    
+
     if (dados.senha !== dados.confirmacaoSenha) {
       alert('As senhas não coincidem!');
       return;
     }
-    
+
     console.log('Cadastro:', dados);
   };
 
@@ -70,13 +70,24 @@ function Cadastro() {
           Cadastrar
         </Botao>
 
-        <div className="container-link-autenticacao text-center mt-3">
+        <div className="container-link-autenticacao text-center mt-3 mb-3">
           <span className="text-white">Voltar para o </span>
           <LinkAutenticacao para="/Login" variante="destaque">
             Login
           </LinkAutenticacao>
         </div>
       </Form>
+
+      <div className="d-lg-none"> {/* ISOLA PARA APARECER SÓ NO MOBILE/TABLET */}
+        <hr className="border-white opacity-25 my-4" />
+
+        <div className="text-center mb-4">
+          <LinkAutenticacao para="/" variante="secundario">
+            <i className="bi bi-arrow-left me-2"></i>
+            Voltar para o site
+          </LinkAutenticacao>
+        </div>
+      </div>
     </LayoutAutenticacao>
   );
 }

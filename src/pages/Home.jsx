@@ -34,15 +34,14 @@ function Home() {
               >
                 Nosso espaço
               </h1>
-              <p
-                className="text-white opacity-90"
-                style={{ fontSize: "1.1rem", lineHeight: "1.8" }}
+              <p 
+                className="text-white opacity-90 descricao"
               >
                 Encontre o espaço ideal para tornar seus momentos ainda mais
                 especiais. Nosso ambiente foi pensado para oferecer conforto,
                 praticidade e tranquilidade.
               </p>
-              <p className="text-white mt-4 opacity-90">
+              <p className="text-white mt-4 opacity-90 descricao">
                 Reserve com facilidade e tenha a segurança de um lugar preparado
                 para você.
               </p>
@@ -255,7 +254,7 @@ function Home() {
                 <div className="card-conteudo p-4">
                   <h4>Passarela da Fé</h4>
                   <p>
-                    Caminho que liga a Basílica Velha ao Santuário Nacional.
+                    Caminho que liga a Basílica Velha ao Santuário.
                   </p>
                 </div>
               </div>
