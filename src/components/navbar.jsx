@@ -85,7 +85,6 @@ function Menu() {
                 Reservar Agora
               </Button>
             </LinkContainer>
-
           </Nav>
         </Navbar.Collapse>
       </Container>
