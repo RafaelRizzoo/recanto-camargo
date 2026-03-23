@@ -1,6 +1,7 @@
 import { Container, Row, Col, Carousel } from "react-bootstrap";
 import Botao from "../components/UI/Botao";
 import Entrada from "../components/UI/Entrada";
+import { LinkContainer } from "react-router-bootstrap";
 
 import BanheiroImg from "../assets/img/comodos/Banheiro.png";
 import ChurrasqueiraImg from "../assets/img/comodos/Churrasqueira.png";
@@ -34,7 +35,7 @@ function Home() {
               >
                 Nosso espaço
               </h1>
-              <p 
+              <p
                 className="text-white opacity-90 descricao"
               >
                 Encontre o espaço ideal para tornar seus momentos ainda mais
@@ -343,7 +344,7 @@ function Home() {
             <Col lg={7}>
               <div className="mapa-container shadow-lg">
                 <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1279.723618367829!2d-45.23822072662757!3d-22.84648000473076!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ccc3d5a125211b%3A0x240324a5c110d090!2sRecanto%20Camargo!5e0!3m2!1sen!2sbr!4v1774143793114!5m2!1sen!2sbr" 
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1279.723618367829!2d-45.23822072662757!3d-22.84648000473076!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ccc3d5a125211b%3A0x240324a5c110d090!2sRecanto%20Camargo!5e0!3m2!1sen!2sbr!4v1774143793114!5m2!1sen!2sbr"
                   width="100%"
                   height="400"
                   style={{ border: 0, borderRadius: "20px" }}
@@ -365,12 +366,19 @@ function Home() {
                   dúvidas pelo WhatsApp.
                 </p>
 
+
                 <div className="d-grid gap-3">
-                  <Botao className="btn-reserva-claro py-3 fs-5">
-                    <i className="bi bi-calendar-check me-2"></i>Reservar Agora
-                  </Botao>
+                  {/* O LinkContainer faz a ponte entre o Bootstrap e o React Router */}
+                  <LinkContainer to="/Reserva">
+                    <Botao className="btn-reserva-claro py-3 fs-5">
+                      <i className="bi bi-calendar-check me-2"></i>Reservar Agora
+                    </Botao>
+                  </LinkContainer>
+
                   <a
-                    href="https://wa.me/seu-numero"
+                    href="https://wa.me/5512999999999" // Substitua pelo número real do Rafael
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="btn-outline-whats text-center py-2"
                   >
                     <i className="bi bi-whatsapp me-2"></i>Falar com Anfitrião

@@ -288,10 +288,10 @@ HEAD .btn-login-custom:hover {
 }
 
 .barra-disponibilidade {
-    border-radius: 20px;
-    margin: 2rem auto -40px auto;
-    padding: 1.5rem;
-  }
+  border-radius: 20px;
+  margin: 2rem auto -40px auto;
+  padding: 1.5rem;
+}
 
 /* ============================================================
    ESTILOS BASE (Desktop Primeiro)
@@ -404,8 +404,302 @@ HEAD .btn-login-custom:hover {
 }
 
 /* ============================================
+   PÁGINA DE GALERIA (Fotos.jsx)
+   ============================================ */
+
+.pagina-galeria {
+  padding-top: 100px !important;
+  /* Espaço para a Navbar fixa */
+}
+
+/* Container dos Filtros (Pills modernos) */
+.filtros-galeria-container {
+  background: #ffffff;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.filtro-galeria-link {
+  color: #5a7184 !important;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: transparent;
+  transition: all 0.3s ease;
+}
+
+/* Estilo para o filtro ATIVO */
+.filtro-galeria-link.active,
+.filtro-galeria-link:hover {
+  background: linear-gradient(135deg, #1a3c6d 0%, #2a4c7d 100%) !important;
+  /* Seu azul marinho */
+  color: #ffffff !important;
+  box-shadow: 0 4px 15px rgba(26, 60, 109, 0.3);
+}
+
+/* CARDS DE FOTO (Hover) */
+.card-foto-galeria {
+  border-radius: 20px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.card-foto-galeria:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(26, 60, 109, 0.1) !important;
+}
+
+.img-galeria-container {
+  position: relative;
+  height: 250px;
+  /* Altura fixa para manter o alinhamento */
+  overflow: hidden;
+}
+
+.img-galeria-container img {
+  height: 100%;
+  object-fit: cover;
+  /* Garante que a foto preencha o espaço sem distorcer */
+  transition: transform 0.3s ease;
+}
+
+.card-foto-galeria:hover .img-galeria-container img {
+  transform: scale(1.05);
+  /* Pequeno zoom no hover */
+}
+
+/* OVERLAY DE HOVER (Ícone de pesquisa) */
+.overlay-galeria {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(26, 60, 109, 0.6);
+  /* Fundo azul transparente */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card-foto-galeria:hover .overlay-galeria {
+  opacity: 1;
+}
+
+.badge-categoria-galeria {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #1a3c6d;
+  padding: 3px 12px;
+  border-radius: 50px;
+  font-weight: bold;
+  font-size: 0.8rem;
+}
+
+/* ============================================================
+   PÁGINA DE AVALIAÇÕES (EXCLUSIVA)
+   ============================================================ */
+
+.pagina-avaliacoes {
+  background-color: #f0f4f8;
+  /* Fundo cinza azulado suave */
+  min-height: 100vh;
+  padding-top: 100px;
+  /* Espaço para a Navbar fixa */
+}
+
+/* Card Individual de Depoimento */
+.card-depoimento-pagina {
+  background: #ffffff;
+  border-radius: 25px;
+  border: none;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 30px rgba(26, 60, 109, 0.05);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-depoimento-pagina:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 20px 40px rgba(26, 60, 109, 0.12);
+}
+
+.aspas-decorativa {
+  font-size: 3rem;
+  color: #f37321;
+  opacity: 0.15;
+  line-height: 0;
+  margin-bottom: -15px;
+}
+
+.texto-depoimento-pagina {
+  color: #5a7184;
+  font-style: italic;
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.info-autor-avaliacoes {
+  border-top: 1px solid #edf2f7;
+  padding-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar-avaliacoes {
+  width: 45px;
+  height: 45px;
+  background-color: #1a3c6d;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.nome-autor-avaliacoes {
+  color: #1a3c6d;
+  font-weight: 700;
+  margin-bottom: 0;
+}
+
+.local-autor-avaliacoes {
+  color: #a0aec0;
+  font-size: 0.85rem;
+}
+
+.estrelas-douradas {
+  color: #ffc107;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+/* 
+   LÓGICA DE VER MAIS (Line Clamping)
+*/
+
+/* Espaçamento para o título não bater na Navbar */
+.pagina-avaliacoes {
+  padding-top: 100px !important;
+  background-color: #f0f4f8;
+  min-height: 100vh;
+}
+
+.titulo-container-avaliacoes {
+  margin-top: 2rem;
+  /* Margem extra opcional além do padding */
+}
+
+/* Lógica do "Ver Mais" (Corta o texto em 4 linhas) */
+.container-texto-cortado {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  /* Para Chrome, Safari e navegadores antigos */
+  line-clamp: 4;
+  /* Propriedade padrão (Resolve o aviso do VS Code) */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-ver-mais {
+  background: none;
+  border: none;
+  color: #f37321;
+  font-weight: bold;
+  font-size: 0.85rem;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn-ver-mais:hover {
+  color: #f37321;
+}
+
+.texto-completo {
+  display: block;
+  /* Volta ao normal */
+  margin-bottom: 0.5rem;
+}
+
+/* ============================================
    LINKS DE AUTENTICAÇÃO
    ============================================ */
 .container-link-autenticacao {
   margin-top: 1rem;
+}
+
+/*=============================================
+    PAGINA DA RESERVA
+  ============================================= */
+
+.reserva-page {
+  background-color: #f0f4f8;
+  /* Cor sólida para não ser transparente */
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+  /* Garante que o conteúdo fique em uma camada controlada */
+  overflow: hidden;
+  /* Evita que o card de resumo "vaze" para o footer */
+}
+
+.form-reserva-container {
+  border-radius: 20px;
+}
+
+.text-azul {
+  color: #1a3c6d;
+}
+
+.card-resumo {
+  border-radius: 25px;
+  overflow: hidden;
+  /* Isso garante que o card acompanhe o scroll, mas não ultrapasse o container */
+  position: sticky;
+  top: 100px;
+  z-index: 2;
+}
+
+.img-resumo-container {
+  position: relative;
+  height: 200px;
+}
+
+.img-resumo-container img {
+  height: 100%;
+  object-fit: cover;
+}
+
+.badge-preco {
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  background: #f37321;
+  color: white;
+  padding: 5px 15px;
+  border-radius: 50px;
+  font-weight: bold;
+}
+
+.text-orange {
+  color: #f37321 !important;
+}
+
+/* Trava para o card não bater no footer */
+@media (min-width: 992px) {
+  .reserva-page .row {
+    align-items: flex-start;
+    /* Alinha o conteúdo no topo */
+  }
 }

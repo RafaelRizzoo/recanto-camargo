@@ -8,6 +8,9 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
 import BotaoWhats from "./components/UI/BotaoWhats";
+import Reserva from "./pages/Reserva";
+import Avaliacoes from "./pages/Avaliacoes";
+import Fotos from "./pages/Fotos";
 
 function AppContent() {
   const location = useLocation();
@@ -30,6 +33,9 @@ function AppContent() {
           <Route path="/" element={<Home />} />
           <Route path="/Cadastro" element={<Cadastro />} />
           <Route path="/Login" element={<Login />} />
+          <Route path="/Reserva" element={<Reserva />} />
+          <Route path="/Avaliacoes" element={<Avaliacoes />} />
+          <Route path="/Fotos" element={<Fotos />} />
         </Routes>
       </div>
 
