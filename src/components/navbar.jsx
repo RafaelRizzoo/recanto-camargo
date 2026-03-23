@@ -37,10 +37,10 @@ const IconeLogin = () => (
 
 function Menu() {
   return (
-    <Navbar expand="lg" variant="dark" className="navbar-moderna">
+    <Navbar expand="lg" variant="dark" className="navbar">
       <Container>
         <LinkContainer to="/">
-          <Navbar.Brand className="navbar-brand-moderna">
+          <Navbar.Brand className="navbar-brand">
             <img 
               src={logoPng} 
               alt="Recanto Camargo" 
@@ -55,34 +55,34 @@ function Menu() {
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ms-auto align-items-center">
             <LinkContainer to="/">
-              <Nav.Link className="nav-link-moderna">
+              <Nav.Link className="nav-link">
                 <IconeHome />
                 <span>Início</span>
               </Nav.Link>
             </LinkContainer>
 
             <LinkContainer to="/fotos">
-              <Nav.Link className="nav-link-moderna">
+              <Nav.Link className="nav-link">
                 <IconeFoto />
                 <span>Fotos e Vídeos</span>
               </Nav.Link>
             </LinkContainer>
 
             <LinkContainer to="/passeios">
-              <Nav.Link className="nav-link-moderna">
+              <Nav.Link className="nav-link">
                 <IconeMapa />
                 <span>Roteiros Aparecida</span>
               </Nav.Link>
             </LinkContainer>
 
             <LinkContainer to="/Login">
-              <Nav.Link className="nav-link-moderna">
+              <Nav.Link className="nav-link">
                 <IconeLogin />
                 <span>Login</span>
               </Nav.Link>
             </LinkContainer>
 
-            <Button variant="primary" className="btn-reservar-moderna">
+            <Button variant="primary" className="btn-reservar">
               Reservar Agora
             </Button>
           </Nav>
