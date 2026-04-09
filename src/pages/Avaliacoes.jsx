@@ -1,6 +1,5 @@
 import { Container, Row, Col } from 'react-bootstrap';
 import { useState } from 'react';
-import '../CSS/style.css';
 import { depoimentos } from '../data/conteudoSite';
 
 // Componente para o Card Individual (Gerencia o abrir/fechar)

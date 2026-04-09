@@ -1,6 +1,5 @@
 import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./CSS/style.css";
 
 import Menu from "./components/navbar";
 import Footer from "./components/footer";

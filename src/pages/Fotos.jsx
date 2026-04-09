@@ -1,6 +1,5 @@
 import { Container, Row, Col, Nav, Card } from 'react-bootstrap';
 import { useState } from 'react';
-import '../CSS/style.css';
 import { categoriasGaleria, midiasGaleria } from '../data/conteudoSite';
 
 const CardFotoGaleria = ({ src, alt, categoria }) => (

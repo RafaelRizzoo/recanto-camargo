@@ -8,8 +8,6 @@ import {
   pontosTuristicos,
 } from "../data/conteudoSite";
 
-import "../CSS/style.css";
-
 function Home() {
   return (
     <>
