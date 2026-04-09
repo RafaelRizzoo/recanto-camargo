@@ -11,6 +11,7 @@ import basilicaPng from '../assets/img/artes/basilica.png';
 function Cadastro() {
   const [dados, setDados] = useState({
     email: '',
+    telefone: '',
     senha: '',
     confirmacaoSenha: ''
   });
@@ -50,6 +51,15 @@ function Cadastro() {
           required
         />
 
+        <Entrada
+          tipo="tel"
+          nome="telefone"
+          placeholder="Insira seu telefone"
+          valor={dados.telefone}
+          onChange={handleChange}
+          required
+        />
+
         <EntradaSenha
           nome="senha"
           placeholder="Insira sua senha"
@@ -78,7 +88,7 @@ function Cadastro() {
         </div>
       </Form>
 
-      <div className="d-lg-none"> {/* ISOLA PARA APARECER SÓ NO MOBILE/TABLET */}
+      <div className="d-lg-none">
         <hr className="border-white opacity-25 my-4" />
 
         <div className="text-center mb-4">

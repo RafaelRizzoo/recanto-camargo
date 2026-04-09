@@ -1,4 +1,3 @@
-/* Trava global contra scroll lateral */
 html,
 body {
   max-width: 100%;
@@ -12,11 +11,7 @@ body {
   width: 100%;
 }
 
-/* ============================================
-   VARIÁVEIS GLOBAIS
-   ============================================ */
 :root {
-  /* Paleta Principal */
   --laranja-escuro: #ee7f01;
   --laranja: #ff9211;
   --laranja-claro: #ffad33;
@@ -24,61 +19,38 @@ body {
   --azul-medio: #2f4f7c;
   --azul: #3b6399;
   --azul-claro: #416aa3;
-
-  /* Cores Complementares */
   --cinza-escuro: #2b2b2b;
   --cinza-claro: #dedee0;
   --branco: #ffffff;
   --branco-transparente: rgba(255, 255, 255, 0.85);
-
-  /* Sombras */
   --sombra-suave: 0 4px 15px rgba(0, 0, 0, 0.6);
   --sombra-forte: 0 10px 30px rgba(0, 0, 0, 0.7);
   --sombra-btn: 0 10px 20px rgba(0, 0, 0, 0.2);
-
-  /* Transições */
   --transicao-padrao: all 0.3s ease;
 }
-
-/* ============================================
-   RESET E BASE
-   ============================================ */
 #root {
   height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* ============================================
-   FONTES
-   ============================================ */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  min-width: 0;
+}
+
 .fonte-logo {
   font-family: "Oleo Script Swash Caps", cursive;
 }
 
-/* ============================================================
-   HOME PAGE
-   ============================================================ */
-
 .descricao {
   max-width: 90%;
   font-size: 22px;
-}
-
-.wrapper-home {
-  background-color: #1a3c6d;
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  /* Isso centraliza o conteúdo verticalmente na tela */
-  padding-top: 80px;
-  /* Apenas o necessário para a Navbar fixa */
-}
-
-.container-home {
-  /* Removemos o padding-top exagerado e o margin-top lá de baixo */
-  padding-bottom: 60px;
-  width: 100%;
 }
 
 .carousel-moldura {
@@ -87,21 +59,15 @@ body {
   border: 3px solid rgba(255, 255, 255, 0.1);
 }
 
-.img-carousel-home {
-  height: 400px;
-  object-fit: cover;
-}
-
 .comodidades-section {
   background-color: #f8f9fa;
-  /* Um cinza bem clarinho para destacar do fundo azul */
   color: #1a3c6d;
 }
 
-HEAD .btn-login-custom:hover {
-  background-color: #ee7f01 !important;
-  transform: translateY(-3px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+.titulo-secao-dark {
+  color: #1a3c6d;
+  font-weight: 800;
+  font-size: 2.2rem;
 }
 
 .icone-circulo {
@@ -115,13 +81,61 @@ HEAD .btn-login-custom:hover {
   margin: 0 auto 15px;
   color: white;
   font-size: 2rem;
-  transition: transform 0.3s ease;
+  position: relative;
+  transition:
+    transform 0.3s ease,
+    background-color 0.3s ease,
+    box-shadow 0.3s ease;
+}
+
+.icone-circulo::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  background: rgba(59, 99, 153, 0.08);
+  opacity: 0;
+  transform: scale(0.9);
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.comodidade-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  max-width: 170px;
+  margin: 0 auto;
+  padding: 0.25rem 0.5rem;
+}
+
+.comodidade-icone-area {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  transition: transform 0.25s ease;
+}
+
+.comodidade-item:hover .comodidade-icone-area {
+  transform: translateY(-4px);
 }
 
 .comodidade-item:hover .icone-circulo {
-  transform: translateY(-5px);
-  background-color: #f37321;
-  /* Troca para o seu laranja no hover! */
+  transform: scale(1.03);
+  background-color: var(--laranja-escuro);
+  box-shadow: 0 12px 28px rgba(238, 127, 1, 0.28);
+}
+
+.comodidade-item:hover .icone-circulo::before {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .comodidade-titulo {
@@ -132,7 +146,6 @@ HEAD .btn-login-custom:hover {
 /* BACKGROUND CINZA AZULADO */
 .roteiros-section-moderna {
   background-color: #f0f4f8;
-  /* O tom que escolhemos */
   padding: 80px 0;
 }
 
@@ -213,11 +226,8 @@ HEAD .btn-login-custom:hover {
   background: linear-gradient(135deg,
       #f37321 0%,
       #d65a0f 100%);
-  /* Laranja potente */
   border-radius: 50px 50px 0 0;
-  /* Curva opcional no topo para suavizar a transição */
   margin-top: -30px;
-  /* Sobrepõe levemente a seção anterior se quiser */
 }
 
 .mapa-container {
@@ -226,55 +236,14 @@ HEAD .btn-login-custom:hover {
   border: 5px solid rgba(255, 255, 255, 0.2);
 }
 
-/* Estilo Base */
-.reserva-final-section .btn-reserva-claro {
-  background-color: #ffffff !important;
-  color: #f37321 !important;
-  border: none !important;
-  font-weight: 800 !important;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease-in-out !important;
-  /* Forçamos a nossa transição */
-}
-
-/* O "Pulo do Gato": Forçar o estado HOVER e ACTIVE */
-.reserva-final-section .btn-reserva-claro:hover,
-.reserva-final-section .btn-reserva-claro:focus,
-.reserva-final-section .btn-reserva-claro:active {
-  background-color: #1a3c6d !important;
-  background-image: none !important;
-  /* Caso o componente original use gradiente */
-  color: #ffffff !important;
-  transform: translateY(-3px) !important;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3) !important;
-}
-
-.btn-outline-whats {
-  border: 2px solid white;
-  color: white;
-  border-radius: 50px;
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.3s ease;
-}
-
-.btn-outline-whats:hover {
-  background-color: white;
-  color: #25d366;
-  /* Cor do Whats no hover */
-}
-
-/* Estilo da Barra Branca de Busca */
 .barra-disponibilidade {
   background-color: white;
   border-radius: 50px;
   padding: 2rem 2.5rem;
   margin-top: -20px;
   position: relative;
-  /* Garante que fique acima de outros elementos */
   z-index: 5;
   margin-bottom: -40px;
-  /* Isso faz ela "invadir" a próxima seção */
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
@@ -291,58 +260,41 @@ HEAD .btn-login-custom:hover {
   border-radius: 20px;
   margin: 2rem auto -40px auto;
   padding: 1.5rem;
+  max-width: 1080px;
 }
-
-/* ============================================================
-   ESTILOS BASE (Desktop Primeiro)
-   ============================================================ */
 
 .wrapper-home {
   background-color: #1a3c6d;
   min-height: 100vh;
-  /* Ocupa a tela toda */
   display: flex;
   align-items: center;
-  /* Centraliza verticalmente */
-  padding-top: 80px;
-  /* Respiro para a Navbar */
+  padding-top: 140px;
   overflow: hidden;
-  /* TRAVA 1: Garante que nada vaze nesta seção */
 }
 
 .container-home {
-  /* Sem margin-top fixo aqui para não brigar com o Flexbox */
   padding-bottom: 60px;
   width: 100%;
-  /* TRAVA 2: Garante que o container ocupe toda a largura */
 }
 
 .img-carousel-home {
   height: 450px;
-  /* Altura boa para telas grandes */
   object-fit: cover;
 }
 
-/* ============================================================
-   RESPONSIVIDADE (Tablets e Notebooks Pequenos - até 992px)
-   ============================================================ */
 @media (max-width: 992px) {
   .wrapper-home {
     min-height: auto;
-    /* Conteúdo dita a altura no mobile */
-    padding-top: 120px;
-    /* Respiro para o menu no tablet */
+    padding-top: 125px;
     padding-bottom: 50px;
   }
 
   .container-home {
     text-align: center;
     padding-left: 15px;
-    /* TRAVA 3: Respiro lateral nas inputs */
     padding-right: 15px;
   }
 
-  /* Ajustamos o título para não cortar (conforme print image_3) */
   .container-home h1,
   .wrapper-home h1 {
     font-size: 2.2rem !important;
@@ -352,92 +304,193 @@ HEAD .btn-login-custom:hover {
 
   .img-carousel-home {
     height: 350px;
-    /* Foto menor no tablet */
+  }
+
+  .descricao {
+    max-width: 100%;
+    font-size: 1.05rem;
   }
 
   .barra-disponibilidade {
     border-radius: 20px;
-    /* Ajuste de margens: 2rem topo, automática nas laterais para centralizar, -40px overlap */
     margin: 2rem auto -40px auto;
     padding: 1.5rem;
     max-width: 95%;
-    /* TRAVA 4: Garante que a barra não vaze a tela */
   }
 
   .label-dispo {
     text-align: left;
     color: #1a3c6d;
     margin-left: 5px;
-    /* Alinhamento sutil no tablet */
+  }
+
+  .pagina-avaliacoes,
+  .pagina-galeria,
+  .reserva-page {
+    padding-top: 115px !important;
+  }
+
+  .card-resumo {
+    position: static;
   }
 }
-
-/* ============================================================
-   RESPONSIVIDADE (Celulares - ate 576px)
-   ============================================================ */
 @media (max-width: 576px) {
   .wrapper-home {
-    padding-top: 100px;
-    /* Menu menor no celular */
+    padding-top: 118px;
   }
 
   .container-home h1 {
     font-size: 1.8rem !important;
-    /* Diminui mais no celular para não cortar */
   }
 
   .img-carousel-home {
     height: 250px;
-    /* Foto menor no celular */
   }
 
   .barra-disponibilidade {
     padding: 1rem;
     margin-bottom: -30px;
-    /* Overlap sutil no celular */
     border-radius: 15px;
   }
 
   .label-dispo {
     font-size: 0.75rem;
+    margin-left: 0;
+  }
+
+  .comodidade-item {
+    max-width: 150px;
+    border-radius: 28px;
+    padding: 0.85rem 0.6rem;
+  }
+
+  .icone-circulo {
+    width: 68px;
+    height: 68px;
+    font-size: 1.6rem;
+  }
+
+  .comodidade-icone-area {
+    width: 92px;
+    height: 92px;
+  }
+
+  .texto-depoimento-pagina {
+    font-size: 0.98rem;
+  }
+
+  .form-reserva-container {
+    padding: 1.25rem !important;
+  }
+
+  .reserva-page h2,
+  .pagina-avaliacoes h2,
+  .pagina-galeria h2 {
+    font-size: 1.9rem;
   }
 }
 
-/* ============================================
-   PÁGINA DE GALERIA (Fotos.jsx)
-   ============================================ */
-
 .pagina-galeria {
-  padding-top: 100px !important;
-  /* Espaço para a Navbar fixa */
+  padding-top: 130px !important;
 }
 
-/* Container dos Filtros (Pills modernos) */
 .filtros-galeria-container {
-  background: #ffffff;
-  max-width: 900px;
-  margin-left: auto;
-  margin-right: auto;
+  background: white !important;
+  border-radius: 50px !important;
+  padding: 0.5rem !important;
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: center !important;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin: 0 auto 3rem auto !important;
+  max-width: fit-content;
 }
 
 .filtro-galeria-link {
-  color: #5a7184 !important;
-  font-weight: 600;
-  font-size: 0.95rem;
-  background: transparent;
-  transition: all 0.3s ease;
-}
-
-/* Estilo para o filtro ATIVO */
-.filtro-galeria-link.active,
-.filtro-galeria-link:hover {
-  background: linear-gradient(135deg, #1a3c6d 0%, #2a4c7d 100%) !important;
-  /* Seu azul marinho */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 50px !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 15px rgba(26, 60, 109, 0.3);
+  font-weight: 600;
+  text-decoration: none;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  background: linear-gradient(135deg, #3b6399 0%, #416aa3 100%) !important;
+  box-shadow: 0 2px 8px rgba(59, 99, 153, 0.3);
 }
 
-/* CARDS DE FOTO (Hover) */
+.filtro-galeria-link::after {
+  content: '';
+  position: absolute;
+  left: 1.5rem;
+  right: 1.5rem;
+  bottom: 0.5rem;
+  height: 2px;
+  border-radius: 999px;
+  transform: scaleX(0);
+  transform-origin: center;
+  background: linear-gradient(90deg, #ff9211, #ffad33);
+  transition: transform 0.3s ease;
+}
+
+.filtro-galeria-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 99, 153, 0.5);
+}
+
+.filtro-galeria-link:hover::after {
+  transform: scaleX(1);
+}
+
+.filtro-galeria-link:hover i {
+  transform: scale(1.1);
+}
+
+.filtro-galeria-link.active {
+  background: linear-gradient(135deg, #4a7ab8 0%, #5385c4 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(65, 106, 163, 0.5);
+}
+
+.filtro-galeria-link.active::after {
+  transform: scaleX(0);
+}
+
+.filtro-galeria-link.active i {
+  transform: scale(1);
+}
+
+/* Ícones */
+.filtro-galeria-link i {
+  font-size: 1.1rem;
+  transition: transform 0.3s ease;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .filtros-galeria-container {
+    padding: 0.4rem !important;
+    gap: 0.3rem;
+    max-width: 100% !important;
+  }
+  
+  .filtro-galeria-link {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.9rem;
+  }
+  
+  .filtro-galeria-link::after {
+    left: 1rem;
+    right: 1rem;
+    bottom: 0.4rem;
+  }
+}
+
 .card-foto-galeria {
   border-radius: 20px;
   overflow: hidden;
@@ -452,14 +505,12 @@ HEAD .btn-login-custom:hover {
 .img-galeria-container {
   position: relative;
   height: 250px;
-  /* Altura fixa para manter o alinhamento */
   overflow: hidden;
 }
 
 .img-galeria-container img {
   height: 100%;
   object-fit: cover;
-  /* Garante que a foto preencha o espaço sem distorcer */
   transition: transform 0.3s ease;
 }
 
@@ -468,7 +519,6 @@ HEAD .btn-login-custom:hover {
   /* Pequeno zoom no hover */
 }
 
-/* OVERLAY DE HOVER (Ícone de pesquisa) */
 .overlay-galeria {
   position: absolute;
   top: 0;
@@ -476,13 +526,16 @@ HEAD .btn-login-custom:hover {
   width: 100%;
   height: 100%;
   background: rgba(26, 60, 109, 0.6);
-  /* Fundo azul transparente */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: opacity 0.3s ease;
+}
+
+.bg-dark-overlay {
+  background: rgba(26, 60, 109, 0.65);
 }
 
 .card-foto-galeria:hover .overlay-galeria {
@@ -501,19 +554,11 @@ HEAD .btn-login-custom:hover {
   font-size: 0.8rem;
 }
 
-/* ============================================================
-   PÁGINA DE AVALIAÇÕES (EXCLUSIVA)
-   ============================================================ */
-
 .pagina-avaliacoes {
   background-color: #f0f4f8;
-  /* Fundo cinza azulado suave */
   min-height: 100vh;
-  padding-top: 100px;
-  /* Espaço para a Navbar fixa */
+  padding-top: 130px;
 }
-
-/* Card Individual de Depoimento */
 .card-depoimento-pagina {
   background: #ffffff;
   border-radius: 25px;
@@ -583,29 +628,19 @@ HEAD .btn-login-custom:hover {
   font-size: 0.9rem;
 }
 
-/* 
-   LÓGICA DE VER MAIS (Line Clamping)
-*/
-
-/* Espaçamento para o título não bater na Navbar */
 .pagina-avaliacoes {
-  padding-top: 100px !important;
+  padding-top: 130px !important;
   background-color: #f0f4f8;
   min-height: 100vh;
 }
 
 .titulo-container-avaliacoes {
   margin-top: 2rem;
-  /* Margem extra opcional além do padding */
 }
-
-/* Lógica do "Ver Mais" (Corta o texto em 4 linhas) */
 .container-texto-cortado {
   display: -webkit-box;
   -webkit-line-clamp: 4;
-  /* Para Chrome, Safari e navegadores antigos */
   line-clamp: 4;
-  /* Propriedade padrão (Resolve o aviso do VS Code) */
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -628,30 +663,19 @@ HEAD .btn-login-custom:hover {
 
 .texto-completo {
   display: block;
-  /* Volta ao normal */
   margin-bottom: 0.5rem;
 }
-
-/* ============================================
-   LINKS DE AUTENTICAÇÃO
-   ============================================ */
 .container-link-autenticacao {
   margin-top: 1rem;
 }
 
-/*=============================================
-    PAGINA DA RESERVA
-  ============================================= */
-
 .reserva-page {
   background-color: #f0f4f8;
-  /* Cor sólida para não ser transparente */
   min-height: 100vh;
   position: relative;
   z-index: 1;
-  /* Garante que o conteúdo fique em uma camada controlada */
   overflow: hidden;
-  /* Evita que o card de resumo "vaze" para o footer */
+  padding-top: 130px !important;
 }
 
 .form-reserva-container {
@@ -665,9 +689,8 @@ HEAD .btn-login-custom:hover {
 .card-resumo {
   border-radius: 25px;
   overflow: hidden;
-  /* Isso garante que o card acompanhe o scroll, mas não ultrapasse o container */
   position: sticky;
-  top: 100px;
+  top: 120px;
   z-index: 2;
 }
 
@@ -696,10 +719,110 @@ HEAD .btn-login-custom:hover {
   color: #f37321 !important;
 }
 
-/* Trava para o card não bater no footer */
 @media (min-width: 992px) {
   .reserva-page .row {
     align-items: flex-start;
-    /* Alinha o conteúdo no topo */
   }
+}
+
+.btn-reserva-claro {
+  background: #ffffff !important;
+  color: #f37321 !important;
+  border: none !important;
+  border-radius: 50px !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-decoration: none !important;
+  display: inline-block !important;
+  width: 100%;
+  text-align: center;
+  padding: 0.75rem 1.5rem !important;
+}
+
+.btn-reserva-claro:hover {
+  background: #ffffff !important;
+  color: #f37321 !important;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.btn-reserva-claro:active {
+  background: #ffffff !important;
+  color: #f37321 !important;
+}
+
+/* Botão 2 - Falar com Anfitrião */
+.btn-outline-whats {
+  background: #ffffff !important;
+  color: var(--azul) !important;
+  border: none !important;
+  border-radius: 50px !important;
+  font-weight: 700 !important;
+  font-size: 1rem !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  text-decoration: none !important;
+  display: inline-block !important;
+  width: 100%;
+  text-align: center;
+  padding: 0.75rem 1.5rem !important;
+}
+
+.btn-outline-whats:hover {
+  background: #ffffff !important;
+  color: var(--azul) !important;
+  transform: translateY(-3px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.btn-reserva-claro i {
+  margin-right: 0.5rem;
+  color: var(--azul) !important;
+}
+
+.btn-outline-whats i {
+  margin-right: 0.5rem;
+  color: #25D366 !important;
+}
+.cta-reserva-card .small.opacity-75 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+.reserva-final-section .btn-reserva-claro,
+.reserva-final-section .btn-reserva-claro span,
+.reserva-final-section .btn-reserva-claro i,
+.reserva-final-section .btn-reserva-claro *,
+.reserva-final-section .btn-reserva-claro.btn-autenticacao {
+  background: #ffffff !important;
+  color: var(--azul) !important;
+  border: none !important;
+}
+
+.reserva-final-section .btn-outline-whats,
+.reserva-final-section .btn-outline-whats span,
+.reserva-final-section .btn-outline-whats i,
+.reserva-final-section .btn-outline-whats *,
+.reserva-final-section .btn-outline-whats.btn-autenticacao {
+  background: #ffffff !important;
+  color: var(--azul) !important;
+  border: none !important;
+}
+
+.reserva-final-section .btn-outline-whats i,
+.reserva-final-section .btn-outline-whats i.bi-whatsapp {
+  color: #25D366 !important;
+}
+.reserva-final-section .btn-reserva-claro:hover,
+.reserva-final-section .btn-reserva-claro:hover span,
+.reserva-final-section .btn-reserva-claro:hover i,
+.reserva-final-section .btn-reserva-claro:hover * {
+  background: #ffffff !important;
+  color:var(--azul) !important;
+}
+
+.reserva-final-section .btn-warning,
+.reserva-final-section button.btn {
+  background: #ffffff !important;
+  border: none !important;
 }

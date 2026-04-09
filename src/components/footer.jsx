@@ -1,6 +1,7 @@
 import { Container, Row, Col } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import "./footer.css";
+import { linksFooter } from "../data/conteudoSite";
 
 function Footer() {
   return (
@@ -19,10 +20,11 @@ function Footer() {
           <Col lg={4} className="text-center">
             <h5 className="text-white mb-3 fw-bold">Navegação</h5>
             <ul className="list-unstyled footer-links">
-              <li><Link to="/">Início</Link></li>
-              <li><Link to="/fotos">Fotos da Casa</Link></li>
-              <li><Link to="/roteiros">Roteiros</Link></li>
-              <li><Link to="/contato">Contato</Link></li>
+              {linksFooter.map((link) => (
+                <li key={link.id}>
+                  <Link to={link.to}>{link.label}</Link>
+                </li>
+              ))}
             </ul>
           </Col>
 

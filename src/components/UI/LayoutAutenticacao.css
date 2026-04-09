@@ -2,7 +2,7 @@
    CONTAINER PRINCIPAL
    ============================================ */
 .container-autenticacao {
-  height: 100vh;
+  min-height: 100vh;
   padding: 0 !important;
   margin: 0 !important;
   overflow: hidden;
@@ -118,10 +118,11 @@
   max-width: 500px;
   display: block;
   margin: 0 auto;
-  animation: 
+  animation:
     flutuarLogo 6s ease-in-out infinite,
     brilhoDourado 3s ease-in-out infinite;
 }
+
 /*
 @keyframes flutuarLogo {
   0%, 100% {
@@ -139,7 +140,8 @@
   50% {
     filter: drop-shadow(0 0 25px rgba(255, 173, 51, 0.5));
   }
-} *\
+}
+*/
 
 /* ============================================
    TÍTULOS
@@ -161,4 +163,49 @@
   font-style: italic;
   margin-bottom: 1.5rem;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+@media (max-width: 991px) {
+  .container-autenticacao {
+    overflow-y: auto;
+  }
+
+  .linha-autenticacao {
+    min-height: 100vh;
+  }
+
+  .coluna-formulario {
+    min-height: 100vh;
+    height: auto;
+    padding: 6rem 0 2rem 0 !important;
+    box-shadow: none;
+  }
+
+  .container-formulario {
+    max-width: 520px;
+    padding: 1.75rem 1.5rem 2rem 1.5rem;
+  }
+
+  .logo {
+    max-width: 320px;
+  }
+}
+
+@media (max-width: 576px) {
+  .coluna-formulario {
+    padding-top: 5.5rem !important;
+  }
+
+  .container-formulario {
+    padding: 1.5rem 1.1rem 2rem 1.1rem;
+  }
+
+  .titulo-autenticacao {
+    font-size: 2.35rem;
+  }
+
+  .subtitulo-autenticacao {
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+  }
 }

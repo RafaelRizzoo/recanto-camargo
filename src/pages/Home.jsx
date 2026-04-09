@@ -2,29 +2,17 @@ import { Container, Row, Col, Carousel } from "react-bootstrap";
 import Botao from "../components/UI/Botao";
 import Entrada from "../components/UI/Entrada";
 import { LinkContainer } from "react-router-bootstrap";
-
-import BanheiroImg from "../assets/img/comodos/Banheiro.png";
-import ChurrasqueiraImg from "../assets/img/comodos/Churrasqueira.png";
-import CozinhaImg from "../assets/img/comodos/Cozinha.png";
-import FrenteImg from "../assets/img/comodos/Frente.png";
-import JardimImg from "../assets/img/comodos/JardimInverno.png";
-import Quarto2Img from "../assets/img/comodos/QuartoDois.png";
-import Quarto1Img from "../assets/img/comodos/QuartoUm.png";
-import SalaImg from "../assets/img/comodos/Sala.png";
-
-import BasilicaTurismo from "../assets/img/turismo/BasilicaTurismo.png";
-import CruzeiroTurismo from "../assets/img/turismo/CruzeiroTurismo.png";
-import FeiraTurismo from "../assets/img/turismo/FeiraTurismo.png";
-import PassarelaTurismo from "../assets/img/turismo/PassarelaTurismo.png";
-import PortoTurismo from "../assets/img/turismo/PortoTurismo.png";
-import RosarioTurismo from "../assets/img/turismo/RosarioTurismo.png";
+import {
+  imagensCarrosselHome,
+  comodidades,
+  pontosTuristicos,
+} from "../data/conteudoSite";
 
 import "../CSS/style.css";
 
 function Home() {
   return (
     <>
-      {/* 1. SEÇÃO HERO */}
       <div className="wrapper-home">
         <Container className="container-home">
           <Row className="align-items-center mb-5 hero-section">
@@ -51,62 +39,15 @@ function Home() {
             <Col lg={6}>
               <div className="carousel-moldura shadow-lg">
                 <Carousel fade indicators={true} interval={3000}>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={FrenteImg}
-                      alt="Frente"
-                    />
-                  </Carousel.Item>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={SalaImg}
-                      alt="Sala"
-                    />
-                  </Carousel.Item>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={Quarto1Img}
-                      alt="Quarto 1"
-                    />
-                  </Carousel.Item>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={Quarto2Img}
-                      alt="Quarto 2"
-                    />
-                  </Carousel.Item>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={BanheiroImg}
-                      alt="Banheiro"
-                    />
-                  </Carousel.Item>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={JardimImg}
-                      alt="Jardim"
-                    />
-                  </Carousel.Item>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={CozinhaImg}
-                      alt="Cozinha"
-                    />
-                  </Carousel.Item>
-                  <Carousel.Item>
-                    <img
-                      className="d-block w-100 img-carousel-home"
-                      src={ChurrasqueiraImg}
-                      alt="Churrasqueira"
-                    />
-                  </Carousel.Item>
+                  {imagensCarrosselHome.map((imagem) => (
+                    <Carousel.Item key={imagem.alt}>
+                      <img
+                        className="d-block w-100 img-carousel-home"
+                        src={imagem.src}
+                        alt={imagem.alt}
+                      />
+                    </Carousel.Item>
+                  ))}
                 </Carousel>
               </div>
             </Col>
@@ -116,25 +57,26 @@ function Home() {
             <Row className="g-3 align-items-end">
               <Col md={3}>
                 <label className="label-dispo">Data de entrada</label>
-                <Entrada type="date" />
+                <Entrada tipo="date" />
               </Col>
               <Col md={3}>
                 <label className="label-dispo">Data de saída</label>
-                <Entrada type="date" />
+                <Entrada tipo="date" />
               </Col>
               <Col md={3}>
                 <label className="label-dispo">Pessoas</label>
-                <Entrada type="number" placeholder="0" />
+                <Entrada tipo="number" placeholder="0" />
               </Col>
               <Col md={3}>
-                <Botao className="w-100 py-2">Verificar disponibilidade</Botao>
+                <Botao tipo="button" className="w-100 py-2">
+                  Verificar disponibilidade
+                </Botao>
               </Col>
             </Row>
           </div>
         </Container>
       </div>
 
-      {/* 2. SEÇÃO DE COMODIDADES */}
       <section className="comodidades-section py-5 bg-white">
         <Container>
           <div className="text-center mb-5">
@@ -142,75 +84,22 @@ function Home() {
             <p className="text-muted">Aproveite o melhor do Recanto Camargo</p>
           </div>
           <Row className="g-4 text-center justify-content-center">
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-geo-alt-fill"></i>
+            {comodidades.map((item) => (
+              <Col xs={6} md={3} key={item.id}>
+                <div className="comodidade-item">
+                  <div className="comodidade-icone-area">
+                    <div className="icone-circulo">
+                      <i className={`bi ${item.icone}`}></i>
+                    </div>
+                  </div>
+                  <h4 className="comodidade-titulo">{item.titulo}</h4>
                 </div>
-                <h4 className="comodidade-titulo">Localização</h4>
-              </div>
-            </Col>
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-wifi"></i>
-                </div>
-                <h4 className="comodidade-titulo">Wi-Fi Grátis</h4>
-              </div>
-            </Col>
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-car-front-fill"></i>
-                </div>
-                <h4 className="comodidade-titulo">Garagem</h4>
-              </div>
-            </Col>
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-fire"></i>
-                </div>
-                <h4 className="comodidade-titulo">Churrasqueira</h4>
-              </div>
-            </Col>
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-heart-fill"></i>
-                </div>
-                <h4 className="comodidade-titulo">Aceitamos Pets</h4>
-              </div>
-            </Col>
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-tv"></i>
-                </div>
-                <h4 className="comodidade-titulo">Smart TVs</h4>
-              </div>
-            </Col>
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-egg-fried"></i>
-                </div>
-                <h4 className="comodidade-titulo">Cozinha Completa</h4>
-              </div>
-            </Col>
-            <Col xs={6} md={3}>
-              <div className="comodidade-item">
-                <div className="icone-circulo">
-                  <i className="bi bi-stars"></i>
-                </div>
-                <h4 className="comodidade-titulo">Enxoval Incluso</h4>
-              </div>
-            </Col>
+              </Col>
+            ))}
           </Row>
         </Container>
       </section>
 
-      {/* 3. SEÇÃO: EXPLORE APARECIDA  */}
       <section
         className="roteiros-section-moderna py-5"
         style={{ backgroundColor: "#f0f4f8" }}
@@ -222,125 +111,29 @@ function Home() {
           </div>
 
           <Row className="g-4">
-            <Col md={6} lg={4}>
-              <div className="card-turismo shadow-sm">
-                <div className="img-container">
-                  <img
-                    src={BasilicaTurismo}
-                    alt="Santuário Nacional"
-                    className="img-fluid"
-                  />
-                  <div className="tempo-tag">
-                    <i className="bi bi-clock"></i> 5 min
+            {pontosTuristicos.map((item) => (
+              <Col md={6} lg={4} key={item.id}>
+                <div className="card-turismo shadow-sm">
+                  <div className="img-container">
+                    <img src={item.imagem} alt={item.alt} className="img-fluid" />
+                    <div className="tempo-tag">
+                      <i className="bi bi-clock"></i> {item.tempo}
+                    </div>
+                  </div>
+                  <div className="card-conteudo p-4">
+                    <h4>{item.titulo}</h4>
+                    <p>{item.descricao}</p>
                   </div>
                 </div>
-                <div className="card-conteudo p-4">
-                  <h4>Santuário Nacional</h4>
-                  <p>A maior basílica dedicada a Maria no mundo.</p>
-                </div>
-              </div>
-            </Col>
-            <Col md={6} lg={4}>
-              <div className="card-turismo shadow-sm">
-                <div className="img-container">
-                  <img
-                    src={PassarelaTurismo}
-                    alt="Passarela da Fé"
-                    className="img-fluid"
-                  />
-                  <div className="tempo-tag">
-                    <i className="bi bi-clock"></i> 6 min
-                  </div>
-                </div>
-                <div className="card-conteudo p-4">
-                  <h4>Passarela da Fé</h4>
-                  <p>
-                    Caminho que liga a Basílica Velha ao Santuário.
-                  </p>
-                </div>
-              </div>
-            </Col>
-            <Col md={6} lg={4}>
-              <div className="card-turismo shadow-sm">
-                <div className="img-container">
-                  <img
-                    src={CruzeiroTurismo}
-                    alt="Morro do Cruzeiro"
-                    className="img-fluid"
-                  />
-                  <div className="tempo-tag">
-                    <i className="bi bi-clock"></i> 9 min
-                  </div>
-                </div>
-                <div className="card-conteudo p-4">
-                  <h4>Morro do Cruzeiro</h4>
-                  <p>Vista privilegiada de toda a cidade e da Basílica.</p>
-                </div>
-              </div>
-            </Col>
-            <Col md={6} lg={4}>
-              <div className="card-turismo shadow-sm">
-                <div className="img-container">
-                  <img
-                    src={RosarioTurismo}
-                    alt="Caminho do Rosário"
-                    className="img-fluid"
-                  />
-                  <div className="tempo-tag">
-                    <i className="bi bi-clock"></i> 5 min
-                  </div>
-                </div>
-                <div className="card-conteudo p-4">
-                  <h4>Caminho do Rosário</h4>
-                  <p>Cenários que retratam os mistérios do Rosário.</p>
-                </div>
-              </div>
-            </Col>
-            <Col md={6} lg={4}>
-              <div className="card-turismo shadow-sm">
-                <div className="img-container">
-                  <img
-                    src={PortoTurismo}
-                    alt="Porto Itaguaçu"
-                    className="img-fluid"
-                  />
-                  <div className="tempo-tag">
-                    <i className="bi bi-clock"></i> 7 min
-                  </div>
-                </div>
-                <div className="card-conteudo p-4">
-                  <h4>Porto Itaguaçu</h4>
-                  <p>Local onde a imagem da Padroeira foi encontrada.</p>
-                </div>
-              </div>
-            </Col>
-            <Col md={6} lg={4}>
-              <div className="card-turismo shadow-sm">
-                <div className="img-container">
-                  <img
-                    src={FeiraTurismo}
-                    alt="Feira Livre"
-                    className="img-fluid"
-                  />
-                  <div className="tempo-tag">
-                    <i className="bi bi-clock"></i> 4 min
-                  </div>
-                </div>
-                <div className="card-conteudo p-4">
-                  <h4>Feira Livre</h4>
-                  <p>O ponto ideal para compras e artigos religiosos.</p>
-                </div>
-              </div>
-            </Col>
+              </Col>
+            ))}
           </Row>
         </Container>
       </section>
 
-      {/* SEÇÃO FINAL: MAPA + CTA DE RESERVA */}
       <section className="reserva-final-section py-5">
         <Container>
           <Row className="align-items-center g-5">
-            {/* LADO ESQUERDO: MAPA */}
             <Col lg={7}>
               <div className="mapa-container shadow-lg">
                 <iframe
@@ -354,7 +147,6 @@ function Home() {
               </div>
             </Col>
 
-            {/* LADO DIREITO: CHAMADA PARA AÇÃO*/}
             <Col lg={5} className="text-white">
               <div className="cta-reserva-card p-4">
                 <h2 className="fonte-logo mb-3" style={{ fontSize: "2.5rem" }}>
@@ -368,7 +160,6 @@ function Home() {
 
 
                 <div className="d-grid gap-3">
-                  {/* O LinkContainer faz a ponte entre o Bootstrap e o React Router */}
                   <LinkContainer to="/Reserva">
                     <Botao className="btn-reserva-claro py-3 fs-5">
                       <i className="bi bi-calendar-check me-2"></i>Reservar Agora
@@ -376,7 +167,7 @@ function Home() {
                   </LinkContainer>
 
                   <a
-                    href="https://wa.me/5512999999999" // Substitua pelo número real do Rafael
+                    href="https://wa.me/5512999999999"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn-outline-whats text-center py-2"

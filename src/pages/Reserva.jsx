@@ -1,7 +1,7 @@
 import { Container, Row, Col, Form, Card } from 'react-bootstrap';
 import Botao from '../components/UI/Botao';
 import '../CSS/style.css';
-import faixada from '../assets/img/comodos/Frente.png'
+import faixada from '../assets/img/comodos/Frente.png';
 
 function Reserva() {
     return (
@@ -61,9 +61,15 @@ function Reserva() {
 
                     {/* COLUNA 2: RESUMO DA RESERVA (O GANCHO) */}
                     <Col lg={5}>
-                        <Card className="card-resumo border-0 shadow-lg sticky-top" style={{ top: '100px' }}>
+                        <Card className="card-resumo border-0 shadow-lg sticky-top">
                             <div className="img-resumo-container">
-                                <Card.Img variant="top" src={faixada} />
+                                <Card.Img
+                                    variant="top"
+                                    src={faixada}
+                                    alt="Fachada do Recanto Camargo"
+                                    loading="lazy"
+                                    decoding="async"
+                                />
                                 <span className="badge-preco">R$ 250 / noite</span>
                             </div>
                             <Card.Body className="p-4">

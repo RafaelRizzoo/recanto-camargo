@@ -1,4 +1,4 @@
-import { HashRouter, Routes, Route, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./CSS/style.css";
 
@@ -19,16 +19,10 @@ function AppContent() {
     location.pathname !== "/Login" && location.pathname !== "/Cadastro";
 
   return (
-    // Usamos um Flexbox aqui para garantir que o Footer fique sempre no pé da página
-    <div
-      style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
-    >
+    <div className="app-shell">
       {mostrarMenu && <Menu />}
 
-      {/* Esta div 'flex-grow-1' faz com que o conteúdo das páginas ocupe todo o espaço 
-          disponível, empurrando o Footer para o final, mesmo que a página tenha pouco texto.
-      */}
-      <div className="flex-grow-1">
+      <div className="app-main flex-grow-1">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/Cadastro" element={<Cadastro />} />
@@ -36,14 +30,12 @@ function AppContent() {
           <Route path="/Reserva" element={<Reserva />} />
           <Route path="/Avaliacoes" element={<Avaliacoes />} />
           <Route path="/Fotos" element={<Fotos />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
 
-      {/* O Footer agora respeita a ordem e só aparece se não for Login/Cadastro */}
       {mostrarMenu && <Footer />}
       {mostrarMenu && <BotaoWhats />}
-
-      
     </div>
   );
 }
