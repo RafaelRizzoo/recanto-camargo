@@ -10,12 +10,14 @@ import BotaoWhats from "./components/UI/BotaoWhats";
 import Reserva from "./pages/Reserva";
 import Avaliacoes from "./pages/Avaliacoes";
 import Fotos from "./pages/Fotos";
+import RecuperarSenha from './pages/RecuperarSenha';
 
 function AppContent() {
   const location = useLocation();
 
-  const mostrarMenu =
-    location.pathname !== "/Login" && location.pathname !== "/Cadastro";
+  const mostrarMenu = !['/Login', '/Cadastro', '/RecuperarSenha'].includes(location.pathname);
+
+    
 
   return (
     <div className="app-shell">
@@ -30,6 +32,7 @@ function AppContent() {
           <Route path="/Avaliacoes" element={<Avaliacoes />} />
           <Route path="/Fotos" element={<Fotos />} />
           <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/RecuperarSenha" element={<RecuperarSenha />} />
         </Routes>
       </div>
 

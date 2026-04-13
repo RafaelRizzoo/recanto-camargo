@@ -65,16 +65,11 @@ function Login() {
           </LinkAutenticacao>
         </div>
 
-        <div className="text-center mt-2">
-          <a
-            href="https://wa.me/5512996297452?text=Ol%C3%A1!%20Preciso%20de%20ajuda%20para%20acessar%20minha%20conta%20no%20Recanto%20Camargo."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="link-autenticacao link-secundario"
-          >
-            Precisa de ajuda para acessar?
-          </a>
-        </div>
+          <div className="text-center mt-2">
+       <LinkAutenticacao para="/RecuperarSenha" variante="secundario">
+         Esqueceu a senha?
+       </LinkAutenticacao>
+     </div>
 
         <div className="d-lg-none">
           <hr className="border-white opacity-25 my-4" />
