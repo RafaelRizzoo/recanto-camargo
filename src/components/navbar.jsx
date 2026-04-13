@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
 import Botao from "./UI/Botao";
+import MenuUsuario from "./UI/MenuUsuario";
+import { useAutenticacao } from "../hooks/useAutenticacao";
 import logoPng from "../assets/img/artes/santa.png";
 import "./navbar.css";
 
@@ -19,16 +21,6 @@ function IconeFoto() {
       <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
       <circle cx="8.5" cy="8.5" r="1.5" />
       <polyline points="21 15 16 10 5 21" />
-    </svg>
-  );
-}
-
-function IconeLogin() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-      <polyline points="10 17 15 12 10 7" />
-      <line x1="15" y1="12" x2="3" y2="12" />
     </svg>
   );
 }
@@ -68,27 +60,7 @@ function IconeMenu() {
   );
 }
 
-const linksNavegacao = [
-  { to: "/", label: "Início", icone: <IconeHome /> },
-  { to: "/Fotos", label: "Fotos e Vídeos", icone: <IconeFoto /> },
-  { to: "/Avaliacoes", label: "Avaliações", icone: <IconeEstrela /> },
-  { to: "/Login", label: "Login", icone: <IconeLogin /> },
-];
-
-function ItemNavegacao({ to, label, icone, onClick }) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}
-      onClick={onClick}
-    >
-      <span className="nav-icon">{icone}</span>
-      <span>{label}</span>
-    </NavLink>
-  );
-}
-
-function BarraDesktop() {
+function BarraDesktop({ autenticado }) {
   return (
     <nav className="navbar-moderna navbar-topo" aria-label="Navegação principal">
       <div className="navbar-shell">
@@ -99,36 +71,52 @@ function BarraDesktop() {
 
         <div className="navbar-conteudo">
           <div className="navbar-links-list">
-            {linksNavegacao.map((link) => (
-              <ItemNavegacao
-                key={link.to}
-                to={link.to}
-                label={link.label}
-                icone={link.icone}
-              />
-            ))}
+            <NavLink to="/" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}>
+              <span className="nav-icon"><IconeHome /></span>
+              <span>Início</span>
+            </NavLink>
+            
+            <NavLink to="/Fotos" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}>
+              <span className="nav-icon"><IconeFoto /></span>
+              <span>Fotos e Vídeos</span>
+            </NavLink>
+            
+            <NavLink to="/Avaliacoes" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}>
+              <span className="nav-icon"><IconeEstrela /></span>
+              <span>Avaliações</span>
+            </NavLink>
+
+            {!autenticado && (
+              <NavLink to="/Login" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}>
+                <span className="nav-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <polyline points="10 17 15 12 10 7" />
+                    <line x1="15" y1="12" x2="3" y2="12" />
+                  </svg>
+                </span>
+                <span>Login</span>
+              </NavLink>
+            )}
           </div>
 
-          <NavLink to="/Reserva" className="navbar-reserva-link">
-            <Botao
-              tipo="button"
-              variante="warning"
-              efeitoOnda={false}
-              className="btn-inline navbar-botao-reserva"
-            >
-              <span className="nav-icon">
-                <IconeReserva />
-              </span>
-              <span>Reservar</span>
-            </Botao>
-          </NavLink>
+          <div className="d-flex align-items-center">
+            <NavLink to="/Reserva" className="navbar-reserva-link">
+              <Botao tipo="button" variante="warning" efeitoOnda={false} className="btn-inline navbar-botao-reserva">
+                <span className="nav-icon"><IconeReserva /></span>
+                <span>Reservar</span>
+              </Botao>
+            </NavLink>
+
+            {autenticado && <MenuUsuario />}
+          </div>
         </div>
       </div>
     </nav>
   );
 }
 
-function BarraMobile({ aberto, onToggle, onNavigate }) {
+function BarraMobile({ aberto, onToggle, onNavigate, autenticado }) {
   return (
     <nav className="navbar-moderna navbar-mobile" aria-label="Navegação principal">
       <div className="navbar-shell">
@@ -151,30 +139,47 @@ function BarraMobile({ aberto, onToggle, onNavigate }) {
 
         <div className={`navbar-conteudo-mobile ${aberto ? "is-open" : ""}`}>
           <div className="navbar-links-list">
-            {linksNavegacao.map((link) => (
-              <ItemNavegacao
-                key={link.to}
-                to={link.to}
-                label={link.label}
-                icone={link.icone}
-                onClick={onNavigate}
-              />
-            ))}
+            <NavLink to="/" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={onNavigate}>
+              <span className="nav-icon"><IconeHome /></span>
+              <span>Início</span>
+            </NavLink>
+            
+            <NavLink to="/Fotos" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={onNavigate}>
+              <span className="nav-icon"><IconeFoto /></span>
+              <span>Fotos e Vídeos</span>
+            </NavLink>
+            
+            <NavLink to="/Avaliacoes" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={onNavigate}>
+              <span className="nav-icon"><IconeEstrela /></span>
+              <span>Avaliações</span>
+            </NavLink>
+
+            {!autenticado && (
+              <NavLink to="/Login" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={onNavigate}>
+                <span className="nav-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                    <polyline points="10 17 15 12 10 7" />
+                    <line x1="15" y1="12" x2="3" y2="12" />
+                  </svg>
+                </span>
+                <span>Login</span>
+              </NavLink>
+            )}
           </div>
 
-          <NavLink to="/Reserva" className="navbar-reserva-link">
-            <Botao
-              tipo="button"
-              variante="warning"
-              efeitoOnda={false}
-              className="btn-inline navbar-botao-reserva"
-            >
-              <span className="nav-icon">
-                <IconeReserva />
-              </span>
+          <NavLink to="/Reserva" className="navbar-reserva-link" onClick={onNavigate}>
+            <Botao tipo="button" variante="warning" efeitoOnda={false} className="btn-inline navbar-botao-reserva">
+              <span className="nav-icon"><IconeReserva /></span>
               <span>Reservar</span>
             </Botao>
           </NavLink>
+
+          {autenticado && (
+            <div className="mt-3" onClick={onNavigate}>
+              <MenuUsuario />
+            </div>
+          )}
         </div>
       </div>
     </nav>
@@ -183,34 +188,26 @@ function BarraMobile({ aberto, onToggle, onNavigate }) {
 
 function Menu() {
   const [ehDesktop, setEhDesktop] = useState(() => {
-    if (typeof window === "undefined") {
-      return true;
-    }
-
+    if (typeof window === "undefined") return true;
     return window.innerWidth >= 992;
   });
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const { autenticado } = useAutenticacao();
 
   useEffect(() => {
     const atualizarLayout = () => {
       const desktop = window.innerWidth >= 992;
       setEhDesktop(desktop);
-
-      if (desktop) {
-        setMenuMobileAberto(false);
-      }
+      if (desktop) setMenuMobileAberto(false);
     };
 
     atualizarLayout();
     window.addEventListener("resize", atualizarLayout);
-
-    return () => {
-      window.removeEventListener("resize", atualizarLayout);
-    };
+    return () => window.removeEventListener("resize", atualizarLayout);
   }, []);
 
   if (ehDesktop) {
-    return <BarraDesktop />;
+    return <BarraDesktop autenticado={autenticado} />;
   }
 
   return (
@@ -218,6 +215,7 @@ function Menu() {
       aberto={menuMobileAberto}
       onToggle={() => setMenuMobileAberto((estadoAnterior) => !estadoAnterior)}
       onNavigate={() => setMenuMobileAberto(false)}
+      autenticado={autenticado}
     />
   );
 }
