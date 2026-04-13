@@ -9,7 +9,6 @@ function Configuracoes() {
   const [abaAtiva, setAbaAtiva] = useState('perfil');
   const [feedback, setFeedback] = useState({ tipo: '', msg: '' });
 
-  // Estados separados para simular dados diferentes
   const [perfil, setPerfil] = useState({
     nome: usuario?.nome || '',
     email: usuario?.email || '',
@@ -20,7 +19,6 @@ function Configuracoes() {
 
   const [senhas, setSenhas] = useState({ atual: '', nova: '', confirmar: '' });
   
-  // Notificações diferentes para cada perfil
   const [notificacoes, setNotificacoes] = useState({
     emailReserva: true,
     whatsReserva: tipo === 'admin', // Admin prefere WhatsApp para agilidade
@@ -35,7 +33,6 @@ function Configuracoes() {
   });
 
   useEffect(() => {
-    // Simula carregamento de dados do backend
     setPerfil(p => ({
       ...p,
       cpf: tipo === 'hospede' ? '123.456.789-00' : undefined,
@@ -68,7 +65,6 @@ function Configuracoes() {
     mostrarFeedback('sucesso', 'Preferências atualizadas!');
   };
 
-  // Define quais abas aparecem para quem
   const abas = [
     { id: 'perfil', label: 'Dados Cadastrais', icone: 'bi-person-vcard' },
     { id: 'seguranca', label: 'Senha e Acesso', icone: 'bi-shield-lock' },

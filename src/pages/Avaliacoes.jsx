@@ -2,7 +2,6 @@ import { Container, Row, Col } from 'react-bootstrap';
 import { useState } from 'react';
 import { depoimentos } from '../data/conteudoSite';
 
-// Componente para o Card Individual (Gerencia o abrir/fechar)
 const CardDepoimento = ({ item }) => {
     const [expandido, setExpandido] = useState(false);
 
@@ -16,7 +15,6 @@ const CardDepoimento = ({ item }) => {
                     <span className="small text-muted ms-2">• {item.local}</span>
                 </div>
 
-                {/* A classe muda conforme o estado 'expandido' */}
                 <div className={expandido ? "texto-completo" : "container-texto-cortado"}>
                     <p className="texto-depoimento-pagina">
                         {item.texto}

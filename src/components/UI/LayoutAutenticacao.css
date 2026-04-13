@@ -92,7 +92,6 @@
   overflow: hidden;
 }
 
-
 /* ============================================
    CONTAINER DO FORMULÁRIO
    ============================================ */
@@ -122,26 +121,6 @@
     flutuarLogo 6s ease-in-out infinite,
     brilhoDourado 3s ease-in-out infinite;
 }
-
-/*
-@keyframes flutuarLogo {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-8px);
-  }
-}
-
-@keyframes brilhoDourado {
-  0%, 100% {
-    filter: drop-shadow(0 0 10px rgba(238, 127, 1, 0.3));
-  }
-  50% {
-    filter: drop-shadow(0 0 25px rgba(255, 173, 51, 0.5));
-  }
-}
-*/
 
 /* ============================================
    TÍTULOS

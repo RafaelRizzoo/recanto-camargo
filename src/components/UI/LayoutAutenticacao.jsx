@@ -4,15 +4,15 @@ import PropTypes from 'prop-types';
 import './LayoutAutenticacao.css';
 
 const IconeSetaEsquerda = () => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width="18" 
-    height="18" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="18"
+    height="18"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
     strokeLinejoin="round"
   >
     <line x1="19" y1="12" x2="5" y2="12" />
@@ -20,10 +20,10 @@ const IconeSetaEsquerda = () => (
   </svg>
 );
 
-function LayoutAutenticacao({ 
-  children, 
-  imagemFundo, 
-  imagemLogo, 
+function LayoutAutenticacao({
+  children,
+  imagemFundo,
+  imagemLogo,
   titulo,
   subtitulo = 'Bem-vindo ao seu recanto de paz',
   mostrarBotaoVoltar = true,
@@ -33,7 +33,6 @@ function LayoutAutenticacao({
   return (
     <Container fluid className="container-autenticacao">
       <Row className="linha-autenticacao">
-        
         <Col md={8} className="d-none d-md-block coluna-imagem">
           {mostrarBotaoVoltar && (
             <Link to={linkVoltar} className="btn-voltar">
@@ -41,7 +40,7 @@ function LayoutAutenticacao({
               {textoBotaoVoltar}
             </Link>
           )}
-          
+
           {imagemFundo && (
             <img
               src={imagemFundo}
@@ -52,8 +51,6 @@ function LayoutAutenticacao({
         </Col>
 
         <Col xs={12} md={4} className="coluna-formulario">
-          {/* ✅ PARTÍCULAS REMOVIDAS - código limpo! */}
-          
           <div className="container-formulario">
             {imagemLogo && (
               <div className="container-logo">
@@ -68,11 +65,10 @@ function LayoutAutenticacao({
             {subtitulo && (
               <p className="subtitulo-autenticacao">{subtitulo}</p>
             )}
-            
+
             {children}
           </div>
         </Col>
-
       </Row>
     </Container>
   );

@@ -8,7 +8,6 @@ function Footer() {
     <footer className="footer-recanto pt-5 pb-3">
       <Container>
         <Row className="gy-4">
-          {/* COLUNA 1: LOGO E FRASE */}
           <Col lg={4} className="text-center text-lg-start">
             <h3 className="fonte-logo text-white mb-3">Recanto Camargo</h3>
             <p className="text-white opacity-75 small pr-lg-5">
@@ -16,7 +15,6 @@ function Footer() {
             </p>
           </Col>
 
-          {/* COLUNA 2: LINKS RÁPIDOS */}
           <Col lg={4} className="text-center">
             <h5 className="text-white mb-3 fw-bold">Navegação</h5>
             <ul className="list-unstyled footer-links">
@@ -28,7 +26,6 @@ function Footer() {
             </ul>
           </Col>
 
-          {/* COLUNA 3: CONTATO E REDES */}
           <Col lg={4} className="text-center text-lg-end">
             <h5 className="text-white mb-3 fw-bold">Fale Conosco</h5>
             <p className="text-white small mb-2">

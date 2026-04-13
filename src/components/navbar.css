@@ -134,7 +134,6 @@
   transition: transform 0.25s ease;
 }
 
-/* Hover - underline laranja */
 .nav-link-moderna:hover {
   color: var(--branco);
   background: rgba(255, 255, 255, 0.12);
@@ -149,7 +148,6 @@
   color: var(--laranja-claro);
 }
 
-/* Active - DESTAQUE SUTIL (apenas shadow + azul mais forte) */
 .nav-link-moderna.active {
   color: var(--branco) !important;
   background: linear-gradient(135deg, #4a7ab8 0%, #5385c4 100%) !important;

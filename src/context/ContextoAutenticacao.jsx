@@ -16,12 +16,11 @@ function inicializarDB() {
     const dbExistente = localStorage.getItem(CHAVE_DB);
     if (!dbExistente) {
       localStorage.setItem(CHAVE_DB, JSON.stringify(USUARIOS_MOCK));
-      console.log('✅ DB mock inicializado');
       return USUARIOS_MOCK;
     }
     return JSON.parse(dbExistente);
   } catch (e) {
-    console.error('❌ Erro ao inicializar DB:', e);
+    console.error('Erro ao inicializar DB:', e);
     localStorage.setItem(CHAVE_DB, JSON.stringify(USUARIOS_MOCK));
     return USUARIOS_MOCK;
   }
@@ -32,34 +31,29 @@ export function ContextoAutenticacao({ children }) {
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
-    // Inicializa DB sincronamente
     inicializarDB();
 
-    // Tenta restaurar sessão
     try {
       const sessaoSalva = localStorage.getItem(CHAVE_SESSION);
       if (sessaoSalva) {
         const dados = JSON.parse(sessaoSalva);
         setUsuario(dados);
-        console.log('🔐 Sessão restaurada:', dados.email);
       }
     } catch (e) {
-      console.error('❌ Erro ao restaurar sessão:', e);
+      console.error('Erro ao restaurar sessão:', e);
       localStorage.removeItem(CHAVE_SESSION);
     }
     setCarregando(false);
   }, []);
 
   const login = useCallback((email, senha) => {
-    console.log('🔍 Tentando login:', { email, senha });
-    
     try {
       const dbRaw = localStorage.getItem(CHAVE_DB);
       if (!dbRaw) {
-        console.error('❌ DB não encontrado');
+        console.error('DB não encontrado');
         return { sucesso: false, mensagem: 'Erro interno. Tente novamente.' };
       }
-      
+
       const db = JSON.parse(dbRaw);
       const encontrado = db.find(u => u.email === email && u.senha === senha);
 
@@ -67,14 +61,12 @@ export function ContextoAutenticacao({ children }) {
         const { senha: _, ...dadosSeguros } = encontrado;
         setUsuario(dadosSeguros);
         localStorage.setItem(CHAVE_SESSION, JSON.stringify(dadosSeguros));
-        console.log('✅ Login sucesso:', dadosSeguros);
         return { sucesso: true };
       }
-      
-      console.log('❌ Credenciais inválidas');
+
       return { sucesso: false, mensagem: 'Email ou senha inválidos.' };
     } catch (e) {
-      console.error('❌ Erro no login:', e);
+      console.error('Erro no login:', e);
       return { sucesso: false, mensagem: 'Erro ao processar login.' };
     }
   }, []);
@@ -82,7 +74,7 @@ export function ContextoAutenticacao({ children }) {
   const registrar = useCallback((dados) => {
     try {
       const db = JSON.parse(localStorage.getItem(CHAVE_DB) || '[]');
-      
+
       if (db.find(u => u.email === dados.email)) {
         return { sucesso: false, mensagem: 'Este email já está cadastrado.' };
       }
@@ -96,7 +88,7 @@ export function ContextoAutenticacao({ children }) {
       localStorage.setItem(CHAVE_SESSION, JSON.stringify(dadosSeguros));
       return { sucesso: true };
     } catch (e) {
-      console.error('❌ Erro no registro:', e);
+      console.error('Erro no registro:', e);
       return { sucesso: false, mensagem: 'Erro ao criar conta.' };
     }
   }, []);
@@ -104,7 +96,6 @@ export function ContextoAutenticacao({ children }) {
   const logout = useCallback(() => {
     setUsuario(null);
     localStorage.removeItem(CHAVE_SESSION);
-    console.log('🚪 Logout realizado');
   }, []);
 
   if (carregando) {

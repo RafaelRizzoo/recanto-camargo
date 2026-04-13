@@ -27,7 +27,6 @@
 .lb-prev { left: -60px; }
 .lb-next { right: -60px; }
 
-/* ✅ Hover sem pular: combina translate + scale */
 .lb-nav:hover { transform: translateY(-50%) scale(1.08); }
 
 .lb-media {
@@ -42,7 +41,6 @@
   object-fit: contain; display: block;
 }
 
-/* ✅ Transição suave e moderna (mascara lag de carregamento) */
 .lb-media img {
   animation: lbFadeIn 0.22s ease-out;
 }
@@ -64,7 +62,6 @@
 }
 .lb-desc { margin: 0; color: rgba(255, 255, 255, 0.9); font-size: 0.9rem; font-weight: 500; }
 
-/* ✅ Mobile ajustado */
 @media (max-width: 768px) {
   .lb-btn { width: 40px; height: 40px; font-size: 1.1rem; }
   .lb-close { top: -48px; right: 8px; }

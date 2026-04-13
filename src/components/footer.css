@@ -1,7 +1,7 @@
 .footer-recanto {
   display: block;
   width: 100%;
-  clear: both; /* Garante que ele não tente flutuar ao lado de nada */
+  clear: both;
   background-color: #1a3c6d;
   position: relative;
   z-index: 10;
@@ -19,7 +19,7 @@
 
 .footer-links a:hover {
   color: #f37321;
-  padding-left: 5px; /* Efeito de deslize sutil no hover */
+  padding-left: 5px;
 }
 
 .footer-social a {
@@ -34,7 +34,6 @@
   transform: translateY(-5px);
 }
 
-/* Ajuste para o seu notebook (responsividade) */
 @media (max-width: 991px) {
   .footer-recanto .text-lg-end {
     text-align: center !important;

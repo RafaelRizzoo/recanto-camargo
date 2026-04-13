@@ -9,7 +9,6 @@ function Reserva() {
                 <h2 className="titulo-secao-azul mb-4">Finalizar sua Reserva</h2>
 
                 <Row className="g-5 mt-4">
-                    {/* COLUNA 1: FORMULÁRIO */}
                     <Col lg={7}>
                         <div className="form-reserva-container p-4 shadow-sm bg-white">
                             <h4 className="fw-bold mb-4 text-azul">Seus Dados</h4>
@@ -58,7 +57,6 @@ function Reserva() {
                         </div>
                     </Col>
 
-                    {/* COLUNA 2: RESUMO DA RESERVA (O GANCHO) */}
                     <Col lg={5}>
                         <Card className="card-resumo border-0 shadow-lg sticky-top">
                             <div className="img-resumo-container">
