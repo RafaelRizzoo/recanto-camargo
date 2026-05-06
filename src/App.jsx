@@ -11,14 +11,24 @@ import BotaoWhats from "./components/UI/BotaoWhats";
 import Reserva from "./pages/Reserva";
 import Avaliacoes from "./pages/Avaliacoes";
 import Fotos from "./pages/Fotos";
+import DashboardAdministrador from "./pages/DashboardAdministrador";
+import { ContextoAutenticacao } from './context/ContextoAutenticacao';
+
+const ROTAS_SEM_SHELL = [
+  '/Login',
+  '/Cadastro',
+  '/RecuperarSenha',
+  '/DashboardAdministrador',
+  '/DashboardCliente',
+];
 
 function AppContent() {
   const location = useLocation();
-  const mostrarMenu = !['/Login', '/Cadastro', '/RecuperarSenha'].includes(location.pathname);
+  const mostrarShell = !ROTAS_SEM_SHELL.includes(location.pathname);
 
   return (
     <div className="app-shell">
-      {mostrarMenu && <Menu />}
+      {mostrarShell && <Menu />}
 
       <div className="app-main flex-grow-1">
         <Routes>
@@ -30,12 +40,13 @@ function AppContent() {
           <Route path="/Reserva" element={<Reserva />} />
           <Route path="/Avaliacoes" element={<Avaliacoes />} />
           <Route path="/Fotos" element={<Fotos />} />
+          <Route path="/DashboardAdministrador" element={<DashboardAdministrador />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
 
-      {mostrarMenu && <Footer />}
-      {mostrarMenu && <BotaoWhats />}
+      {mostrarShell && <Footer />}
+      {mostrarShell && <BotaoWhats />}
     </div>
   );
 }
@@ -43,7 +54,9 @@ function AppContent() {
 function App() {
   return (
     <HashRouter>
-      <AppContent />
+      <ContextoAutenticacao>
+        <AppContent />
+      </ContextoAutenticacao>
     </HashRouter>
   );
 }
