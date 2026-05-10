@@ -231,3 +231,27 @@
     letter-spacing: 0.12em;
   }
 }
+.navbar-topo {
+  pointer-events: none;
+}
+
+.navbar-topo .navbar-shell {
+  pointer-events: auto;
+  width: min(1180px, calc(100% - 2.5rem));
+  margin: 0 auto;
+  min-height: 84px;
+  padding: 0.95rem 1.35rem;
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
+.navbar-mobile {
+  pointer-events: none;
+}
+
+.navbar-mobile .navbar-shell {
+  pointer-events: auto;
+}

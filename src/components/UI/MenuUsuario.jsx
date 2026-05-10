@@ -9,15 +9,29 @@ function MenuUsuario() {
   const navigate = useNavigate();
   const menuRef = useRef(null);
 
+  // Fecha ao clicar fora - VERSÃO CORRIGIDA
   useEffect(() => {
-    const handleClickFora = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setAberto(false);
+    const handler = (e) => {
+      if (!menuRef.current) return;
+      
+      // Verifica se o clique foi DENTRO do menu
+      if (menuRef.current.contains(e.target)) {
+        return; // Não faz nada - clique foi dentro
       }
+      
+      // Clique foi fora - fecha o menu
+      setAberto(false);
     };
-    document.addEventListener('mousedown', handleClickFora);
-    return () => document.removeEventListener('mousedown', handleClickFora);
-  }, []);
+    
+    // Adiciona o listener SEMPRE que o menu abrir
+    if (aberto) {
+      document.addEventListener('mousedown', handler);
+    }
+    
+    return () => {
+      document.removeEventListener('mousedown', handler);
+    };
+  }, [aberto]); // Re-cria o listener quando 'aberto' mudar
 
   const handleLogout = () => {
     logout();
@@ -31,9 +45,13 @@ function MenuUsuario() {
     <div className="menu-usuario-wrapper" ref={menuRef}>
       <button 
         className="avatar-usuario" 
-        onClick={() => setAberto(!aberto)}
+        onClick={(e) => {
+          e.stopPropagation();
+          setAberto(!aberto);
+        }}
         aria-label="Menu do usuário"
         aria-expanded={aberto}
+        type="button"
       >
         {inicial}
       </button>
@@ -55,9 +73,6 @@ function MenuUsuario() {
                 <button className="menu-item" onClick={() => { navigate('/DashboardCliente'); setAberto(false); }}>
                   <i className="bi bi-person-circle"></i> Minha Conta
                 </button>
-                <button className="menu-item" onClick={() => { navigate('/Reserva'); setAberto(false); }}>
-                  <i className="bi bi-calendar-check"></i> Minhas Reservas
-                </button>
               </>
             )}
             
@@ -65,9 +80,6 @@ function MenuUsuario() {
               <>
                 <button className="menu-item" onClick={() => { navigate('/DashboardAdministrador'); setAberto(false); }}>
                   <i className="bi bi-speedometer2"></i> Painel Admin
-                </button>
-                <button className="menu-item" onClick={() => { navigate('/Reserva'); setAberto(false); }}>
-                  <i className="bi bi-list-check"></i> Gerenciar Reservas
                 </button>
               </>
             )}

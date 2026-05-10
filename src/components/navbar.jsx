@@ -176,8 +176,8 @@ function BarraMobile({ aberto, onToggle, onNavigate, autenticado }) {
           </NavLink>
 
           {autenticado && (
-            <div className="mt-3" onClick={onNavigate}>
-              <MenuUsuario />
+             <div className="mt-3" onClick={onNavigate}>
+            <MenuUsuario onDropdownOpen={() => onNavigate()} />
             </div>
           )}
         </div>

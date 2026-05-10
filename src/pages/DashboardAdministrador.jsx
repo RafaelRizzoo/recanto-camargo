@@ -577,9 +577,9 @@ function DashboardAdministrador() {
       )}
       <aside className={`sidebar-admin ${sidebarAberta ? 'aberta' : 'colapsada'}`}>
         <div className="sidebar-topo">
-          <button className="btn-toggle-sidebar" onClick={() => setSidebarAberta(s => !s)} aria-label="Toggle menu">
+          {/* <button className="btn-toggle-sidebar" onClick={() => setSidebarAberta(s => !s)} aria-label="Toggle menu">
             <Ico.Menu/>
-          </button>
+          </button> */}
           {sidebarAberta && <span className="sidebar-marca">Recanto Admin</span>}
         </div>
         <nav className="sidebar-nav">
@@ -608,6 +608,12 @@ function DashboardAdministrador() {
       <main className="dashboard-admin-main">
         <div className="topbar-admin">
           <div className="topbar-esquerda">
+            <button type="button" className="btn-menu-topbar me-3"
+         onClick={() => setSidebarAberta(s => !s)}
+        aria-label="Toggle menu"
+           >
+      <Ico.Menu/>
+      </button>
             <div>
               <h4 className="topbar-titulo mb-0">{abas.find(a => a.id === abaAtiva)?.label}</h4>
               <span className="topbar-sub">Olá, {usuario?.nome?.split(' ')[0]}!</span>

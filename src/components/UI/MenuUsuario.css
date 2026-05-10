@@ -1,6 +1,7 @@
 .menu-usuario-wrapper {
   position: relative;
   margin-left: 1rem;
+   z-index: 1200;
 }
 
 .avatar-usuario {
@@ -17,6 +18,9 @@
   place-items: center;
   transition: all 0.25s ease;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+  position: relative; 
+  z-index: 1400;         
+  pointer-events: auto;
 }
 
 .avatar-usuario:hover {
@@ -32,7 +36,7 @@
   background: #fff;
   border-radius: 18px;
   box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
-  z-index: 1100;
+  z-index: 1500;
   overflow: hidden;
   animation: menuEntrar 0.22s ease-out;
   border: 1px solid rgba(0, 0, 0, 0.08);
@@ -162,20 +166,13 @@
   .menu-usuario-dropdown {
     right: -8px;
     width: 270px;
+    z-index: 1400;
   }
 }
 
 @media (max-width: 576px) {
   .menu-usuario-wrapper {
     margin-left: 0.5rem;
-  }
-  .avatar-usuario {
-    width: 38px;
-    height: 38px;
-    font-size: 1rem;
-  }
-  .menu-usuario-dropdown {
-    right: 0;
-    width: 260px;
+    z-index: 1200;
   }
 }

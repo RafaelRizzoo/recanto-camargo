@@ -12,9 +12,11 @@ import Reserva from "./pages/Reserva";
 import Avaliacoes from "./pages/Avaliacoes";
 import Fotos from "./pages/Fotos";
 import DashboardAdministrador from "./pages/DashboardAdministrador";
+import DashboardCliente from "./pages/DashboardCliente";
 import { ContextoAutenticacao } from './context/ContextoAutenticacao';
 
-const ROTAS_SEM_SHELL = [
+// Rotas com layout próprio — sem navbar, footer e botão WhatsApp globais
+const ROTAS_SEM_LAYOUT = [
   '/Login',
   '/Cadastro',
   '/RecuperarSenha',
@@ -24,29 +26,30 @@ const ROTAS_SEM_SHELL = [
 
 function AppContent() {
   const location = useLocation();
-  const mostrarShell = !ROTAS_SEM_SHELL.includes(location.pathname);
+  const mostrarLayout = !ROTAS_SEM_LAYOUT.includes(location.pathname);
 
   return (
     <div className="app-shell">
-      {mostrarShell && <Menu />}
+      {mostrarLayout && <Menu />}
 
       <div className="app-main flex-grow-1">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/Cadastro" element={<Cadastro />} />
-          <Route path="/Login" element={<Login />} />
-          <Route path="/RecuperarSenha" element={<RecuperarSenha />} />
-          <Route path="/Configuracoes" element={<Configuracoes />} />
-          <Route path="/Reserva" element={<Reserva />} />
-          <Route path="/Avaliacoes" element={<Avaliacoes />} />
-          <Route path="/Fotos" element={<Fotos />} />
+          <Route path="/"                       element={<Home />} />
+          <Route path="/Cadastro"               element={<Cadastro />} />
+          <Route path="/Login"                  element={<Login />} />
+          <Route path="/RecuperarSenha"         element={<RecuperarSenha />} />
+          <Route path="/Configuracoes"          element={<Configuracoes />} />
+          <Route path="/Reserva"                element={<Reserva />} />
+          <Route path="/Avaliacoes"             element={<Avaliacoes />} />
+          <Route path="/Fotos"                  element={<Fotos />} />
           <Route path="/DashboardAdministrador" element={<DashboardAdministrador />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/DashboardCliente"       element={<DashboardCliente />} />
+          <Route path="*"                       element={<Navigate to="/" replace />} />
         </Routes>
       </div>
 
-      {mostrarShell && <Footer />}
-      {mostrarShell && <BotaoWhats />}
+      {mostrarLayout && <Footer />}
+      {mostrarLayout && <BotaoWhats />}
     </div>
   );
 }
