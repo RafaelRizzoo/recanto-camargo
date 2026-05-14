@@ -7,8 +7,8 @@ import EntradaSenha from '../components/UI/EntradaSenha';
 import Botao from '../components/UI/Botao';
 import LinkAutenticacao from '../components/UI/LinkAutenticacao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import logoPng from '../assets/img/artes/logo.png';
-import basilicaPng from '../assets/img/artes/basilica.png';
+import logoPng from '../assets/img/artes/logo.webp';
+import basilicaPng from '../assets/img/artes/basilica.webp';
 
 function Cadastro() {
   const [dados, setDados] = useState({

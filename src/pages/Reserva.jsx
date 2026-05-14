@@ -1,6 +1,6 @@
 import { Container, Row, Col, Form, Card } from 'react-bootstrap';
 import Botao from '../components/UI/Botao';
-import faixada from '../assets/img/comodos/Frente.png';
+import faixada from '../assets/img/comodos/Frente.webp';
 
 function Reserva() {
     return (

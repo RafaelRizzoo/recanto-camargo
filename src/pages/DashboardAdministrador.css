@@ -181,7 +181,7 @@
 
 /* ── Topbar ────────────────────────────────────────────────── */
 .topbar-admin {
-  background: linear-gradient(180deg, #223a5e 0%, #3b6399 100%);
+  background: linear-gradient(180deg, #223a5e 100%, #3b6399 0%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding: 0 1.5rem;
   display: flex;
@@ -240,21 +240,17 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  background: rgba(255, 255, 255, 0.2);
-  color: #fff ;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
   display: grid;
   place-items: center;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.btn-menu-topbar:hover {
-  background: #223a5e;
-  color: #fff;
-  border-color: #223a5e;
-}
+.btn-menu-topbar:hover { background: rgba(255, 255, 255, 0.22); color: #fff; border-color: rgba(255, 255, 255, 0.3); }
 
 /* ── Conteúdo ──────────────────────────────────────────────── */
 .dashboard-admin-conteudo {

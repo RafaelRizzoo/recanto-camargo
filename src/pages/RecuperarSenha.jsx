@@ -4,8 +4,8 @@ import LayoutAutenticacao from '../components/UI/LayoutAutenticacao';
 import Entrada from '../components/UI/Entrada';
 import Botao from '../components/UI/Botao';
 import LinkAutenticacao from '../components/UI/LinkAutenticacao';
-import logoPng from '../assets/img/artes/logo.png';
-import basilicaPng from '../assets/img/artes/basilica.png';
+import logoPng from '../assets/img/artes/logo.webp';
+import basilicaPng from '../assets/img/artes/basilica.webp';
 
 function RecuperarSenha() {
   const [etapa, setEtapa] = useState(1);

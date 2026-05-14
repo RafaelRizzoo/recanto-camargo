@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import Botao from "./UI/Botao";
 import MenuUsuario from "./UI/MenuUsuario";
 import { useAutenticacao } from "../hooks/useAutenticacao";
-import logoPng from "../assets/img/artes/santa.png";
+import logoPng from "../assets/img/artes/santa.webp";
 import "./navbar.css";
 
 function IconeHome() {

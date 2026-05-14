@@ -1,18 +1,18 @@
-import BanheiroImg from "../assets/img/comodos/Banheiro.png";
-import ChurrasqueiraImg from "../assets/img/comodos/Churrasqueira.png";
-import CozinhaImg from "../assets/img/comodos/Cozinha.png";
-import FrenteImg from "../assets/img/comodos/Frente.png";
-import JardimImg from "../assets/img/comodos/JardimInverno.png";
-import Quarto2Img from "../assets/img/comodos/QuartoDois.png";
-import Quarto1Img from "../assets/img/comodos/QuartoUm.png";
-import SalaImg from "../assets/img/comodos/Sala.png";
+import BanheiroImg from "../assets/img/comodos/Banheiro.webp";
+import ChurrasqueiraImg from "../assets/img/comodos/Churrasqueira.webp";
+import CozinhaImg from "../assets/img/comodos/Cozinha.webp";
+import FrenteImg from "../assets/img/comodos/Frente.webp";
+import JardimImg from "../assets/img/comodos/JardimInverno.webp";
+import Quarto2Img from "../assets/img/comodos/QuartoDois.webp";
+import Quarto1Img from "../assets/img/comodos/QuartoUm.webp";
+import SalaImg from "../assets/img/comodos/Sala.webp";
 
-import BasilicaTurismo from "../assets/img/turismo/BasilicaTurismo.png";
-import CruzeiroTurismo from "../assets/img/turismo/CruzeiroTurismo.png";
-import FeiraTurismo from "../assets/img/turismo/FeiraTurismo.png";
-import PassarelaTurismo from "../assets/img/turismo/PassarelaTurismo.png";
-import PortoTurismo from "../assets/img/turismo/PortoTurismo.png";
-import RosarioTurismo from "../assets/img/turismo/RosarioTurismo.png";
+import BasilicaTurismo from "../assets/img/turismo/BasilicaTurismo.webp";
+import CruzeiroTurismo from "../assets/img/turismo/CruzeiroTurismo.webp";
+import FeiraTurismo from "../assets/img/turismo/FeiraTurismo.webp";
+import PassarelaTurismo from "../assets/img/turismo/PassarelaTurismo.webp";
+import PortoTurismo from "../assets/img/turismo/PortoTurismo.webp";
+import RosarioTurismo from "../assets/img/turismo/RosarioTurismo.webp";
 
 export const imagensCarrosselHome = [
   { src: FrenteImg, alt: "Frente do Recanto Camargo" },
@@ -109,9 +109,18 @@ export const midiasGaleria = [
   {
     id: 9,
     categoria: "Videos",
-    src: "https://images.unsplash.com/photo-1616486029423-aaa4789e8c9a?q=80&w=600&auto=format&fit=crop",
-    alt: "Vídeo tour completo da casa",
+    src: "",
+    alt: "Vídeo de Boas Vindas ao Recanto Camargo",
     ehVideo: true,
+    youtubeId: "Mzjjki2eTAQ",
+  },
+  {
+    id: 10,
+    categoria: "Videos",
+    src: "",
+    alt: "Trajeto até o Santuário de Aparecida",
+    ehVideo: true,
+    youtubeId: "6sMnHbr-Lsk",
   },
 ];
 

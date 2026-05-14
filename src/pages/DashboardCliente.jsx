@@ -74,6 +74,22 @@ const RESERVAS_CLIENTE_MOCK = [
     formaPagamento: 'PIX',
     avaliacao: null,
   },
+  {
+    id: 'RC005',
+    imovel: 'Recanto Camargo',
+    localizacao: 'Aparecida - SP',
+    checkin: '2026-02-20',
+    checkout: '2026-02-23',
+    hospedes: 3,
+    valorTotal: 810.00,
+    valorDiaria: 270.00,
+    status: 'recusada',
+    criadaEm: '2026-01-15',
+    observacao: '',
+    formaPagamento: 'PIX',
+    avaliacao: null,
+    motivoRecusa: 'Não podemos aceitar reservas na data devido a uma manutenção na casa. Pedimos desculpas pelo inconveniente.',
+  },
 ];
 
 const CUPONS_MOCK = [
@@ -265,12 +281,21 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
               <div className="cli-bloco-valor">{fmtData(reserva.criadaEm)}</div>
             </div>
           </Col>
-          {reserva.observacao && (
-            <Col xs={12}>
-              <p className="cli-label-secao">Suas Observações</p>
-              <div className="cli-obs-box">{reserva.observacao}</div>
-            </Col>
-          )}
+      {reserva.observacao && (
+        <Col xs={12}>
+          <p className="cli-label-secao">Suas Observações</p>
+          <div className="cli-obs-box">{reserva.observacao}</div>
+        </Col>
+      )}
+      {reserva.status === 'recusada' && reserva.motivoRecusa && (
+        <Col xs={12}>
+          <p className="cli-label-secao">Motivo da Recusa</p>
+          <div className="cli-motivo-recusa">
+            <i className="bi bi-info-circle me-2"></i>
+            {reserva.motivoRecusa}
+          </div>
+        </Col>
+      )}
         </Row>
       </Modal.Body>
       <Modal.Footer className="border-0 pt-0">
@@ -417,11 +442,18 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
           </div>
         </div>
 
-        <div className="cli-card-infos">
-          <span><i className="bi bi-calendar3 me-1"></i>{fmtData(reserva.checkin)} → {fmtData(reserva.checkout)}</span>
-          <span><i className="bi bi-moon me-1"></i>{n} noite{n > 1 ? 's' : ''}</span>
-          <span><i className="bi bi-people me-1"></i>{reserva.hospedes} pessoa{reserva.hospedes > 1 ? 's' : ''}</span>
+      <div className="cli-card-infos">
+        <span><i className="bi bi-calendar3 me-1"></i>{fmtData(reserva.checkin)} → {fmtData(reserva.checkout)}</span>
+        <span><i className="bi bi-moon me-1"></i>{n} noite{n > 1 ? 's' : ''}</span>
+        <span><i className="bi bi-people me-1"></i>{reserva.hospedes} pessoa{reserva.hospedes > 1 ? 's' : ''}</span>
+      </div>
+
+      {reserva.status === 'recusada' && reserva.motivoRecusa && (
+        <div className="cli-motivo-recusa">
+          <i className="bi bi-info-circle me-2"></i>
+          <strong>Motivo da recusa:</strong> {reserva.motivoRecusa}
         </div>
+      )}
 
         <div className="cli-card-rodape">
           <div>
@@ -599,10 +631,11 @@ function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar }) {
   const [filtro, setFiltro] = useState('todas');
 
   const FILTROS = [
-    { id: 'todas',     label: 'Todas'      },
-    { id: 'pendente',  label: 'Pendentes'  },
-    { id: 'aprovada',  label: 'Confirmadas'},
+    { id: 'todas', label: 'Todas' },
+    { id: 'pendente', label: 'Pendentes' },
+    { id: 'aprovada', label: 'Confirmadas'},
     { id: 'cancelada', label: 'Canceladas' },
+    { id: 'recusada', label: 'Recusadas' },
     { id: 'concluida', label: 'Concluídas' },
   ];
 

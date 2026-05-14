@@ -16,7 +16,7 @@ const RESERVAS_MOCK = [
   { id:'R001', hospede:'Fernanda Lima',    email:'fernanda@email.com', telefone:'(12) 98765-4321', checkin:'2026-05-10', checkout:'2026-05-14', hospedes:4, status:'pendente', valorTotal:1080, observacao:'Preciso de berço para bebê de 8 meses.', criadaEm:'2026-04-20' },
   { id:'R002', hospede:'Carlos Eduardo',   email:'carlos@email.com',   telefone:'(11) 99999-1234', checkin:'2026-05-17', checkout:'2026-05-19', hospedes:2, status:'pendente', valorTotal:580,  observacao:'', criadaEm:'2026-04-21' },
   { id:'R003', hospede:'Mariana Souza',    email:'mariana@email.com',  telefone:'(12) 97777-8888', checkin:'2026-04-28', checkout:'2026-05-02', hospedes:6, status:'aprovada', valorTotal:1160, observacao:'Levaremos pet (cachorro pequeno).', criadaEm:'2026-04-10' },
-  { id:'R004', hospede:'Roberto Alves',    email:'roberto@email.com',  telefone:'(21) 98888-5555', checkin:'2026-04-15', checkout:'2026-04-17', hospedes:3, status:'recusada', valorTotal:580,  observacao:'', criadaEm:'2026-04-05' },
+{ id:'R004', hospede:'Roberto Alves', email:'roberto@email.com', telefone:'(21) 98888-5555', checkin:'2026-04-15', checkout:'2026-04-17', hospedes:3, status:'recusada', valorTotal:580, observacao:'', criadaEm:'2026-04-05', motivoRecusa:'Datas já reservadas por outro hóspede.' },
   { id:'R005', hospede:'Patricia Mendes',  email:'patricia@email.com', telefone:'(12) 96666-3333', checkin:'2026-06-01', checkout:'2026-06-07', hospedes:5, status:'aprovada', valorTotal:1740, observacao:'Aniversário de casamento.', criadaEm:'2026-04-22' },
   { id:'R006', hospede:'Juliana Costa',    email:'juliana@email.com',  telefone:'(13) 94444-2222', checkin:'2026-05-23', checkout:'2026-05-25', hospedes:2, status:'pendente', valorTotal:580,  observacao:'Viagem de lua de mel.', criadaEm:'2026-04-23' },
   { id:'R007', hospede:'André Oliveira',   email:'andre@email.com',    telefone:'(12) 95555-1111', checkin:'2026-07-04', checkout:'2026-07-08', hospedes:4, status:'aprovada', valorTotal:1160, observacao:'', criadaEm:'2026-04-25' },
@@ -83,7 +83,7 @@ function CardResumo({ icone, titulo, valor, sub, cor='#3b6399' }) {
 function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
   if (!reserva) return null;
   const n = noites(reserva.checkin, reserva.checkout);
-  
+
   return (
     <Modal show onHide={aoFechar} centered size="lg" className="modal-reserva-admin">
       <Modal.Header closeButton className="modal-header-admin">
@@ -134,14 +134,78 @@ function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
               <div className="obs-modal">{reserva.observacao}</div>
             </Col>
           )}
+          {reserva.motivoRecusa && (
+            <Col xs={12}>
+              <p className="label-secao-modal">Motivo da Recusa</p>
+              <div className="obs-modal" style={{background:'#fff1f2',border:'1px solid #fecaca',color:'#9a3412'}}>{reserva.motivoRecusa}</div>
+            </Col>
+          )}
         </Row>
       </Modal.Body>
       {reserva.status === 'pendente' && (
         <Modal.Footer className="border-0 pt-0 gap-2">
           <Button variant="outline-danger" className="btn-acao-modal" onClick={() => aoRecusar(reserva.id)}><Ico.X /> Recusar</Button>
-          <Button variant="success"        className="btn-acao-modal" onClick={() => aoAprovar(reserva.id)}><Ico.Check /> Aprovar</Button>
+          <Button variant="success" className="btn-acao-modal" onClick={() => aoAprovar(reserva.id)}><Ico.Check /> Aprovar</Button>
         </Modal.Footer>
       )}
+    </Modal>
+  );
+}
+
+// ─── Modal Recusa ────────────────────────────────────────────────────────────
+function ModalRecusa({ reserva, aoFechar, aoConfirmar }) {
+  const [motivo, setMotivo] = useState('');
+  const podeRecusar = motivo.trim().length > 0;
+
+  if (!reserva) return null;
+
+  const handleConfirmar = () => {
+    if (!podeRecusar) return;
+    aoConfirmar(reserva.id, motivo.trim());
+    setMotivo('');
+  };
+
+  const handleFechar = () => {
+    setMotivo('');
+    aoFechar();
+  };
+
+  return (
+    <Modal show onHide={handleFechar} centered className="modal-reserva-admin">
+      <Modal.Header closeButton className="modal-header-admin" style={{background:'linear-gradient(135deg, #7f1d1d, #dc2626)'}}>
+        <Modal.Title>Recusar Reserva #{reserva.id}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-4">
+        <div className="obs-modal mb-3" style={{background:'#fff7ed',border:'1px solid #fdba74',color:'#9a3412'}}>
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          Ao recusar esta reserva, o hóspede será notificado. Informe o motivo para que ele entenda a decisão.
+        </div>
+        <label className="label-secao-modal">Motivo da recusa <span className="text-danger">*</span></label>
+        <textarea
+          className="form-controle-config w-100"
+          rows={4}
+          placeholder="Informe o motivo da recusa (obrigatório)..."
+          value={motivo}
+          onChange={e => setMotivo(e.target.value)}
+          style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: motivo.trim().length === 0 && motivo.length > 0 ? '1px solid #dc2626' : '1px solid #e2e8f0', resize: 'vertical' }}
+        />
+        {!podeRecusar && motivo.length > 0 && (
+          <div className="text-danger small mt-2">
+            <i className="bi bi-exclamation-circle me-1"></i>É obrigatório informar o motivo da recusa.
+          </div>
+        )}
+        {podeRecusar && (
+          <div className="text-success small mt-2">
+            <i className="bi bi-check-circle me-1"></i>Motivo informado.
+          </div>
+        )}
+      </Modal.Body>
+      <Modal.Footer className="border-0 pt-0 gap-2">
+        <Button variant="outline-secondary" style={{borderRadius:'50px'}} onClick={handleFechar}>Voltar</Button>
+        <Button variant="danger" style={{borderRadius:'50px',padding:'0.55rem 1.5rem'}} onClick={handleConfirmar} disabled={!podeRecusar}>
+          <i className="bi bi-x-circle me-2"></i>Confirmar Recusa
+        </Button>
+      </Modal.Footer>
     </Modal>
   );
 }
@@ -433,8 +497,9 @@ function DashboardAdministrador() {
   const [abaAtiva,    setAbaAtiva]    = useState('visao-geral');
   const [reservas,    setReservas]    = useState([]);
   const [selecionada, setSelecionada] = useState(null);
-  const [filtro,      setFiltro]      = useState('todas');
-  const [feedback,    setFeedback]    = useState({ tipo:'', msg:'' });
+  const [filtro, setFiltro] = useState('todas');
+  const [feedback, setFeedback] = useState({ tipo:'', msg:'' });
+  const [modalRecusa, setModalRecusa] = useState(null);
 
   useEffect(() => { if (tipo !== 'admin') navigate('/'); }, [tipo, navigate]);
 
@@ -471,8 +536,14 @@ function DashboardAdministrador() {
 
   const recusar = useCallback((id) => {
     const r = reservas.find(x => x.id === id);
-    salvar(reservas.map(x => x.id === id ? { ...x, status:'recusada' } : x));
+    setModalRecusa(r);
+  }, [reservas]);
+
+  const confirmarRecusa = useCallback((id, motivo) => {
+    const r = reservas.find(x => x.id === id);
+    salvar(reservas.map(x => x.id === id ? { ...x, status:'recusada', motivoRecusa: motivo } : x));
     setSelecionada(null);
+    setModalRecusa(null);
     fb('erro', `Reserva #${id} recusada.`);
     adicionar({
       titulo: 'Reserva Recusada ❌',
@@ -633,6 +704,7 @@ function DashboardAdministrador() {
         <div className="dashboard-admin-conteudo">{renderConteudo()}</div>
       </main>
       <ModalReserva reserva={selecionada} aoFechar={() => setSelecionada(null)} aoAprovar={aprovar} aoRecusar={recusar}/>
+      <ModalRecusa reserva={modalRecusa} aoFechar={() => setModalRecusa(null)} aoConfirmar={confirmarRecusa}/>
     </div>
   );
 }
