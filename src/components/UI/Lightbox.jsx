@@ -32,12 +32,14 @@ function Lightbox({ midias, indiceInicial, aoFechar }) {
       <div className={`lb-media${midia.ehVideo ? ' lb-media--video' : ''}`}>
         {midia.ehVideo ? (
           <div className="lb-video-wrapper">
-            <iframe
-              src={`https://www.youtube.com/embed/${midia.youtubeId}?autoplay=1&rel=0`}
-              title={midia.alt}
-              allow="autoplay; encrypted-media"
-              allowFullScreen
-            />
+      <iframe
+          key={midia.youtubeId}
+          src={`https://www.youtube.com/embed/${midia.youtubeId}?autoplay=1&rel=0&modestbranding=1&controls=1&hd=1&iv_load_policy=3`}
+          title={midia.alt}
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className="lb-video-iframe"
+        />
           </div>
         ) : (
           <img key={indice} src={midia.src} alt={midia.alt} />
