@@ -29,10 +29,10 @@ function Lightbox({ midias, indiceInicial, aoFechar }) {
         <button className="lb-btn lb-nav lb-prev" onClick={() => navegar(-1)} aria-label="Anterior">&#10094;</button>
         <button className="lb-btn lb-nav lb-next" onClick={() => navegar(1)} aria-label="Próxima">&#10095;</button>
 
-      <div className={`lb-media${midia.ehVideo ? ' lb-media--video' : ''}`}>
-        {midia.ehVideo ? (
-          <div className="lb-video-wrapper">
-      <iframe
+    <div className={`lb-media${midia.ehVideo ? ' lb-media--video' : ''}${midia.ehShort ? ' lb-media--short' : ''}`}>
+      {midia.ehVideo ? (
+        <div className={`lb-video-wrapper${midia.ehShort ? ' lb-video-wrapper--short' : ''}`}>
+          <iframe
           key={midia.youtubeId}
           src={`https://www.youtube.com/embed/${midia.youtubeId}?autoplay=1&rel=0&modestbranding=1&controls=1&hd=1&iv_load_policy=3`}
           title={midia.alt}

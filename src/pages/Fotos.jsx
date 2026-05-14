@@ -64,7 +64,7 @@ function Fotos() {
                       style={{ cursor: 'pointer' }}
                     >
                       <div className="img-galeria-container position-relative">
-          <Card.Img variant="top" src={`https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`} alt={item.alt} loading="lazy" decoding="async" />
+                <Card.Img variant="top" src={item.ehShort ? `https://img.youtube.com/vi/${item.youtubeId}/sddefault.jpg` : `https://img.youtube.com/vi/${item.youtubeId}/hqdefault.jpg`} alt={item.alt} loading="lazy" decoding="async" />
                         <div className="overlay-galeria opacity-1 d-flex flex-column align-items-center justify-content-center text-white bg-dark-overlay">
                           <i className="bi bi-play-circle-fill fs-1 text-orange mb-2"></i>
                           <span className="fw-bold">Assistir Tour</span>

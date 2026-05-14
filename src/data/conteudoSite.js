@@ -113,6 +113,7 @@ export const midiasGaleria = [
     alt: "Vídeo de Boas Vindas ao Recanto Camargo",
     ehVideo: true,
     youtubeId: "Mzjjki2eTAQ",
+    ehShort: true,
   },
   {
     id: 10,
@@ -121,6 +122,7 @@ export const midiasGaleria = [
     alt: "Trajeto até o Santuário de Aparecida",
     ehVideo: true,
     youtubeId: "6sMnHbr-Lsk",
+    ehShort: true,
   },
 ];
 

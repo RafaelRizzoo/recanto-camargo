@@ -81,13 +81,17 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  height: 72vh;
-  min-height: 400px;
   border-radius: 16px;
   overflow: hidden;
   background: #000;
-  transform: translateZ(0);
-  will-change: auto;
+}
+
+.lb-video-wrapper--short {
+  aspect-ratio: 9 / 16;
+  max-width: 420px;
+  margin: 0 auto;
+  height: auto;
+  max-height: 80vh;
 }
 
 .lb-video-iframe {
@@ -95,15 +99,11 @@
   height: 100%;
   border: none;
   display: block;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  perspective: 1000px;
-  contain: layout style paint;
 }
 
 @media (max-width: 768px) {
-  .lb-video-wrapper {
-    height: 60vh;
-    min-height: 300px;
+  .lb-video-wrapper--short {
+    max-width: 100%;
+    max-height: 70vh;
   }
 }
