@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\Rafael\\\\.claude\\\\agents\\\\\")",
+      "Read(//c/Users/Rafael/.claude/**)"
+    ]
+  }
+}
