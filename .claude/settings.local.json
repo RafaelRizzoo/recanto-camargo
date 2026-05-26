@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(ls \"C:\\\\Users\\\\Rafael\\\\.claude\\\\agents\\\\\")",
-      "Read(//c/Users/Rafael/.claude/**)"
+      "Read(//c/Users/Rafael/.claude/**)",
+      "Bash(npm audit *)",
+      "PowerShell($env:PATH = $env:PATH + \";C:\\\\Program Files\\\\nodejs\"; cd \"c:\\\\Users\\\\Rafael\\\\Desktop\\\\recanto-camargo\"; npm audit 2>&1 | Select-Object -First 80)",
+      "Bash(which node *)",
+      "Read(//mnt/c/Users/Rafael/Desktop/recanto-camargo/node_modules/.bin/**)",
+      "Bash(npm run *)",
+      "PowerShell($env:Path = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\) + \";\" + [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); cd \"c:\\\\Users\\\\Rafael\\\\Desktop\\\\recanto-camargo\"; npm run build 2>&1 | Select-Object -Last 50)",
+      "PowerShell(Get-Command node -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\\" -ErrorAction SilentlyContinue | Select-Object -First 5; Get-ChildItem \"$env:APPDATA\\\\npm\\\\\" -ErrorAction SilentlyContinue | Select-Object -First 5)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Rafael\\\\\" -ErrorAction SilentlyContinue | Select-Object Name; $env:Path -split \";\" | Where-Object { $_ -ne \"\" } | Select-Object -First 20)",
+      "PowerShell($paths = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); Write-Output $paths)",
+      "PowerShell($machinePaths = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\); Write-Output $machinePaths)"
     ]
   }
 }

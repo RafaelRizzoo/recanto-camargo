@@ -4,6 +4,7 @@ body {
   overflow-x: hidden;
   margin: 0;
   padding: 0;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
 #root {
@@ -23,8 +24,8 @@ body {
   --cinza-claro: #dedee0;
   --branco: #ffffff;
   --branco-transparente: rgba(255, 255, 255, 0.85);
-  --sombra-suave: 0 4px 15px rgba(0, 0, 0, 0.6);
-  --sombra-forte: 0 10px 30px rgba(0, 0, 0, 0.7);
+  --sombra-suave: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --sombra-forte: 0 8px 24px rgba(0, 0, 0, 0.12);
   --sombra-btn: 0 10px 20px rgba(0, 0, 0, 0.2);
   --transicao-padrao: all 0.3s ease;
 }
@@ -168,15 +169,15 @@ body {
 
 .card-turismo {
   background-color: #ffffff;
-  border-radius: 25px;
+  border-radius: 14px;
   overflow: hidden;
   border: none;
-  transition: all 0.4s ease;
+  transition: all 0.3s ease;
 }
 
 .card-turismo:hover {
-  transform: translateY(-12px);
-  box-shadow: 0 15px 30px rgba(26, 60, 109, 0.15) !important;
+  transform: translateY(-5px);
+  box-shadow: 0 12px 28px rgba(26, 60, 109, 0.12) !important;
 }
 
 .img-container {
@@ -236,13 +237,13 @@ body {
 
 .barra-disponibilidade {
   background-color: white;
-  border-radius: 50px;
-  padding: 2rem 2.5rem;
-  margin-top: -20px;
+  border-radius: 20px;
+  padding: 1.5rem 2rem;
+  margin: 2rem auto -40px auto;
   position: relative;
   z-index: 5;
-  margin-bottom: -40px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  max-width: 1380px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
 .label-dispo {
@@ -252,13 +253,6 @@ body {
   font-size: 0.85rem;
   margin-bottom: 8px;
   margin-left: 15px;
-}
-
-.barra-disponibilidade {
-  border-radius: 20px;
-  margin: 2rem auto -40px auto;
-  padding: 1.5rem;
-  max-width: 1380px;
 }
 
 .wrapper-home {
@@ -552,7 +546,7 @@ body {
 .pagina-avaliacoes {
   background-color: #f0f4f8;
   min-height: 100vh;
-  padding-top: 130px;
+  padding-top: 130px !important;
 }
 .card-depoimento-pagina {
   background: #ffffff;
@@ -566,8 +560,8 @@ body {
 }
 
 .card-depoimento-pagina:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 20px 40px rgba(26, 60, 109, 0.12);
+  transform: translateY(-5px);
+  box-shadow: 0 12px 28px rgba(26, 60, 109, 0.12);
 }
 
 .aspas-decorativa {
@@ -621,12 +615,6 @@ body {
   color: #ffc107;
   margin-bottom: 1rem;
   font-size: 0.9rem;
-}
-
-.pagina-avaliacoes {
-  padding-top: 130px !important;
-  background-color: #f0f4f8;
-  min-height: 100vh;
 }
 
 .titulo-container-avaliacoes {
