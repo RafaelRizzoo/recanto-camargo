@@ -12,7 +12,11 @@
       "PowerShell(Get-Command node -ErrorAction SilentlyContinue; Get-ChildItem \"C:\\\\Program Files\\\\nodejs\\\\\" -ErrorAction SilentlyContinue | Select-Object -First 5; Get-ChildItem \"$env:APPDATA\\\\npm\\\\\" -ErrorAction SilentlyContinue | Select-Object -First 5)",
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\Rafael\\\\\" -ErrorAction SilentlyContinue | Select-Object Name; $env:Path -split \";\" | Where-Object { $_ -ne \"\" } | Select-Object -First 20)",
       "PowerShell($paths = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"User\"\\); Write-Output $paths)",
-      "PowerShell($machinePaths = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\); Write-Output $machinePaths)"
+      "PowerShell($machinePaths = [System.Environment]::GetEnvironmentVariable\\(\"Path\",\"Machine\"\\); Write-Output $machinePaths)",
+      "Bash(npx vite *)",
+      "Bash(node_modules/.bin/vite build *)",
+      "Bash(npm --version)",
+      "PowerShell($env:PATH += \";C:\\\\Program Files\\\\nodejs\"; cd \"C:\\\\Users\\\\Rafael\\\\Desktop\\\\recanto-camargo\"; node node_modules\\\\.bin\\\\vite build 2>&1 | Select-Object -Last 25)"
     ]
   }
 }

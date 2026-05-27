@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Form } from 'react-bootstrap';
 import LayoutAutenticacao from '../components/UI/LayoutAutenticacao';
 import Entrada from '../components/UI/Entrada';
@@ -15,6 +15,7 @@ function Login() {
   const [erro, setErro] = useState('');
   const { login } = useAutenticacao();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,7 +27,7 @@ function Login() {
     setErro('');
     const resultado = login(dados.email, dados.senha);
     if (resultado.sucesso) {
-      navigate('/');
+      navigate(location.state?.from || '/', { replace: true });
     } else {
       setErro(resultado.mensagem);
     }
