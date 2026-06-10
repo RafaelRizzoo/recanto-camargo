@@ -661,7 +661,7 @@ body {
   position: relative;
   z-index: 1;
   overflow: hidden;
-  padding-top: 70px;
+  padding-top: 115px;
 }
 
 .form-reserva-container {
@@ -675,8 +675,6 @@ body {
 .card-resumo {
   border-radius: 25px;
   overflow: hidden;
-  position: sticky;
-  top: 120px;
   z-index: 2;
 }
 
@@ -705,11 +703,6 @@ body {
   color: #f37321 !important;
 }
 
-@media (min-width: 992px) {
-  .reserva-page .row {
-    align-items: flex-start;
-  }
-}
 
 .btn-reserva-claro {
   background: #ffffff !important;
@@ -979,9 +972,10 @@ textarea.form-controle-config {
 .galeria-reserva {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  height: 480px;
+  height: 420px;
   gap: 4px;
   overflow: hidden;
+  border-radius: 16px;
 }
 
 .galeria-principal {
@@ -1060,6 +1054,9 @@ textarea.form-controle-config {
   position: relative;
   height: 260px;
   background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
 }
 
 .galeria-mobile-slide {
@@ -1130,7 +1127,8 @@ textarea.form-controle-config {
   color: #1a3c6d;
   font-weight: 700;
   font-size: 1.25rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.75rem;1
+
 }
 
 .reserva-destaque-item {
@@ -1160,9 +1158,9 @@ textarea.form-controle-config {
 }
 
 .reserva-comodidade i {
-  font-size: 1.1rem;
+  font-size: 1.8rem;
   color: #3b6399;
-  width: 20px;
+  width: 24px;
   text-align: center;
 }
 
@@ -1196,13 +1194,62 @@ textarea.form-controle-config {
   font-size: 0.85rem;
 }
 
+.reserva-avatar-foto {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.reserva-google-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: #5a7184;
+  font-weight: 500;
+}
+
+/* Skeleton shimmer */
+@keyframes sk-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.reserva-skeleton .sk-line,
+.reserva-skeleton .sk-avatar {
+  background: linear-gradient(90deg, #e8ecf0 25%, #f4f6f8 50%, #e8ecf0 75%);
+  background-size: 800px 100%;
+  animation: sk-shimmer 1.4s infinite linear;
+  border-radius: 6px;
+}
+
+.reserva-skeleton .sk-line     { height: 12px; margin-bottom: 0; }
+.reserva-skeleton .sk-stars    { width: 80px; height: 14px; }
+.reserva-skeleton .sk-name     { width: 100px; height: 12px; }
+.reserva-skeleton .sk-date     { width: 70px; height: 10px; }
+.reserva-skeleton .sk-avatar   { width: 36px; height: 36px; min-width: 36px; border-radius: 50%; }
+
 .reserva-mapa-container {
   border-radius: 16px;
   overflow: hidden;
+  height: 280px;
   border: 1px solid #e8ecf0;
 }
 
 /* Widget de reserva */
+.reserva-widget-sticky {
+  position: sticky;
+  top: 90px;
+}
+
+@media (max-width: 991px) {
+  .reserva-widget-sticky {
+    position: static;
+  }
+}
+
 .reserva-widget {
   border-radius: 20px !important;
   border: 1px solid #e8ecf0 !important;
@@ -1314,6 +1361,18 @@ textarea.form-controle-config {
   padding: 1.25rem 1.5rem;
   font-size: 0.95rem;
   border: 1px solid #e8ecf0;
+}
+
+/* Hero row: colunas alinhadas pelo topo */
+.reserva-hero-row {
+  align-items: flex-start !important;
+}
+
+/* Seções abaixo da dobra */
+.reserva-secao-avaliacoes,
+.reserva-secao-comodidades,
+.reserva-secao-sobre {
+  scroll-margin-top: 100px;
 }
 
 /* Ajustes responsivos da nova galeria */

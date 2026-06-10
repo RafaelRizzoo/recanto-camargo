@@ -27,7 +27,7 @@ function Fotos() {
         />
       )}
 
-      <Container className="mt-5 pt-5">
+      <Container className="pt-3">
         <div className="text-center mb-5 titulo-container-galeria">
           <span className="badge-topo mb-2" style={{ backgroundColor: '#f37321', color: 'white' }}>
             Álbum do Recanto

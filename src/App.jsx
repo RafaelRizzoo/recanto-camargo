@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Menu from "./components/navbar";
@@ -45,12 +45,28 @@ function RotaProtegida({ elemento, tipoRequerido }) {
   return elemento;
 }
 
+function ScrollToTop() {
+  const { key } = useLocation();
+
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    const el = document.scrollingElement || document.documentElement;
+    el.scrollTop = 0;
+    window.scrollTo(0, 0);
+  }, [key]);
+
+  return null;
+}
+
 function AppContent() {
   const location = useLocation();
   const mostrarLayout = !ROTAS_SEM_LAYOUT.includes(location.pathname);
 
   return (
     <div className="app-shell">
+      <ScrollToTop />
       {mostrarLayout && <Menu />}
 
       <div className="app-main flex-grow-1">

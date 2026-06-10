@@ -37,7 +37,8 @@ function Home() {
 
   function handleDispo(e) {
     const { name, value } = e.target;
-    setDispo(d => ({ ...d, [name]: value }));
+    const valorFinal = name === 'pessoas' && Number(value) > 10 ? '10' : value;
+    setDispo(d => ({ ...d, [name]: valorFinal }));
     setErroDispo('');
   }
 
@@ -115,7 +116,7 @@ function Home() {
               </Col>
               <Col md={3}>
                 <label className="label-dispo">Pessoas</label>
-                <Entrada tipo="number" nome="pessoas" valor={dispo.pessoas} onChange={handleDispo} placeholder="0" min="1" mostrarIconeEsquerdo={false} />
+                <Entrada tipo="number" nome="pessoas" valor={dispo.pessoas} onChange={handleDispo} placeholder="0" min="1" max="10" mostrarIconeEsquerdo={false} />
               </Col>
               <Col md={3}>
                 <Botao tipo="button" className="w-100 py-2" onClick={verificarDisponibilidade}>

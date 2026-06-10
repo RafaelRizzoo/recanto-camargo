@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import Botao from "./UI/Botao";
 import MenuUsuario from "./UI/MenuUsuario";
@@ -60,9 +60,18 @@ function IconeMenu() {
   );
 }
 
-function BarraDesktop({ autenticado }) {
+function IconeX() {
   return (
-    <nav className="navbar-moderna navbar-topo" aria-label="Navegação principal">
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="5" x2="19" y2="19" />
+      <line x1="19" y1="5" x2="5" y2="19" />
+    </svg>
+  );
+}
+
+function BarraDesktop({ autenticado, scrollado }) {
+  return (
+    <nav className={`navbar-moderna navbar-topo${scrollado ? " is-scrolled" : ""}`} aria-label="Navegação principal">
       <div className="navbar-shell">
         <NavLink to="/" className="navbar-brand-moderna">
           <img src={logoPng} alt="Recanto Camargo" className="navbar-logo" />
@@ -116,9 +125,9 @@ function BarraDesktop({ autenticado }) {
   );
 }
 
-function BarraMobile({ aberto, onToggle, onNavigate, autenticado }) {
+function BarraMobile({ aberto, onToggle, onNavigate, autenticado, scrollado, oculta }) {
   return (
-    <nav className="navbar-moderna navbar-mobile" aria-label="Navegação principal">
+    <nav className={`navbar-moderna navbar-mobile${scrollado ? " is-scrolled" : ""}${oculta ? " navbar-oculta" : ""}`} aria-label="Navegação principal">
       <div className="navbar-shell">
         <div className="navbar-header">
           <NavLink to="/" className="navbar-brand-moderna">
@@ -133,7 +142,7 @@ function BarraMobile({ aberto, onToggle, onNavigate, autenticado }) {
             aria-expanded={aberto}
             onClick={onToggle}
           >
-            <IconeMenu />
+            {aberto ? <IconeX /> : <IconeMenu />}
           </button>
         </div>
 
@@ -192,6 +201,9 @@ function Menu() {
     return window.innerWidth >= 992;
   });
   const [menuMobileAberto, setMenuMobileAberto] = useState(false);
+  const [scrollado, setScrollado] = useState(false);
+  const [navbarOculta, setNavbarOculta] = useState(false);
+  const scrollAnteriorRef = useRef(0);
   const { autenticado } = useAutenticacao();
 
   useEffect(() => {
@@ -206,8 +218,24 @@ function Menu() {
     return () => window.removeEventListener("resize", atualizarLayout);
   }, []);
 
+  useEffect(() => {
+    const aoRolar = () => {
+      const scrollAtual = window.scrollY;
+      setScrollado(scrollAtual > 80);
+      if (scrollAtual <= 80) {
+        setNavbarOculta(false);
+      } else {
+        setNavbarOculta(scrollAtual > scrollAnteriorRef.current);
+      }
+      scrollAnteriorRef.current = scrollAtual;
+    };
+
+    window.addEventListener("scroll", aoRolar, { passive: true });
+    return () => window.removeEventListener("scroll", aoRolar);
+  }, []);
+
   if (ehDesktop) {
-    return <BarraDesktop autenticado={autenticado} />;
+    return <BarraDesktop autenticado={autenticado} scrollado={scrollado} />;
   }
 
   return (
@@ -216,6 +244,8 @@ function Menu() {
       onToggle={() => setMenuMobileAberto((estadoAnterior) => !estadoAnterior)}
       onNavigate={() => setMenuMobileAberto(false)}
       autenticado={autenticado}
+      scrollado={scrollado}
+      oculta={navbarOculta}
     />
   );
 }

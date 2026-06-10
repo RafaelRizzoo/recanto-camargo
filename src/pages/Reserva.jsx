@@ -265,13 +265,19 @@ function Reserva() {
 
   return (
     <div className="reserva-page">
-      <GaleriaFotos imagens={imagens} onAbrirFoto={abrirFoto} />
-
       <Container className="reserva-conteudo py-5">
-        <Row className="g-5">
-          {/* Coluna esquerda: informações do imóvel */}
+
+        {/* ── HERO ROW: galeria + widget ── */}
+        <Row className="g-0 g-lg-5 reserva-hero-row">
+
+          {/* Col esquerda: galeria */}
           <Col lg={7}>
-            <div className="mb-4">
+            <GaleriaFotos imagens={imagens} onAbrirFoto={abrirFoto} />
+          </Col>
+
+          {/* Col direita: título + widget de reserva */}
+          <Col lg={5}>
+            <div className="reserva-header-info mb-3">
               <h1 className="reserva-titulo-imovel">Recanto Camargo</h1>
               <div className="d-flex align-items-center gap-3 flex-wrap mt-2">
                 <div className="d-flex align-items-center gap-1">
@@ -292,225 +298,221 @@ function Reserva() {
               </div>
             </div>
 
-            <hr className="reserva-divisor" />
+            <div className="reserva-widget-sticky">
+              <div className="reserva-widget shadow-lg bg-white p-4">
 
-            <div className="mb-4">
-              <h4 className="reserva-subtitulo">Sobre o espaço</h4>
-              <p className="text-muted lh-lg">
-                Casa completa e aconchegante a 5 minutos do Santuário Nacional de Aparecida.
-                Ideal para famílias e grupos que buscam conforto, praticidade e tranquilidade
-                durante a peregrinação ou lazer.
+                <div className="mb-3">
+                  <span className="fs-3 fw-bold text-azul">{formatarMoeda(DIARIA)}</span>
+                  <span className="text-muted"> / noite</span>
+                </div>
+
+                <div className="reserva-datas-grid mb-2">
+                  <div className={`reserva-data-campo${erros.checkin ? ' is-invalid' : ''}`}>
+                    <label>CHECK-IN</label>
+                    <input
+                      type="date"
+                      name="checkin"
+                      value={datas.checkin}
+                      onChange={handleData}
+                      min={hoje}
+                    />
+                  </div>
+                  <div className={`reserva-data-campo${erros.checkout ? ' is-invalid' : ''}`}>
+                    <label>CHECK-OUT</label>
+                    <input
+                      type="date"
+                      name="checkout"
+                      value={datas.checkout}
+                      onChange={handleData}
+                      min={datas.checkin || hoje}
+                    />
+                  </div>
+                </div>
+
+                {(erros.checkin || erros.checkout) && (
+                  <p className="text-danger small mb-2">
+                    <i className="bi bi-exclamation-circle me-1" />
+                    {erros.checkin || erros.checkout}
+                  </p>
+                )}
+
+                {erros.conflito && (
+                  <div className="alert alert-danger py-2 small mb-3">
+                    <i className="bi bi-calendar-x me-1" />
+                    {erros.conflito}
+                  </div>
+                )}
+
+                {noites > 0 && (
+                  <div className="reserva-resumo-valores my-3">
+                    <div className="d-flex justify-content-between mb-2">
+                      <span>{formatarMoeda(DIARIA)} × {noites} {noites === 1 ? 'noite' : 'noites'}</span>
+                      <span>{formatarMoeda(subtotal)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between mb-3">
+                      <span>Taxa de limpeza</span>
+                      <span>{formatarMoeda(TAXA_LIMPEZA)}</span>
+                    </div>
+                    <hr className="my-2" />
+                    <div className="d-flex justify-content-between fw-bold fs-5">
+                      <span>Total</span>
+                      <span className="text-orange">{formatarMoeda(total)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {autenticado && (
+                  <Form.Group className="mb-3">
+                    <Form.Label className="small fw-bold text-azul">Observações (opcional)</Form.Label>
+                    <Form.Control
+                      as="textarea"
+                      rows={2}
+                      value={observacoes}
+                      onChange={e => setObservacoes(e.target.value)}
+                      placeholder="Ex: Berço, pet, chegada noturna..."
+                      style={{ borderRadius: '10px', fontSize: '0.9rem', resize: 'none' }}
+                    />
+                  </Form.Group>
+                )}
+
+                {erros.geral && (
+                  <div className="alert alert-danger py-2 small mb-3">{erros.geral}</div>
+                )}
+
+                {autenticado ? (
+                  <Botao larguraTotal onClick={handleSubmit} tipo="button" className="py-3 fs-5">
+                    Confirmar Reserva
+                  </Botao>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      className="reserva-btn-login w-100 py-3 fw-bold fs-6"
+                      onClick={irParaLogin}
+                    >
+                      <i className="bi bi-person-circle me-2" />
+                      Faça login para reservar
+                    </button>
+                    <p className="text-muted small text-center mt-2 mb-0">
+                      Você pode ver datas e valores sem fazer login.
+                    </p>
+                  </>
+                )}
+
+                <div className="reserva-beneficios mt-3">
+                  <div className="d-flex align-items-center gap-2 small text-muted mb-1">
+                    <i className="bi bi-check-circle-fill text-success" />
+                    Cancelamento gratuito até 7 dias antes
+                  </div>
+                  <div className="d-flex align-items-center gap-2 small text-muted">
+                    <i className="bi bi-check-circle-fill text-success" />
+                    Sem taxas extras do Airbnb
+                  </div>
+                </div>
+
+                {autenticado && (
+                  <div className="reserva-usuario-info mt-3">
+                    <i className="bi bi-person-check-fill me-2 text-success" />
+                    <span className="small">
+                      Reservando como <strong>{usuario.nome}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </Col>
+        </Row>
+
+        {/* ── SEÇÃO SOBRE + MAPA ── */}
+        <section className="reserva-secao-sobre mt-1 pt-2">
+          <hr className="reserva-divisor mb-4" />
+          <Row className="g-4">
+            <Col lg={6}>
+              <h2 className="reserva-subtitulo fs-4 mb-3">Sobre o Recanto Camargo</h2>
+              <p className="text-muted" style={{ lineHeight: '1.75', fontSize: '0.95rem' }}>
+                Casa aconchegante com 2 quartos, localizada no bairro Ponte Alta, a apenas 5 minutos
+                a pé do Santuário Nacional de Aparecida. Ideal para famílias e grupos de peregrinos
+                que buscam conforto, privacidade e uma estadia tranquila na cidade da Padroeira do Brasil.
               </p>
-              <Row className="g-3 mt-1">
-                {[
-                  { icone: 'bi-house-door', texto: 'Casa inteira para você' },
-                  { icone: 'bi-people-fill', texto: 'Até 8 hóspedes' },
-                  { icone: 'bi-door-open', texto: '2 quartos confortáveis' },
-                  { icone: 'bi-shield-check', texto: 'Reserva direta segura' },
-                ].map(d => (
-                  <Col xs={6} key={d.texto}>
-                    <div className="reserva-destaque-item">
-                      <i className={`bi ${d.icone}`} />
-                      <span>{d.texto}</span>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-            </div>
-
-            <hr className="reserva-divisor" />
-
-            <div className="mb-4">
-              <h4 className="reserva-subtitulo">O que este lugar oferece</h4>
-              <Row className="g-3 mt-1">
-                {comodidades.map(c => (
-                  <Col xs={6} md={4} key={c.id}>
-                    <div className="reserva-comodidade">
-                      <i className={`bi ${c.icone}`} />
-                      <span>{c.titulo}</span>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-            </div>
-
-            <hr className="reserva-divisor" />
-
-            <div className="mb-4">
-              <h4 className="reserva-subtitulo">
-                <i className="bi bi-star-fill me-2" style={{ color: '#f37321' }} />
-                4,98 · 9 avaliações
-              </h4>
-              <Row className="g-3 mt-1">
-                {depoimentos.slice(0, 4).map(d => (
-                  <Col md={6} key={d.id}>
-                    <div className="reserva-card-depoimento">
-                      <p className="reserva-texto-depoimento">
-                        &ldquo;{d.texto.substring(0, 130)}&hellip;&rdquo;
-                      </p>
-                      <div className="d-flex align-items-center gap-2 mt-3">
-                        <div className="reserva-avatar">{d.nome[0].toUpperCase()}</div>
-                        <div>
-                          <div className="fw-bold small text-azul">{d.nome}</div>
-                          <div className="text-muted" style={{ fontSize: '0.78rem' }}>{d.local}</div>
-                        </div>
-                      </div>
-                    </div>
-                  </Col>
-                ))}
-              </Row>
-            </div>
-
-            <hr className="reserva-divisor" />
-
-            <div>
-              <h4 className="reserva-subtitulo">Localização</h4>
-              <p className="text-muted mb-3">
+              <p className="text-muted" style={{ lineHeight: '1.75', fontSize: '0.95rem' }}>
+                A casa conta com cozinha completa, churrasqueira, Wi-Fi, Smart TVs, garagem e enxoval
+                incluso. Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a
+                melhor experiência possível.
+              </p>
+              <a
+                href={MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="reserva-link-local d-inline-flex align-items-center gap-1 mt-2"
+              >
+                <i className="bi bi-geo-alt-fill" />
+                Ver no Google Maps
+              </a>
+            </Col>
+            <Col lg={6}>
+              <h4 className="reserva-subtitulo mb-2">Localização</h4>
+              <p className="text-muted mb-3" style={{ fontSize: '0.9rem' }}>
                 Ponte Alta, Aparecida - SP &mdash; 5 min do Santuário Nacional
               </p>
               <div className="reserva-mapa-container">
                 <iframe
                   src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1279.723618367829!2d-45.23822072662757!3d-22.84648000473076!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ccc3d5a125211b%3A0x240324a5c110d090!2sRecanto%20Camargo!5e0!3m2!1sen!2sbr!4v1774143793114!5m2!1sen!2sbr"
                   width="100%"
-                  height="300"
+                  height="100%"
                   style={{ border: 0, borderRadius: '16px' }}
                   allowFullScreen=""
                   loading="lazy"
                   title="Localização Recanto Camargo"
                 />
               </div>
-            </div>
-          </Col>
+            </Col>
+          </Row>
+        </section>
 
-          {/* Coluna direita: widget de reserva */}
-          <Col lg={5}>
-            <div className="reserva-widget shadow-lg bg-white card-resumo p-4">
-              <div className="d-flex justify-content-between align-items-baseline mb-3">
-                <div>
-                  <span className="fs-3 fw-bold text-azul">{formatarMoeda(DIARIA)}</span>
-                  <span className="text-muted"> / noite</span>
+        {/* ── SEÇÃO COMODIDADES ── */}
+        <section className="reserva-secao-comodidades">
+          <hr className="reserva-divisor mb-4" />
+          <h2 className="reserva-subtitulo fs-4 mb-4">O que este lugar oferece</h2>
+          <Row className="g-3">
+            {comodidades.map(c => (
+              <Col key={c.id} xs={6} md={4} lg={3}>
+                <div className="reserva-comodidade">
+                  <i className={`bi ${c.icone}`} />
+                  <span>{c.titulo}</span>
                 </div>
-                <div className="small text-muted">
-                  <i className="bi bi-star-fill me-1" style={{ color: '#f37321' }} />
-                  4,98 &middot; 9 avaliações
-                </div>
-              </div>
+              </Col>
+            ))}
+          </Row>
+        </section>
 
-              <div className="reserva-datas-grid mb-2">
-                <div className={`reserva-data-campo${erros.checkin ? ' is-invalid' : ''}`}>
-                  <label>CHECK-IN</label>
-                  <input
-                    type="date"
-                    name="checkin"
-                    value={datas.checkin}
-                    onChange={handleData}
-                    min={hoje}
-                  />
-                </div>
-                <div className={`reserva-data-campo${erros.checkout ? ' is-invalid' : ''}`}>
-                  <label>CHECK-OUT</label>
-                  <input
-                    type="date"
-                    name="checkout"
-                    value={datas.checkout}
-                    onChange={handleData}
-                    min={datas.checkin || hoje}
-                  />
-                </div>
-              </div>
-
-              {(erros.checkin || erros.checkout) && (
-                <p className="text-danger small mb-2">
-                  <i className="bi bi-exclamation-circle me-1" />
-                  {erros.checkin || erros.checkout}
-                </p>
-              )}
-
-              {erros.conflito && (
-                <div className="alert alert-danger py-2 small mb-3">
-                  <i className="bi bi-calendar-x me-1" />
-                  {erros.conflito}
-                </div>
-              )}
-
-              {noites > 0 && (
-                <div className="reserva-resumo-valores my-3">
-                  <div className="d-flex justify-content-between mb-2">
-                    <span>{formatarMoeda(DIARIA)} × {noites} {noites === 1 ? 'noite' : 'noites'}</span>
-                    <span>{formatarMoeda(subtotal)}</span>
+        {/* ── SEÇÃO AVALIAÇÕES ── */}
+        <section className="reserva-secao-avaliacoes mt-5 pt-4">
+          <hr className="reserva-divisor mb-4" />
+          <div className="d-flex align-items-center gap-2 mb-4">
+            <i className="bi bi-star-fill text-orange fs-5" />
+            <h2 className="reserva-subtitulo mb-0 fs-4">4,98 &middot; 9 avaliações</h2>
+          </div>
+          <Row className="g-3">
+            {depoimentos.slice(0, 6).map(dep => (
+              <Col key={dep.id} md={6} lg={4}>
+                <div className="reserva-card-depoimento h-100">
+                  <div className="mb-2">
+                    <Estrelas total={dep.estrelas} />
                   </div>
-                  <div className="d-flex justify-content-between mb-3">
-                    <span>Taxa de limpeza</span>
-                    <span>{formatarMoeda(TAXA_LIMPEZA)}</span>
-                  </div>
-                  <hr className="my-2" />
-                  <div className="d-flex justify-content-between fw-bold fs-5">
-                    <span>Total</span>
-                    <span className="text-orange">{formatarMoeda(total)}</span>
+                  <p className="reserva-texto-depoimento mb-3">{dep.texto}</p>
+                  <div className="d-flex align-items-center gap-2 mt-auto">
+                    <div className="reserva-avatar">{dep.nome.charAt(0)}</div>
+                    <div>
+                      <div className="fw-bold small text-azul">{dep.nome}</div>
+                      <div className="text-muted" style={{ fontSize: '0.78rem' }}>{dep.local}</div>
+                    </div>
                   </div>
                 </div>
-              )}
+              </Col>
+            ))}
+          </Row>
+        </section>
 
-              {autenticado && (
-                <Form.Group className="mb-3">
-                  <Form.Label className="small fw-bold text-azul">Observações (opcional)</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    value={observacoes}
-                    onChange={e => setObservacoes(e.target.value)}
-                    placeholder="Ex: Berço, pet, chegada noturna..."
-                    style={{ borderRadius: '10px', fontSize: '0.9rem', resize: 'none' }}
-                  />
-                </Form.Group>
-              )}
-
-              {erros.geral && (
-                <div className="alert alert-danger py-2 small mb-3">{erros.geral}</div>
-              )}
-
-              {autenticado ? (
-                <Botao larguraTotal onClick={handleSubmit} tipo="button" className="py-3 fs-5">
-                  Confirmar Reserva
-                </Botao>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="reserva-btn-login w-100 py-3 fw-bold fs-6"
-                    onClick={irParaLogin}
-                  >
-                    <i className="bi bi-person-circle me-2" />
-                    Faça login para reservar
-                  </button>
-                  <p className="text-muted small text-center mt-2 mb-0">
-                    Você pode ver datas e valores sem fazer login.
-                  </p>
-                </>
-              )}
-
-              <div className="reserva-beneficios mt-3">
-                <div className="d-flex align-items-center gap-2 small text-muted mb-1">
-                  <i className="bi bi-check-circle-fill text-success" />
-                  Cancelamento gratuito até 7 dias antes
-                </div>
-                <div className="d-flex align-items-center gap-2 small text-muted">
-                  <i className="bi bi-check-circle-fill text-success" />
-                  Sem taxas extras do Airbnb
-                </div>
-              </div>
-
-              {autenticado && (
-                <div className="reserva-usuario-info mt-3">
-                  <i className="bi bi-person-check-fill me-2 text-success" />
-                  <span className="small">
-                    Reservando como <strong>{usuario.nome}</strong>
-                  </span>
-                </div>
-              )}
-            </div>
-          </Col>
-        </Row>
       </Container>
 
       {/* Lightbox de fotos */}
