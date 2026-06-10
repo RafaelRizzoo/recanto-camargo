@@ -497,7 +497,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
   , [reservas]);
 
   const totalAvaliacoes  = reservas.filter(r => r.avaliacao).length;
-  // const cuponsDisponiveis = cupons.filter(c => c.ativo && !c.usado).length;
+  const cuponsDisponiveis = cupons.filter(c => c.ativo && !c.usado).length;
   const diasProxima = proxima ? diasAteCheckin(proxima.checkin) : null;
 
   return (
@@ -538,7 +538,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             </div>
           </div>
         </Col>
-        {/* <Col xs={6} md={6} xl={3}>
+        <Col xs={6} md={6} xl={3}>
           <div className="cli-card-resumo">
             <div className="cli-card-resumo-icone" style={{ background: '#fce7f3', color: '#9d174d' }}>
               <i className="bi bi-tag-fill fs-4"></i>
@@ -547,7 +547,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             <div className="cli-card-resumo-titulo">Cupons Disponíveis</div>
             <div className="cli-card-resumo-sub">prontos para usar</div>
           </div>
-        </Col> */}
+        </Col>
       </Row>
 
       {proxima ? (
@@ -897,7 +897,7 @@ function DashboardCliente() {
     { id: 'visao-geral', label: 'Visão Geral',      icone: <Ico.Dash />     },
     { id: 'reservas',    label: 'Minhas Reservas',   icone: <Ico.Reservas /> },
     { id: 'avaliacoes',  label: 'Minhas Avaliações', icone: <Ico.Estrela />  },
-    //{ id: 'cupons',      label: 'Meus Cupons',       icone: <Ico.Cupom />    },
+    { id: 'cupons',      label: 'Meus Cupons',       icone: <Ico.Cupom />    },
   ];
 
   const renderConteudo = () => {
@@ -930,13 +930,13 @@ function DashboardCliente() {
             <MinhasAvaliacoes reservas={reservas} onAvaliar={setModalAvaliar} />
           </>
         );
-      // case 'cupons':
-      //   return (
-      //     <>
-      //       <p className="dash-section-label">Cupons de Desconto</p>
-      //       <MeusCupons cupons={cupons} />
-      //     </>
-      //   );
+      case 'cupons':
+        return (
+          <>
+            <p className="dash-section-label">Cupons de Desconto</p>
+            <MeusCupons cupons={cupons} />
+          </>
+        );
       default: return null;
     }
   };

@@ -17,6 +17,7 @@ const Avaliacoes             = lazy(() => import("./pages/Avaliacoes"));
 const Fotos                  = lazy(() => import("./pages/Fotos"));
 const DashboardAdministrador = lazy(() => import("./pages/DashboardAdministrador"));
 const DashboardCliente       = lazy(() => import("./pages/DashboardCliente"));
+const ReservaConcluida       = lazy(() => import("./pages/ReservaConcluida"));
 
 const ROTAS_SEM_LAYOUT = [
   '/Login',
@@ -24,6 +25,7 @@ const ROTAS_SEM_LAYOUT = [
   '/RecuperarSenha',
   '/DashboardAdministrador',
   '/DashboardCliente',
+  '/ReservaConcluida'
 ];
 
 function CarregandoPagina() {
@@ -62,7 +64,7 @@ function ScrollToTop() {
 
 function AppContent() {
   const location = useLocation();
-  const mostrarLayout = !ROTAS_SEM_LAYOUT.includes(location.pathname);
+  const mostrarLayout = !ROTAS_SEM_LAYOUT.some(rota => location.pathname.startsWith(rota));
 
   return (
     <div className="app-shell">
@@ -76,6 +78,7 @@ function AppContent() {
             <Route path="/Cadastro"               element={<Cadastro />} />
             <Route path="/Login"                  element={<Login />} />
             <Route path="/RecuperarSenha"         element={<RecuperarSenha />} />
+            <Route path="/ReservaConcluida/:id"   element={<ReservaConcluida />} />
             <Route path="/Configuracoes"          element={<RotaProtegida elemento={<Configuracoes />} />} />
             <Route path="/Reserva"                element={<Reserva />} />
             <Route path="/Avaliacoes"             element={<Avaliacoes />} />

@@ -44,6 +44,7 @@ export const pontosTuristicos = [
     tempo: "5 min",
     imagem: BasilicaTurismo,
     alt: "Santuário Nacional",
+    linkMaps: "https://www.google.com/maps/dir/?api=1&origin=Recanto+Camargo,+Aparecida+-+SP&destination=Santuário+Nacional+de+Aparecida",
   },
   {
     id: "passarela",
@@ -52,6 +53,7 @@ export const pontosTuristicos = [
     tempo: "6 min",
     imagem: PassarelaTurismo,
     alt: "Passarela da Fé",
+    linkMaps: "https://www.google.com/maps/dir/?api=1&origin=Recanto+Camargo,+Aparecida+-+SP&destination=Passarela+da+Fé,+Aparecida+-+SP",
   },
   {
     id: "cruzeiro",
@@ -60,6 +62,7 @@ export const pontosTuristicos = [
     tempo: "9 min",
     imagem: CruzeiroTurismo,
     alt: "Morro do Cruzeiro",
+    linkMaps: "https://www.google.com/maps/dir/?api=1&origin=Recanto+Camargo,+Aparecida+-+SP&destination=Morro+do+Cruzeiro,+Aparecida+-+SP",
   },
   {
     id: "rosario",
@@ -68,6 +71,7 @@ export const pontosTuristicos = [
     tempo: "5 min",
     imagem: RosarioTurismo,
     alt: "Caminho do Rosário",
+    linkMaps: "https://www.google.com/maps/dir/?api=1&origin=Recanto+Camargo,+Aparecida+-+SP&destination=Caminho+do+Rosário,+Aparecida+-+SP",
   },
   {
     id: "porto",
@@ -76,6 +80,7 @@ export const pontosTuristicos = [
     tempo: "7 min",
     imagem: PortoTurismo,
     alt: "Porto Itaguaçu",
+    linkMaps: "https://www.google.com/maps/dir/?api=1&origin=Recanto+Camargo,+Aparecida+-+SP&destination=Porto+Itaguaçu,+Aparecida+-+SP",
   },
   {
     id: "feira",
@@ -84,6 +89,7 @@ export const pontosTuristicos = [
     tempo: "4 min",
     imagem: FeiraTurismo,
     alt: "Feira Livre",
+    linkMaps: "https://www.google.com/maps/dir/?api=1&origin=Recanto+Camargo,+Aparecida+-+SP&destination=Feira+Livre+Aparecida+-+SP",
   },
 ];
 

@@ -261,7 +261,6 @@ body {
   display: flex;
   align-items: center;
   padding-top: 140px;
-  overflow: hidden;
 }
 
 .container-home {
@@ -1097,7 +1096,6 @@ textarea.form-controle-config {
 
 /* Conteúdo da página */
 .reserva-conteudo {
-  max-width: 1200px;
 }
 
 .reserva-titulo-imovel {
@@ -1127,7 +1125,7 @@ textarea.form-controle-config {
   color: #1a3c6d;
   font-weight: 700;
   font-size: 1.25rem;
-  margin-bottom: 0.75rem;1
+  margin-bottom: 0.75rem;
 
 }
 
@@ -1178,6 +1176,174 @@ textarea.form-controle-config {
   font-size: 0.9rem;
   line-height: 1.65;
   margin-bottom: 0;
+}
+
+/* Customização do Calendário Customizado */
+.custom-calendar-home {
+  max-width: 360px !important;
+  width: 100% !important;
+  margin: 0 auto;
+  border: none !important;
+  background-color: transparent !important;
+  font-family: inherit;
+}
+
+.custom-calendar-home .react-calendar__navigation {
+  background-color: #1a3c6d;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  display: flex;
+}
+
+.custom-calendar-home .react-calendar__navigation button {
+  min-width: 38px;
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.custom-calendar-home .react-calendar__navigation button:enabled:hover,
+.custom-calendar-home .react-calendar__navigation button:enabled:focus {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+.custom-calendar-home .react-calendar__month-view__weekdays {
+  text-align: center;
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #1a3c6d;
+  margin-bottom: 0.5rem;
+}
+
+.custom-calendar-home .react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none;
+}
+
+.custom-calendar-home .react-calendar__tile {
+  padding: 0.6rem 0.2rem;
+  background: none;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  color: #333;
+}
+
+.custom-calendar-home .react-calendar__tile:disabled {
+  background-color: transparent;
+  color: #adb5bd;
+}
+
+.custom-calendar-home .react-calendar__tile:enabled:hover,
+.custom-calendar-home .react-calendar__tile:enabled:focus {
+  background-color: #f0f4f8;
+  color: #1a3c6d;
+}
+
+.custom-calendar-home .react-calendar__tile--now {
+  background: transparent !important;
+  border: 2px dashed #1a3c6d;
+  color: #1a3c6d;
+}
+
+.custom-calendar-home .react-calendar__tile--active {
+  background: #f37321 !important;
+  color: white !important;
+  border-radius: 8px;
+  font-weight: 700;
+  border: none;
+}
+
+.custom-calendar-home .react-calendar__tile--hasActive {
+  background: rgba(243, 115, 33, 0.1) !important;
+  color: #f37321 !important;
+}
+
+/* Domingo Laranja */
+.custom-calendar-home .react-calendar__month-view__days__day--weekend:not(.react-calendar__tile--active):not(:disabled) {
+  color: #f37321;
+}
+
+/* Feriado verde/vermelho (depende da sua cor) */
+.custom-calendar-home .dia-feriado:not(.react-calendar__tile--active):not(:disabled) {
+  color: #28a745;
+  font-weight: 700;
+}
+
+/* Reservado linha no meio */
+.custom-calendar-home .react-calendar__tile--reservado {
+  background: #f8f9fa !important;
+  color: #adb5bd !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.custom-calendar-home .react-calendar__tile--reservado::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background-color: #dc3545;
+  transform: translateY(-50%) rotate(-15deg);
+  opacity: 0.6;
+}
+
+/* Legenda do calendário */
+.calendario-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.9rem;
+  color: #6c757d;
+  justify-content: center;
+  border-top: 1px solid #eef2f7;
+  padding-top: 15px;
+}
+
+.legenda-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legenda-cor {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.legenda-cor.selecionado {
+  background: #f37321;
+}
+
+.legenda-cor.reservado {
+  background: transparent;
+  position: relative;
+}
+
+.legenda-cor.reservado::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -2px;
+  right: -2px;
+  height: 2px;
+  background-color: #dc3545;
+  transform: translateY(-50%) rotate(-15deg);
+}
+
+.legenda-cor.feriado {
+  background: transparent;
+  border: 1.5px solid #28a745;
 }
 
 .reserva-avatar {

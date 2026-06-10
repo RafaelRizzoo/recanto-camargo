@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Container, Row, Col, Form, Modal } from 'react-bootstrap';
+import { Container, Row, Col, Form, Modal, Button } from 'react-bootstrap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Botao from '../components/UI/Botao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { imagensCarrosselHome, comodidades, depoimentos } from '../data/conteudoSite';
+import CalendarioCustom from '../components/UI/CalendarioCustom';
 
 const DIARIA = 270;
 const TAXA_LIMPEZA = 80;
@@ -113,16 +114,67 @@ function Reserva() {
     checkout: searchParams.get('checkout') || '',
   });
   const [observacoes, setObservacoes] = useState('');
+  const [hospedes, setHospedes] = useState('');
   const [erros, setErros] = useState({});
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [fotoAtiva, setFotoAtiva] = useState(0);
   const [modalFotoAberta, setModalFotoAberta] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [reservaConfirmada, setReservaConfirmada] = useState(null);
+  
+  const [cupomInput, setCupomInput] = useState('');
+  const [cupomAplicado, setCupomAplicado] = useState(null);
+  const [erroCupom, setErroCupom] = useState('');
 
   const imagens = imagensCarrosselHome.filter(img => !img.ehVideo);
   const noites = calcularNoites(datas.checkin, datas.checkout);
   const subtotal = noites * DIARIA;
-  const total = noites > 0 ? subtotal + TAXA_LIMPEZA : 0;
+  
+  let desconto = 0;
+  if (cupomAplicado) {
+    if (cupomAplicado.codigo === 'RECANTO10') desconto = (subtotal + TAXA_LIMPEZA) * 0.10;
+    else if (cupomAplicado.codigo === 'PRIMEIRA15') desconto = (subtotal + TAXA_LIMPEZA) * 0.15;
+    else if (cupomAplicado.codigo === 'FIDELIDADE5') desconto = 50;
+  }
+  
+  const total = noites > 0 ? (subtotal + TAXA_LIMPEZA) - desconto : 0;
+
+  function aplicarCupom() {
+    setErroCupom('');
+    if (!cupomInput.trim()) return;
+    
+    try {
+      const cuponsStr = localStorage.getItem('recanto_cupons_cliente');
+      const cupons = cuponsStr ? JSON.parse(cuponsStr) : [];
+      const cupomEncontrado = cupons.find(c => c.codigo.toUpperCase() === cupomInput.toUpperCase().trim());
+      
+      if (!cupomEncontrado) {
+        setErroCupom('Cupom inválido.');
+        setCupomAplicado(null);
+        return;
+      }
+      if (!cupomEncontrado.ativo) {
+        setErroCupom('Este cupom expirou ou não está mais ativo.');
+        setCupomAplicado(null);
+        return;
+      }
+      if (cupomEncontrado.usado) {
+        setErroCupom('Este cupom já foi utilizado.');
+        setCupomAplicado(null);
+        return;
+      }
+      
+      setCupomAplicado(cupomEncontrado);
+      setCupomInput('');
+    } catch {
+      setErroCupom('Erro ao validar cupom.');
+    }
+  }
+
+  function removerCupom() {
+    setCupomAplicado(null);
+    setErroCupom('');
+  }
 
   function abrirFoto(indice) {
     setFotoAtiva(indice);
@@ -133,6 +185,20 @@ function Reserva() {
     const { name, value } = e.target;
     setDatas(d => ({ ...d, [name]: value }));
     setErros(er => ({ ...er, [name]: undefined, conflito: undefined }));
+  }
+
+  function handleCalendarChange(range) {
+    if (Array.isArray(range) && range.length === 2) {
+      const start = range[0];
+      const end = range[1];
+      
+      const checkinStr = start.toISOString().split('T')[0];
+      const checkoutStr = end.toISOString().split('T')[0];
+      
+      setDatas({ checkin: checkinStr, checkout: checkoutStr });
+      setErros(er => ({ ...er, checkin: undefined, checkout: undefined, conflito: undefined }));
+      setMostrarCalendario(false);
+    }
   }
 
   function irParaLogin() {
@@ -146,6 +212,9 @@ function Reserva() {
     if (!datas.checkout) errosNovos.checkout = 'Selecione a data de check-out.';
     if (datas.checkin && datas.checkout && noites <= 0) {
       errosNovos.checkout = 'O check-out deve ser depois do check-in.';
+    }
+    if (!hospedes || hospedes < 1 || hospedes > 8) {
+      errosNovos.hospedes = 'Informe um número válido de hóspedes (1 a 8).';
     }
     if (Object.keys(errosNovos).length > 0) {
       setErros(errosNovos);
@@ -178,97 +247,54 @@ function Reserva() {
       const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
       reservas.push(reserva);
       localStorage.setItem(CHAVE_RESERVAS, JSON.stringify(reservas));
-      setReservaConfirmada(reserva);
-      setEnviado(true);
+      
+      // Marcar cupom como usado se for o caso
+      if (cupomAplicado) {
+        const cuponsStr = localStorage.getItem('recanto_cupons_cliente');
+        if (cuponsStr) {
+          const cupons = JSON.parse(cuponsStr);
+          const idx = cupons.findIndex(c => c.codigo === cupomAplicado.codigo);
+          if (idx !== -1) {
+            cupons[idx].usado = true;
+            localStorage.setItem('recanto_cupons_cliente', JSON.stringify(cupons));
+          }
+        }
+      }
+      
+      navigate('/ReservaConcluida/' + reserva.id);
     } catch {
       setErros({ geral: 'Erro ao salvar reserva. Tente novamente.' });
     }
   }
 
-  function gerarLinkWhatsApp(r) {
-    const msg = encodeURIComponent(
-      `Olá! Gostaria de confirmar minha reserva no Recanto Camargo.\n\n` +
-      `*Nome:* ${r.nome}\n` +
-      `*Check-in:* ${formatarData(r.checkin)}\n` +
-      `*Check-out:* ${formatarData(r.checkout)}\n` +
-      `*Noites:* ${r.noites}\n` +
-      `*Total:* ${formatarMoeda(r.total)}\n` +
-      (r.observacoes ? `*Observações:* ${r.observacoes}` : '')
-    );
-    return `https://wa.me/${WHATSAPP_NUMERO}?text=${msg}`;
-  }
-
-  if (enviado && reservaConfirmada) {
-    return (
-      <div className="reserva-page py-5">
-        <Container>
-          <div className="reserva-sucesso-card mx-auto">
-            <div className="text-center mb-4">
-              <div className="reserva-sucesso-icone">
-                <i className="bi bi-check-lg" />
-              </div>
-              <h2 className="titulo-secao-azul mt-4">Solicitação Enviada!</h2>
-              <p className="text-muted">Sua reserva foi registrada com sucesso</p>
-            </div>
-
-            <div className="reserva-sucesso-resumo">
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Código</span>
-                <strong>#{reservaConfirmada.id}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Check-in</span>
-                <strong>{formatarData(reservaConfirmada.checkin)}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Check-out</span>
-                <strong>{formatarData(reservaConfirmada.checkout)}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Noites</span>
-                <strong>{reservaConfirmada.noites}</strong>
-              </div>
-              <hr />
-              <div className="d-flex justify-content-between fw-bold fs-5">
-                <span>Total</span>
-                <span className="text-orange">{formatarMoeda(reservaConfirmada.total)}</span>
-              </div>
-            </div>
-
-            <p className="text-muted small text-center mt-3 mb-4">
-              Entre em contato pelo WhatsApp para confirmar e combinar o pagamento.
-            </p>
-
-            <a
-              href={gerarLinkWhatsApp(reservaConfirmada)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-success w-100 py-3 fs-5 fw-bold"
-              style={{ borderRadius: '12px' }}
-            >
-              <i className="bi bi-whatsapp me-2" />
-              Confirmar pelo WhatsApp
-            </a>
-
-            <button
-              type="button"
-              className="btn btn-link w-100 mt-3 text-muted text-decoration-none"
-              onClick={() => navigate('/')}
-            >
-              Voltar para a página inicial
-            </button>
-          </div>
-        </Container>
-      </div>
-    );
-  }
 
   return (
     <div className="reserva-page">
       <Container className="reserva-conteudo py-5">
 
+        <div className="reserva-header-info mb-4">
+          <h1 className="reserva-titulo-imovel">Recanto Camargo</h1>
+          <div className="d-flex align-items-center gap-3 flex-wrap mt-2">
+            <div className="d-flex align-items-center gap-1">
+              <Estrelas />
+              <span className="fw-bold ms-1">4,98</span>
+              <span className="text-muted">(9 avaliações)</span>
+            </div>
+            <span className="text-muted">·</span>
+            <a
+              href={MAPS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="reserva-link-local"
+            >
+              <i className="bi bi-geo-alt-fill me-1" />
+              Ponte Alta, Aparecida - SP
+            </a>
+          </div>
+        </div>
+
         {/* ── HERO ROW: galeria + widget ── */}
-        <Row className="g-0 g-lg-5 reserva-hero-row">
+        <Row className="g-4 reserva-hero-row align-items-start">
 
           {/* Col esquerda: galeria */}
           <Col lg={7}>
@@ -277,26 +303,6 @@ function Reserva() {
 
           {/* Col direita: título + widget de reserva */}
           <Col lg={5}>
-            <div className="reserva-header-info mb-3">
-              <h1 className="reserva-titulo-imovel">Recanto Camargo</h1>
-              <div className="d-flex align-items-center gap-3 flex-wrap mt-2">
-                <div className="d-flex align-items-center gap-1">
-                  <Estrelas />
-                  <span className="fw-bold ms-1">4,98</span>
-                  <span className="text-muted">(9 avaliações)</span>
-                </div>
-                <span className="text-muted">·</span>
-                <a
-                  href={MAPS_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="reserva-link-local"
-                >
-                  <i className="bi bi-geo-alt-fill me-1" />
-                  Ponte Alta, Aparecida - SP
-                </a>
-              </div>
-            </div>
 
             <div className="reserva-widget-sticky">
               <div className="reserva-widget shadow-lg bg-white p-4">
@@ -306,27 +312,73 @@ function Reserva() {
                   <span className="text-muted"> / noite</span>
                 </div>
 
-                <div className="reserva-datas-grid mb-2">
-                  <div className={`reserva-data-campo${erros.checkin ? ' is-invalid' : ''}`}>
-                    <label>CHECK-IN</label>
-                    <input
-                      type="date"
-                      name="checkin"
-                      value={datas.checkin}
-                      onChange={handleData}
-                      min={hoje}
-                    />
+                <div className="position-relative">
+                  <div className="reserva-datas-grid mb-2">
+                    <div 
+                      className={`reserva-data-campo${erros.checkin ? ' is-invalid' : ''}`}
+                      onClick={() => setMostrarCalendario(!mostrarCalendario)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <label>CHECK-IN</label>
+                      <div className="fw-semibold text-azul mt-1">
+                        {datas.checkin ? formatarData(datas.checkin) : 'Selecionar'}
+                      </div>
+                    </div>
+                    <div 
+                      className={`reserva-data-campo${erros.checkout ? ' is-invalid' : ''}`}
+                      onClick={() => setMostrarCalendario(!mostrarCalendario)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <label>CHECK-OUT</label>
+                      <div className="fw-semibold text-azul mt-1">
+                        {datas.checkout ? formatarData(datas.checkout) : 'Selecionar'}
+                      </div>
+                    </div>
                   </div>
-                  <div className={`reserva-data-campo${erros.checkout ? ' is-invalid' : ''}`}>
-                    <label>CHECK-OUT</label>
-                    <input
-                      type="date"
-                      name="checkout"
-                      value={datas.checkout}
-                      onChange={handleData}
-                      min={datas.checkin || hoje}
-                    />
-                  </div>
+
+                  {mostrarCalendario && (
+                    <div 
+                      className="position-absolute shadow-lg bg-white" 
+                      style={{ top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 10, padding: '1rem', borderRadius: '16px', marginTop: '10px', width: '100%', minWidth: '340px' }}
+                    >
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="fw-bold text-azul fs-5">Selecione as datas</span>
+                        <button 
+                          type="button" 
+                          className="btn-close" 
+                          onClick={() => setMostrarCalendario(false)} 
+                        />
+                      </div>
+                      <CalendarioCustom
+                        onChange={handleCalendarChange}
+                        valor={(datas.checkin && datas.checkout) ? [new Date(datas.checkin + 'T12:00:00'), new Date(datas.checkout + 'T12:00:00')] : null}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="reserva-hospedes-container mb-3">
+                  <label className="small fw-bold text-azul mb-1">HÓSPEDES</label>
+                  <select 
+                    className={`form-select ${erros.hospedes ? 'is-invalid' : ''}`}
+                    value={hospedes}
+                    onChange={(e) => {
+                      setHospedes(e.target.value);
+                      setErros(er => ({ ...er, hospedes: undefined }));
+                    }}
+                    style={{ borderRadius: '8px', cursor: 'pointer', padding: '0.6rem 1rem' }}
+                  >
+                    <option value="">Quantidade de pessoas</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <option key={num} value={num}>{num} {num === 1 ? 'hóspede' : 'hóspedes'}</option>
+                    ))}
+                  </select>
+                  {erros.hospedes && (
+                    <div className="invalid-feedback d-block small">
+                      <i className="bi bi-exclamation-circle me-1" />
+                      {erros.hospedes}
+                    </div>
+                  )}
                 </div>
 
                 {(erros.checkin || erros.checkout) && (
@@ -353,11 +405,47 @@ function Reserva() {
                       <span>Taxa de limpeza</span>
                       <span>{formatarMoeda(TAXA_LIMPEZA)}</span>
                     </div>
+                    {cupomAplicado && (
+                      <div className="d-flex justify-content-between mb-3 text-success">
+                        <span>Desconto ({cupomAplicado.codigo})</span>
+                        <span>-{formatarMoeda(desconto)}</span>
+                      </div>
+                    )}
                     <hr className="my-2" />
                     <div className="d-flex justify-content-between fw-bold fs-5">
                       <span>Total</span>
                       <span className="text-orange">{formatarMoeda(total)}</span>
                     </div>
+                  </div>
+                )}
+
+                {autenticado && noites > 0 && (
+                  <div className="mb-4">
+                    {cupomAplicado ? (
+                      <div className="d-flex align-items-center justify-content-between p-2 rounded" style={{ backgroundColor: '#e8f5e9', border: '1px dashed #4caf50' }}>
+                        <div className="d-flex align-items-center gap-2">
+                          <i className="bi bi-tag-fill text-success" />
+                          <span className="text-success fw-bold">{cupomAplicado.codigo}</span>
+                        </div>
+                        <button type="button" className="btn btn-link text-danger p-0 m-0 text-decoration-none" onClick={removerCupom}>
+                          Remover
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="d-flex gap-2">
+                          <Form.Control
+                            type="text"
+                            placeholder="Cupom de desconto"
+                            value={cupomInput}
+                            onChange={(e) => setCupomInput(e.target.value)}
+                            style={{ textTransform: 'uppercase' }}
+                          />
+                          <Button variant="outline-secondary" onClick={aplicarCupom}>Aplicar</Button>
+                        </div>
+                        {erroCupom && <div className="text-danger small mt-1"><i className="bi bi-exclamation-circle me-1" />{erroCupom}</div>}
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -526,8 +614,10 @@ function Reserva() {
         <Modal.Header closeButton closeVariant="white" className="border-0 pb-0" />
         <Modal.Body className="text-center p-2 pb-4">
           <img
+            key={imagens[fotoAtiva]?.src}
             src={imagens[fotoAtiva]?.src}
             alt={imagens[fotoAtiva]?.alt}
+            className="reserva-modal-img"
             style={{ maxHeight: '75vh', maxWidth: '100%', borderRadius: '12px', objectFit: 'contain' }}
           />
           <div className="d-flex justify-content-center align-items-center gap-4 mt-3">
