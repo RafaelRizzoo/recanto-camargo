@@ -258,7 +258,7 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
               </div>
               <div className="cli-bloco-dado" style={{ background: '#f0fdf4' }}>
                 <div className="cli-bloco-label">Total</div>
-                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a' }}>{fmtMoeda(reserva.valorTotal)}</div>
+                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a' }}>{fmtMoeda(reserva.total || reserva.valorTotal)}</div>
               </div>
             </div>
           </Col>
@@ -457,7 +457,7 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
 
         <div className="cli-card-rodape">
           <div>
-            <div className="cli-card-valor">{fmtMoeda(reserva.valorTotal)}</div>
+            <div className="cli-card-valor">{fmtMoeda(reserva.total || reserva.valorTotal)}</div>
             <div className="cli-card-valor-diaria">{fmtMoeda(reserva.valorDiaria)}/noite</div>
           </div>
           <div className="cli-card-acoes">
@@ -505,7 +505,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
       <p className="dash-section-label">Resumo da Conta</p>
       <Row className="g-3 mb-4">
         <Col xs={12} md={6} xl={4}>
-          <div className={`cli-card-resumo destaque ${!proxima ? 'vazio' : ''}`}>
+          <div className={`cli-card-resumo ${proxima ? 'destaque' : 'vazio'}`}>
             <div className="cli-card-resumo-icone" style={{ background: '#f0f7ff', color: '#3b6399' }}>
               <i className="bi bi-calendar-heart fs-4"></i>
             </div>
@@ -575,7 +575,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
               <div className="cli-proxima-rodape">
                 <div>
                   <span className="cli-proxima-label">Total pago</span>
-                  <div className="cli-proxima-valor">{fmtMoeda(proxima.valorTotal)}</div>
+                  <div className="cli-proxima-valor">{fmtMoeda(proxima.total || proxima.valorTotal)}</div>
                 </div>
                 <div className="d-flex gap-2 flex-wrap">
                   <button className="cli-btn-ver" onClick={() => onVerReserva(proxima)}>

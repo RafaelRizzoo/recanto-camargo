@@ -5,6 +5,7 @@ import Botao from '../components/UI/Botao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { imagensCarrosselHome, comodidades, depoimentos } from '../data/conteudoSite';
 import CalendarioCustom from '../components/UI/CalendarioCustom';
+import Lightbox from '../components/UI/Lightbox';
 
 const DIARIA = 270;
 const TAXA_LIMPEZA = 80;
@@ -213,8 +214,8 @@ function Reserva() {
     if (datas.checkin && datas.checkout && noites <= 0) {
       errosNovos.checkout = 'O check-out deve ser depois do check-in.';
     }
-    if (!hospedes || hospedes < 1 || hospedes > 8) {
-      errosNovos.hospedes = 'Informe um número válido de hóspedes (1 a 8).';
+    if (!hospedes || hospedes < 1 || hospedes > 10) {
+      errosNovos.hospedes = 'Informe um número válido de hóspedes (1 a 10).';
     }
     if (Object.keys(errosNovos).length > 0) {
       setErros(errosNovos);
@@ -603,44 +604,14 @@ function Reserva() {
 
       </Container>
 
-      {/* Lightbox de fotos */}
-      <Modal
-        show={modalFotoAberta}
-        onHide={() => setModalFotoAberta(false)}
-        size="xl"
-        centered
-        contentClassName="bg-dark border-0"
-      >
-        <Modal.Header closeButton closeVariant="white" className="border-0 pb-0" />
-        <Modal.Body className="text-center p-2 pb-4">
-          <img
-            key={imagens[fotoAtiva]?.src}
-            src={imagens[fotoAtiva]?.src}
-            alt={imagens[fotoAtiva]?.alt}
-            className="reserva-modal-img"
-            style={{ maxHeight: '75vh', maxWidth: '100%', borderRadius: '12px', objectFit: 'contain' }}
-          />
-          <div className="d-flex justify-content-center align-items-center gap-4 mt-3">
-            <button
-              type="button"
-              className="btn btn-outline-light rounded-circle"
-              style={{ width: 40, height: 40 }}
-              onClick={() => setFotoAtiva(i => (i - 1 + imagens.length) % imagens.length)}
-            >
-              <i className="bi bi-chevron-left" />
-            </button>
-            <span className="text-white small">{fotoAtiva + 1} / {imagens.length}</span>
-            <button
-              type="button"
-              className="btn btn-outline-light rounded-circle"
-              style={{ width: 40, height: 40 }}
-              onClick={() => setFotoAtiva(i => (i + 1) % imagens.length)}
-            >
-              <i className="bi bi-chevron-right" />
-            </button>
-          </div>
-        </Modal.Body>
-      </Modal>
+      {/* Lightbox premium fullscreen */}
+      {modalFotoAberta && (
+        <Lightbox
+          midias={imagensCarrosselHome}
+          indiceInicial={fotoAtiva}
+          aoFechar={() => setModalFotoAberta(false)}
+        />
+      )}
     </div>
   );
 }

@@ -73,8 +73,8 @@ function Home() {
       return;
     }
 
-    if (parseInt(dispo.pessoas, 10) > 8) {
-      setErroDispo('O número de pessoas ultrapassa o limite da casa (máx: 8).');
+    if (parseInt(dispo.pessoas, 10) > 10) {
+      setErroDispo('O número de pessoas ultrapassa o limite da casa (máx: 10).');
       setFeedbackDispo(null);
       return;
     }

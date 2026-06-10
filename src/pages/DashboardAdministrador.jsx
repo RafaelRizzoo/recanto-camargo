@@ -82,6 +82,7 @@ function CardResumo({ icone, titulo, valor, sub, cor='#3b6399' }) {
 // ─── Modal Detalhe ────────────────────────────────────────────────────────────
 function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
   if (!reserva) return null;
+  const r = reserva;
   const n = noites(reserva.checkin, reserva.checkout);
 
   return (
@@ -94,23 +95,23 @@ function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
           <Col md={6}>
             <p className="label-secao-modal">Hóspede</p>
             <div className="info-hospede-modal">
-              <div className="avatar-hospede-modal">{reserva.hospede.charAt(0)}</div>
+              <div className="avatar-hospede-modal">{(r.nome || r.hospede || '?').charAt(0)}</div>
               <div>
-                <div className="fw-bold">{reserva.hospede}</div>
-                <div className="text-muted small">{reserva.email}</div>
-                <div className="text-muted small">{reserva.telefone}</div>
+                <div className="cli-bloco-valor">{r.nome || r.hospede}</div>
+                <div className="text-muted small">{r.email}</div>
+                <div className="text-muted small">{r.telefone}</div>
               </div>
             </div>
           </Col>
           <Col md={6}>
             <p className="label-secao-modal">Status</p>
-            <BadgeStatus status={reserva.status} />
-            <div className="text-muted small mt-2">Solicitada em {fmtData(reserva.criadaEm)}</div>
+            <BadgeStatus status={r.status} />
+            <div className="text-muted small mt-2">Solicitada em {fmtData(r.criadaEm)}</div>
           </Col>
           <Col md={6}>
             <p className="label-secao-modal">Período</p>
             <div className="d-flex gap-3 flex-wrap">
-              {[['Check-in', fmtData(reserva.checkin)], ['Check-out', fmtData(reserva.checkout)], ['Noites', n]].map(([l,v]) => (
+              {[['Check-in', fmtData(r.checkin)], ['Check-out', fmtData(r.checkout)], ['Noites', n]].map(([l,v]) => (
                 <div key={l} className="bloco-data-modal">
                   <div className="label-data-modal">{l}</div>
                   <div className="valor-data-modal">{v}</div>
@@ -121,20 +122,22 @@ function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
           <Col md={6}>
             <p className="label-secao-modal">Pessoas & Valor</p>
             <div className="d-flex gap-3">
-              <div className="bloco-data-modal"><div className="label-data-modal">Pessoas</div><div className="valor-data-modal">{reserva.hospedes}</div></div>
+              <div className="bloco-data-modal"><div className="label-data-modal">Pessoas</div><div className="valor-data-modal">{r.hospedes}</div></div>
               <div className="bloco-data-modal" style={{background:'#f0fdf4'}}>
                 <div className="label-data-modal">Total</div>
-                <div className="valor-data-modal fw-bold" style={{color:'#198754'}}>{fmtMoeda(reserva.valorTotal)}</div>
+                <div className="cli-bloco-valor" style={{color:'#198754'}}>{fmtMoeda(r.total || r.valorTotal)}</div>
               </div>
             </div>
           </Col>
-          {reserva.observacao && (
+          {(r.observacoes || r.observacao) && (
             <Col xs={12}>
-              <p className="label-secao-modal">Observações</p>
-              <div className="obs-modal">{reserva.observacao}</div>
+              <div className="cli-obs-box mb-3">
+                <strong><i className="bi bi-chat-text me-2"></i>Observações do Hóspede:</strong>
+                <div className="mt-1">{r.observacoes || r.observacao}</div>
+              </div>
             </Col>
           )}
-          {reserva.motivoRecusa && (
+          {r.motivoRecusa && (
             <Col xs={12}>
               <p className="label-secao-modal">Motivo da Recusa</p>
               <div className="obs-modal" style={{background:'#fff1f2',border:'1px solid #fecaca',color:'#9a3412'}}>{reserva.motivoRecusa}</div>
@@ -255,9 +258,9 @@ function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFilt
                 <td><span className="id-reserva">#{r.id}</span></td>
                 <td>
                   <div className="d-flex align-items-center gap-2">
-                    <div className="mini-avatar">{r.hospede.charAt(0)}</div>
+                    <div className="mini-avatar">{(r.nome || r.hospede || '?').charAt(0)}</div>
                     <div>
-                      <div className="fw-semibold" style={{fontSize:'0.875rem'}}>{r.hospede}</div>
+                      <div className="fw-semibold" style={{fontSize:'0.875rem'}}>{r.nome || r.hospede}</div>
                       <div className="text-muted" style={{fontSize:'0.75rem'}}>{r.hospedes} pessoa(s)</div>
                     </div>
                   </div>
@@ -265,7 +268,7 @@ function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFilt
                 <td style={{fontSize:'0.875rem'}}>{fmtData(r.checkin)}</td>
                 <td style={{fontSize:'0.875rem'}}>{fmtData(r.checkout)}</td>
                 <td className="d-none d-md-table-cell text-center" style={{fontSize:'0.875rem'}}>{noites(r.checkin,r.checkout)}</td>
-                <td className="fw-bold" style={{color:'#198754',fontSize:'0.875rem'}}>{fmtMoeda(r.valorTotal)}</td>
+                <td className="fw-bold" style={{color:'#198754',fontSize:'0.875rem'}}>{fmtMoeda(r.total || r.valorTotal)}</td>
                 <td><BadgeStatus status={r.status}/></td>
                 <td>
                   <div className="acoes-tabela">
@@ -344,7 +347,7 @@ function CalendarioOcupacao({ reservas }) {
             <div key={r.id} className="item-reserva-mes">
               <div className={`dot-inline ${r.status === 'aprovada' ? 'dot-aprovada' : 'dot-pendente'}`}></div>
               <div className="flex-grow-1">
-                <span className="fw-semibold" style={{fontSize:'0.875rem'}}>{r.hospede}</span>
+                <span className="fw-semibold" style={{fontSize:'0.875rem'}}>{r.nome || r.hospede}</span>
                 <span className="text-muted ms-2" style={{fontSize:'0.78rem'}}>{fmtData(r.checkin)} → {fmtData(r.checkout)}</span>
               </div>
               <BadgeStatus status={r.status}/>
@@ -373,8 +376,8 @@ function PrevisaoReceita({ reservas }) {
       const ini = new Date(r.checkin + 'T00:00:00');
       return ini.getFullYear() === ano && ini.getMonth() === mes;
     });
-    const confirmada = doMes.filter(r => r.status === 'aprovada').reduce((a,r) => a + r.valorTotal, 0);
-    const potencial  = doMes.filter(r => r.status === 'pendente').reduce((a,r) => a + r.valorTotal, 0);
+    const confirmada = doMes.filter(r => r.status === 'aprovada').reduce((a,r) => a + (r.total || r.valorTotal || 0), 0);
+    const potencial  = doMes.filter(r => r.status === 'pendente').reduce((a,r) => a + (r.total || r.valorTotal || 0), 0);
     return { label, confirmada, potencial, total: confirmada + potencial };
   });
 
@@ -395,7 +398,7 @@ function PrevisaoReceita({ reservas }) {
 
   const receitaPrevista = reservas
     .filter(r => r.status === 'aprovada' || r.status === 'pendente')
-    .reduce((a, r) => a + r.valorTotal, 0);
+    .reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
 
   return (
     <div className="previsao-wrapper">
@@ -469,9 +472,9 @@ function PrevisaoReceita({ reservas }) {
             return (
               <div key={r.id} className="item-proxima-entrada">
                 <div className={`dot-inline ${r.status === 'aprovada' ? 'dot-aprovada' : 'dot-pendente'}`}></div>
-                <div className="mini-avatar" style={{width:28,height:28,fontSize:'0.75rem'}}>{r.hospede.charAt(0)}</div>
+                <div className="mini-avatar" style={{width:28,height:28,fontSize:'0.75rem'}}>{(r.nome || r.hospede || '?').charAt(0)}</div>
                 <div className="flex-grow-1">
-                  <div className="fw-semibold" style={{fontSize:'0.85rem'}}>{r.hospede}</div>
+                  <div className="fw-semibold" style={{fontSize:'0.85rem'}}>{r.nome || r.hospede}</div>
                   <div className="text-muted" style={{fontSize:'0.75rem'}}>{fmtData(r.checkin)} • {noites(r.checkin, r.checkout)} noite(s) • {r.hospedes} pessoa(s)</div>
                 </div>
                 <div className="text-end">
@@ -528,7 +531,7 @@ function DashboardAdministrador() {
     fb('sucesso', `Reserva #${id} aprovada!`);
     adicionar({
       titulo: 'Reserva Aprovada ✅',
-      mensagem: `Reserva de ${r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi aprovada.`,
+      mensagem: `Reserva de ${r?.nome || r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi aprovada.`,
       tipo: 'sucesso',
       icone: 'bi-check-circle-fill',
     });
@@ -547,7 +550,7 @@ function DashboardAdministrador() {
     fb('erro', `Reserva #${id} recusada.`);
     adicionar({
       titulo: 'Reserva Recusada ❌',
-      mensagem: `Reserva de ${r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi recusada.`,
+      mensagem: `Reserva de ${r?.nome || r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi recusada.`,
       tipo: 'erro',
       icone: 'bi-x-circle-fill',
     });
@@ -555,7 +558,7 @@ function DashboardAdministrador() {
 
   const pendentes    = reservas.filter(r => r.status === 'pendente').length;
   const aprovadas    = reservas.filter(r => r.status === 'aprovada').length;
-  const receita      = reservas.filter(r => r.status === 'aprovada').reduce((a,r) => a + r.valorTotal, 0);
+  const receita      = reservas.filter(r => r.status === 'aprovada').reduce((a,r) => a + (r.total || r.valorTotal || 0), 0);
   const hoje         = new Date();
   const diasNoMes    = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
   const diasOcupados = reservas.filter(r => r.status === 'aprovada').reduce((acc, r) => {
