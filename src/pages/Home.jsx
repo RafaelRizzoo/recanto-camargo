@@ -108,7 +108,7 @@ function Home() {
 
     
   const handleCalendarChange = (val) => {
-    if (Array.isArray(val) && val.length === 2) {
+    if (Array.isArray(val) && val[0] && val[1]) {
       const ci = new Date(val[0].getTime() - val[0].getTimezoneOffset() * 60000).toISOString().split('T')[0];
       const co = new Date(val[1].getTime() - val[1].getTimezoneOffset() * 60000).toISOString().split('T')[0];
       setDispo(d => ({ ...d, checkin: ci, checkout: co }));

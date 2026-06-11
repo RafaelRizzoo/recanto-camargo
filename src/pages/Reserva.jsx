@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Container, Row, Col, Form } from 'react-bootstrap';
+import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Botao from '../components/UI/Botao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
@@ -179,7 +179,7 @@ function Reserva() {
   }
 
   function handleCalendarChange(range) {
-    if (Array.isArray(range) && range.length === 2) {
+    if (Array.isArray(range) && range[0] && range[1]) {
       const start = range[0];
       const end = range[1];
       
