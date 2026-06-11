@@ -37,7 +37,7 @@ function inicializarReservas() {
 
 // ─── Utilitários ─────────────────────────────────────────────────────────────
 const fmtData  = (s) => { if (!s) return '—'; const [a,m,d]=s.split('-'); return `${d}/${m}/${a}`; };
-const fmtMoeda = (v) => v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+const fmtMoeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
 const noites   = (ci, co) => Math.round((new Date(co+'T00:00:00') - new Date(ci+'T00:00:00')) / 86400000);
 
 const STATUS_CFG = {
@@ -452,9 +452,9 @@ function PrevisaoReceita({ reservas }) {
               <div className="grafico-valor-topo">{total > 0 ? fmtMoeda(total).replace('R$\u00a0','R$ ') : '—'}</div>
               <div className="grafico-barra-container">
                 <div className="grafico-barra-stack">
-                  <div className="grafico-barra confirmada" style={{ height: `${(confirmada / maxValor) * 160}px` }} title={`Confirmada: ${fmtMoeda(confirmada)}`}></div>
+                  <div className="grafico-barra confirmada" style={{ height: `${(confirmada / maxValor) * 100}%` }} title={`Confirmada: ${fmtMoeda(confirmada)}`}></div>
                   {potencial > 0 && (
-                    <div className="grafico-barra potencial" style={{ height: `${(potencial / maxValor) * 160}px` }} title={`Potencial: ${fmtMoeda(potencial)}`}></div>
+                    <div className="grafico-barra potencial" style={{ height: `${(potencial / maxValor) * 100}%` }} title={`Potencial: ${fmtMoeda(potencial)}`}></div>
                   )}
                 </div>
               </div>

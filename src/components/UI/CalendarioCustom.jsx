@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { verificarSeFeriado } from '../../utils/feriados';
@@ -5,12 +6,19 @@ import { verificarSeFeriado } from '../../utils/feriados';
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 
 function CalendarioCustom({ valor, onChange, minDate }) {
+  const reservas = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
+    } catch {
+      return [];
+    }
+  }, []);
+
   const tileClassName = ({ date, view }) => {
     if (view !== 'month') return null;
     let classes = [];
     
     const dIso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
     const isBooked = reservas.some(r => r.status !== 'cancelada' && dIso >= r.checkin && dIso < r.checkout);
     
     if (isBooked) classes.push('react-calendar__tile--reservado');
@@ -23,7 +31,6 @@ function CalendarioCustom({ valor, onChange, minDate }) {
   const tileDisabled = ({ date, view }) => {
     if (view !== 'month') return false;
     const dIso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
     return reservas.some(r => r.status !== 'cancelada' && dIso >= r.checkin && dIso < r.checkout);
   };
 

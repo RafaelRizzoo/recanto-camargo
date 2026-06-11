@@ -101,7 +101,7 @@ function Home() {
     setFeedbackDispo(`Reserva de ${dias} noite${dias > 1 ? 's' : ''} disponível! Check-in: ${strCheckin} | Check-out: ${strCheckout}`);
     
     setTimeout(() => {
-      navigate(`/Reserva?checkin=${dispo.checkin}&checkout=${dispo.checkout}`);
+      navigate(`/Reserva?checkin=${dispo.checkin}&checkout=${dispo.checkout}&hospedes=${dispo.pessoas}`);
     }, 2000);
   }
 

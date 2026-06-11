@@ -479,7 +479,7 @@
 
 .grafico-barras {
   display:flex;
-  align-items:flex-end;
+  align-items:stretch;
   justify-content:space-around;
   gap:1rem;
   height:220px;
@@ -489,6 +489,7 @@
 .grafico-coluna {
   display:flex;
   flex-direction:column;
+  justify-content:flex-end;
   align-items:center;
   gap:0.5rem;
   flex:1;
@@ -518,6 +519,7 @@
   align-items:center;
   justify-content:flex-end;
   width:52px;
+  height:100%;
   gap:2px;
 }
 

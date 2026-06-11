@@ -58,6 +58,7 @@ export function obterFeriados(ano) {
 export function verificarSeFeriado(data) {
   const ano = data.getFullYear();
   const feriadosDoAno = obterFeriados(ano);
-  const dataStr = data.toISOString().split('T')[0];
+  const dIso = new Date(data.getTime() - data.getTimezoneOffset() * 60000);
+  const dataStr = dIso.toISOString().split('T')[0];
   return feriadosDoAno.includes(dataStr);
 }

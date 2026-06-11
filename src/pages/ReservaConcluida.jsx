@@ -3,7 +3,6 @@ import { Container, Button, Card } from 'react-bootstrap';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
-const WHATSAPP_NUMERO = '5512996297452';
 
 function formatarData(dataISO) {
   if (!dataISO) return '';
@@ -12,21 +11,7 @@ function formatarData(dataISO) {
 }
 
 function formatarMoeda(valor) {
-  return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-}
-
-function gerarLinkWhatsApp(r) {
-  const msg = encodeURIComponent(
-    `Olá! Gostaria de confirmar minha reserva no Recanto Camargo.\n\n` +
-    `*Código:* #${r.id}\n` +
-    `*Nome:* ${r.nome}\n` +
-    `*Check-in:* ${formatarData(r.checkin)}\n` +
-    `*Check-out:* ${formatarData(r.checkout)}\n` +
-    `*Noites:* ${r.noites}\n` +
-    `*Total:* ${formatarMoeda(r.total)}\n` +
-    (r.observacoes ? `*Observações:* ${r.observacoes}` : '')
-  );
-  return `https://wa.me/${WHATSAPP_NUMERO}?text=${msg}`;
+  return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function ReservaConcluida() {

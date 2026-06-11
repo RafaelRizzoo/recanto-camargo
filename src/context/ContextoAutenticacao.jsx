@@ -79,7 +79,7 @@ export function ContextoAutenticacao({ children }) {
         return { sucesso: false, mensagem: 'Este email já está cadastrado.' };
       }
 
-      const novoUsuario = { id: Date.now(), tipo: 'hospede', ...dados };
+      const novoUsuario = { id: Date.now(), ...dados, tipo: 'hospede' };
       db.push(novoUsuario);
       localStorage.setItem(CHAVE_DB, JSON.stringify(db));
 

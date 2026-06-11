@@ -5,7 +5,6 @@ import Menu from "./components/navbar";
 import Footer from "./components/footer";
 import Home from "./pages/Home";
 import BotaoWhats from "./components/UI/BotaoWhats";
-import { ContextoAutenticacao } from './context/ContextoAutenticacao';
 import { useAutenticacao } from './hooks/useAutenticacao';
 
 const Login                  = lazy(() => import("./pages/Login"));
@@ -99,9 +98,7 @@ function AppContent() {
 function App() {
   return (
     <HashRouter>
-      <ContextoAutenticacao>
-        <AppContent />
-      </ContextoAutenticacao>
+      <AppContent />
     </HashRouter>
   );
 }

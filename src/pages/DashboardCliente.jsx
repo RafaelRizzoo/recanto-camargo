@@ -150,7 +150,7 @@ const fmtData = (s) => {
 };
 
 const fmtMoeda = (v) =>
-  Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 const calcNoites = (ci, co) =>
   Math.round((new Date(co + 'T00:00:00') - new Date(ci + 'T00:00:00')) / 86400000);
@@ -254,11 +254,11 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
             <div className="d-flex gap-3 flex-wrap">
               <div className="cli-bloco-dado">
                 <div className="cli-bloco-label">Diária</div>
-                <div className="cli-bloco-valor">{fmtMoeda(reserva.valorDiaria)}</div>
+                <div className="cli-bloco-valor">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}</div>
               </div>
               <div className="cli-bloco-dado" style={{ background: '#f0fdf4' }}>
                 <div className="cli-bloco-label">Total</div>
-                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a' }}>{fmtMoeda(reserva.total || reserva.valorTotal)}</div>
+                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a' }}>{fmtMoeda(reserva.total ?? reserva.valorTotal)}</div>
               </div>
             </div>
           </Col>
@@ -281,10 +281,10 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
               <div className="cli-bloco-valor">{fmtData(reserva.criadaEm)}</div>
             </div>
           </Col>
-      {reserva.observacao && (
+      {(reserva.observacoes || reserva.observacao) && (
         <Col xs={12}>
           <p className="cli-label-secao">Suas Observações</p>
-          <div className="cli-obs-box">{reserva.observacao}</div>
+          <div className="cli-obs-box">{reserva.observacoes || reserva.observacao}</div>
         </Col>
       )}
       {reserva.status === 'recusada' && reserva.motivoRecusa && (
@@ -457,8 +457,8 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
 
         <div className="cli-card-rodape">
           <div>
-            <div className="cli-card-valor">{fmtMoeda(reserva.total || reserva.valorTotal)}</div>
-            <div className="cli-card-valor-diaria">{fmtMoeda(reserva.valorDiaria)}/noite</div>
+            <div className="cli-card-valor">{fmtMoeda(reserva.total ?? reserva.valorTotal)}</div>
+            <div className="cli-card-valor-diaria">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}/noite</div>
           </div>
           <div className="cli-card-acoes">
             <button className="cli-btn-ver" onClick={() => onVer(reserva)}>
@@ -575,7 +575,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
               <div className="cli-proxima-rodape">
                 <div>
                   <span className="cli-proxima-label">Total pago</span>
-                  <div className="cli-proxima-valor">{fmtMoeda(proxima.total || proxima.valorTotal)}</div>
+                  <div className="cli-proxima-valor">{fmtMoeda(proxima.total ?? proxima.valorTotal)}</div>
                 </div>
                 <div className="d-flex gap-2 flex-wrap">
                   <button className="cli-btn-ver" onClick={() => onVerReserva(proxima)}>

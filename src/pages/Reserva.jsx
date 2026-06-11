@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Container, Row, Col, Form, Modal, Button } from 'react-bootstrap';
+import { Container, Row, Col, Form } from 'react-bootstrap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Botao from '../components/UI/Botao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
@@ -108,20 +108,16 @@ function Reserva() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const hoje = new Date().toISOString().split('T')[0];
-
   const [datas, setDatas] = useState({
     checkin: searchParams.get('checkin') || '',
     checkout: searchParams.get('checkout') || '',
   });
   const [observacoes, setObservacoes] = useState('');
-  const [hospedes, setHospedes] = useState('');
+  const [hospedes, setHospedes] = useState(searchParams.get('hospedes') || '');
   const [erros, setErros] = useState({});
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [fotoAtiva, setFotoAtiva] = useState(0);
   const [modalFotoAberta, setModalFotoAberta] = useState(false);
-  const [enviado, setEnviado] = useState(false);
-  const [reservaConfirmada, setReservaConfirmada] = useState(null);
   
   const [cupomInput, setCupomInput] = useState('');
   const [cupomAplicado, setCupomAplicado] = useState(null);
@@ -182,19 +178,16 @@ function Reserva() {
     setModalFotoAberta(true);
   }
 
-  function handleData(e) {
-    const { name, value } = e.target;
-    setDatas(d => ({ ...d, [name]: value }));
-    setErros(er => ({ ...er, [name]: undefined, conflito: undefined }));
-  }
-
   function handleCalendarChange(range) {
     if (Array.isArray(range) && range.length === 2) {
       const start = range[0];
       const end = range[1];
       
-      const checkinStr = start.toISOString().split('T')[0];
-      const checkoutStr = end.toISOString().split('T')[0];
+      const startIso = new Date(start.getTime() - start.getTimezoneOffset() * 60000);
+      const checkinStr = startIso.toISOString().split('T')[0];
+      
+      const endIso = new Date(end.getTime() - end.getTimezoneOffset() * 60000);
+      const checkoutStr = endIso.toISOString().split('T')[0];
       
       setDatas({ checkin: checkinStr, checkout: checkoutStr });
       setErros(er => ({ ...er, checkin: undefined, checkout: undefined, conflito: undefined }));
@@ -234,6 +227,7 @@ function Reserva() {
       telefone: usuario.telefone || '',
       checkin: datas.checkin,
       checkout: datas.checkout,
+      hospedes,
       observacoes,
       noites,
       diaria: DIARIA,

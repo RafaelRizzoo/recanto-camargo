@@ -128,9 +128,10 @@
 }
 
 .navbar-conteudo-mobile.is-open {
-  max-height: 400px;
+  max-height: 800px;
   opacity: 1;
   margin-top: 1rem;
+  overflow: visible;
 }
 
 .navbar-links-list {

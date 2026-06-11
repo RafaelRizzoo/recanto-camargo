@@ -134,7 +134,7 @@ function Notificacoes() {
           {/* Footer */}
           {notificacoes.length > 0 && (
             <div className="notif-footer">
-              {notificacoes.length} notificação{notificacoes.length !== 1 ? 'ões' : ''} no histórico
+              {notificacoes.length} {notificacoes.length !== 1 ? 'notificações' : 'notificação'} no histórico
             </div>
           )}
         </div>

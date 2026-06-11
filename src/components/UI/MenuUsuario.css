@@ -164,10 +164,20 @@
 
 @media (max-width: 991px) {
   .menu-usuario-dropdown {
-    right: -8px;
+    right: auto;
+    left: 0;
     width: 270px;
     z-index: 1400;
+    top: auto;
+    bottom: calc(100% + 12px);
+    transform-origin: bottom left;
+    animation: menuEntrarMobile 0.22s ease-out;
   }
+}
+
+@keyframes menuEntrarMobile {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @media (max-width: 576px) {
