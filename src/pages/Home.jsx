@@ -184,6 +184,14 @@ function Home() {
                   <div className="card-conteudo p-4">
                     <h4>{item.titulo}</h4>
                     <p>{item.descricao}</p>
+                    <a
+                      href={item.mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn-como-chegar"
+                    >
+                      <i className="bi bi-map me-1"></i>Como chegar
+                    </a>
                   </div>
                 </div>
               </Col>

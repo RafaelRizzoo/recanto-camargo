@@ -36,6 +36,10 @@ export const comodidades = [
   { id: "enxoval", icone: "bi-stars", titulo: "Enxoval Incluso" },
 ];
 
+const MAPS_ORIGEM = "Rua+José+Ourives,+76,+Ponte+Alta,+Aparecida+-+SP";
+const mapsUrl = (destino) =>
+  `https://www.google.com/maps/dir/${MAPS_ORIGEM}/${destino}`;
+
 export const pontosTuristicos = [
   {
     id: "basilica",
@@ -44,6 +48,7 @@ export const pontosTuristicos = [
     tempo: "5 min",
     imagem: BasilicaTurismo,
     alt: "Santuário Nacional",
+    mapUrl: mapsUrl("Santuário+Nacional+de+Aparecida,+Aparecida,+SP"),
   },
   {
     id: "passarela",
@@ -52,6 +57,7 @@ export const pontosTuristicos = [
     tempo: "6 min",
     imagem: PassarelaTurismo,
     alt: "Passarela da Fé",
+    mapUrl: mapsUrl("Passarela+da+Fé,+Aparecida,+SP"),
   },
   {
     id: "cruzeiro",
@@ -60,6 +66,7 @@ export const pontosTuristicos = [
     tempo: "9 min",
     imagem: CruzeiroTurismo,
     alt: "Morro do Cruzeiro",
+    mapUrl: mapsUrl("Morro+do+Cruzeiro,+Aparecida,+SP"),
   },
   {
     id: "rosario",
@@ -68,6 +75,7 @@ export const pontosTuristicos = [
     tempo: "5 min",
     imagem: RosarioTurismo,
     alt: "Caminho do Rosário",
+    mapUrl: mapsUrl("Caminho+do+Rosário,+Aparecida,+SP"),
   },
   {
     id: "porto",
@@ -76,6 +84,7 @@ export const pontosTuristicos = [
     tempo: "7 min",
     imagem: PortoTurismo,
     alt: "Porto Itaguaçu",
+    mapUrl: mapsUrl("Porto+Itaguaçu,+Aparecida,+SP"),
   },
   {
     id: "feira",
@@ -84,6 +93,7 @@ export const pontosTuristicos = [
     tempo: "4 min",
     imagem: FeiraTurismo,
     alt: "Feira Livre",
+    mapUrl: mapsUrl("Feira+Livre,+Aparecida,+SP"),
   },
 ];
 

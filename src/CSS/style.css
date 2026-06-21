@@ -219,6 +219,25 @@ body {
   color: #5a7184;
   font-size: 0.95rem;
   line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.btn-como-chegar {
+  display: inline-flex;
+  align-items: center;
+  color: #1a3c6d;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 600;
+  border: 1.5px solid #1a3c6d;
+  border-radius: 8px;
+  padding: 5px 13px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-como-chegar:hover {
+  background-color: #1a3c6d;
+  color: #ffffff;
 }
 
 .reserva-final-section {
