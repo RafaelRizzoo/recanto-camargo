@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Container, Row, Col, Carousel } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Botao from "../components/UI/Botao";
@@ -33,6 +33,18 @@ function verificarConflito(checkin, checkout) {
 
 function Home() {
   const navigate = useNavigate();
+
+  // ----- TESTE DE INTEGRAÇÃO COM O NOVO BACK-END -----
+  useEffect(() => {
+    fetch('http://localhost:3000/api/imoveis')
+      .then(response => response.json())
+      .then(dados => {
+        console.log("🔥 [SUCESSO] Dados vindos direto do MySQL via Back-end Node.js:");
+        console.table(dados);
+      })
+      .catch(erro => console.error("Erro ao conectar no Back-end:", erro));
+  }, []);
+  // ---------------------------------------------------
 
   const [dispo, setDispo] = useState({ checkin: '', checkout: '', pessoas: '' });
   const [erroDispo, setErroDispo] = useState('');

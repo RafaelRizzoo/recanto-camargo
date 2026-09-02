@@ -199,7 +199,7 @@ function Reserva() {
     navigate('/Login', { state: { from: location.pathname + location.search } });
   }
 
-  function handleSubmit(evt) {
+  async function handleSubmit(evt) {
     evt.preventDefault();
     const errosNovos = {};
     if (!datas.checkin) errosNovos.checkin = 'Selecione a data de check-in.';
@@ -219,31 +219,29 @@ function Reserva() {
       return;
     }
 
-    const reserva = {
-      id: Date.now(),
-      usuarioId: usuario.id,
-      nome: usuario.nome,
-      email: usuario.email,
-      telefone: usuario.telefone || '',
-      checkin: datas.checkin,
-      checkout: datas.checkout,
-      hospedes,
-      observacoes,
-      noites,
-      diaria: DIARIA,
-      subtotal,
-      taxa: TAXA_LIMPEZA,
-      total,
-      status: 'pendente',
-      criadaEm: new Date().toISOString(),
-    };
-
     try {
-      const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
-      reservas.push(reserva);
-      localStorage.setItem(CHAVE_RESERVAS, JSON.stringify(reservas));
+      // 1. Enviar para o nosso Back-end de verdade (MySQL)
+      const resposta = await fetch('http://localhost:3000/api/reservas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ESSENCIAL: Envia o Cookie JWT do usuário!
+        body: JSON.stringify({
+          checkin: datas.checkin + ' 14:00:00', // Adicionando hora padrão
+          checkout: datas.checkout + ' 12:00:00',
+          hospedes: parseInt(hospedes, 10),
+          valorTotal: total,
+          observacoes: observacoes
+        })
+      });
+
+      if (!resposta.ok) {
+        throw new Error('Falha ao comunicar com a API');
+      }
+
+      const dadosAPI = await resposta.json();
+      console.log('✅ Retorno da API:', dadosAPI);
       
-      // Marcar cupom como usado se for o caso
+      // Marcar cupom como usado no localStorage (Mantido como estava por enquanto)
       if (cupomAplicado) {
         const cuponsStr = localStorage.getItem('recanto_cupons_cliente');
         if (cuponsStr) {
@@ -256,9 +254,11 @@ function Reserva() {
         }
       }
       
-      navigate('/ReservaConcluida/' + reserva.id);
-    } catch {
-      setErros({ geral: 'Erro ao salvar reserva. Tente novamente.' });
+      // Redirecionar passando o ID que o banco de dados acabou de criar!
+      navigate('/ReservaConcluida/' + dadosAPI.reservaId);
+    } catch (erro) {
+      console.error(erro);
+      setErros({ geral: 'Erro ao salvar reserva no Banco de Dados. O servidor Node está ligado?' });
     }
   }
 

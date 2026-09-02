@@ -82,7 +82,7 @@ function AppContent() {
             <Route path="/Reserva"                element={<Reserva />} />
             <Route path="/Avaliacoes"             element={<Avaliacoes />} />
             <Route path="/Fotos"                  element={<Fotos />} />
-            <Route path="/DashboardAdministrador" element={<RotaProtegida elemento={<DashboardAdministrador />} tipoRequerido="admin" />} />
+            <Route path="/DashboardAdministrador" element={<RotaProtegida elemento={<DashboardAdministrador />} tipoRequerido="proprietario" />} />
             <Route path="/DashboardCliente"       element={<RotaProtegida elemento={<DashboardCliente />} tipoRequerido="hospede" />} />
             <Route path="*"                       element={<Navigate to="/" replace />} />
           </Routes>

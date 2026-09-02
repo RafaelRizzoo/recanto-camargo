@@ -21,16 +21,31 @@ function ReservaConcluida() {
   const [erro, setErro] = useState(false);
 
   useEffect(() => {
-    try {
-      const reservasStr = localStorage.getItem(CHAVE_RESERVAS);
-      if (!reservasStr) throw new Error('Nenhuma reserva encontrada');
-      const reservas = JSON.parse(reservasStr);
-      const res = reservas.find(r => r.id.toString() === id);
-      if (!res) throw new Error('Reserva não encontrada');
-      setReserva(res);
-    } catch {
-      setErro(true);
-    }
+    fetch(`http://localhost:3000/api/reservas/${id}`)
+      .then(resposta => {
+        if (!resposta.ok) {
+          throw new Error('Reserva não encontrada no Banco de Dados');
+        }
+        return resposta.json();
+      })
+      .then(dadosAPI => {
+        // O MySQL devolve a data completa (ex: 2026-09-04T14:00:00.000Z)
+        // Vamos extrair apenas a parte da data "YYYY-MM-DD" para a função de formatação não quebrar
+        const checkinLimpo = dadosAPI.checkin.split('T')[0];
+        const checkoutLimpo = dadosAPI.checkout.split('T')[0];
+        
+        setReserva({
+          id: dadosAPI.id,
+          nome: dadosAPI.nome,
+          total: dadosAPI.total,
+          checkin: checkinLimpo,
+          checkout: checkoutLimpo
+        });
+      })
+      .catch(err => {
+        console.error('Erro ao carregar recibo:', err);
+        setErro(true);
+      });
   }, [id]);
 
   if (erro) {

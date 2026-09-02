@@ -22,10 +22,10 @@ function Login() {
     setDados(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErro('');
-    const resultado = login(dados.email, dados.senha);
+    const resultado = await login(dados.email, dados.senha);
     if (resultado.sucesso) {
       navigate(location.state?.from || '/', { replace: true });
     } else {
