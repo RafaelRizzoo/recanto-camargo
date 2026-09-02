@@ -14,6 +14,7 @@ function Cadastro() {
   const [dados, setDados] = useState({
     nome: '',
     email: '',
+    cpf: '',
     telefone: '',
     senha: '',
     confirmacaoSenha: ''
@@ -27,7 +28,7 @@ function Cadastro() {
     setDados(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setErro('');
 
@@ -41,9 +42,16 @@ function Cadastro() {
       return;
     }
 
-    const resultado = registrar({
+    if (!dados.cpf || dados.cpf.length < 11) {
+      setErro('Digite um CPF válido.');
+      return;
+    }
+
+    // Como agora o registrar bate no Back-end e devolve uma Promise, colocamos await
+    const resultado = await registrar({
       nome: dados.nome,
       email: dados.email,
+      cpf: dados.cpf,
       telefone: dados.telefone,
       senha: dados.senha
     });
@@ -70,6 +78,15 @@ function Cadastro() {
           nome="nome"
           placeholder="Seu nome completo"
           valor={dados.nome}
+          onChange={handleChange}
+          required
+        />
+        
+        <Entrada
+          tipo="text"
+          nome="cpf"
+          placeholder="Seu CPF (somente números)"
+          valor={dados.cpf}
           onChange={handleChange}
           required
         />

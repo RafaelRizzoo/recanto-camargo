@@ -3,99 +3,83 @@ import PropTypes from 'prop-types';
 
 export const AuthContext = createContext(null);
 
-const USUARIOS_MOCK = [
-  { id: 1, nome: 'Administrador', email: 'admin@admin.com', senha: 'admin123', tipo: 'admin', telefone: '(12) 99999-0001' },
-  { id: 2, nome: 'Cliente Teste', email: 'cliente@cliente.com', senha: 'cliente123', tipo: 'hospede', telefone: '(12) 99999-0002' }
-];
-
-const CHAVE_SESSION = 'recanto_camargo_session';
-const CHAVE_DB = 'recanto_camargo_db';
-
-function inicializarDB() {
-  try {
-    const dbExistente = localStorage.getItem(CHAVE_DB);
-    if (!dbExistente) {
-      localStorage.setItem(CHAVE_DB, JSON.stringify(USUARIOS_MOCK));
-      return USUARIOS_MOCK;
-    }
-    return JSON.parse(dbExistente);
-  } catch (e) {
-    console.error('Erro ao inicializar DB:', e);
-    localStorage.setItem(CHAVE_DB, JSON.stringify(USUARIOS_MOCK));
-    return USUARIOS_MOCK;
-  }
-}
-
 export function ContextoAutenticacao({ children }) {
   const [usuario, setUsuario] = useState(null);
   const [carregando, setCarregando] = useState(true);
 
+  // Quando o app carregar, verificar se existe um cookie de sessão válido no Back-end
   useEffect(() => {
-    inicializarDB();
-
-    try {
-      const sessaoSalva = localStorage.getItem(CHAVE_SESSION);
-      if (sessaoSalva) {
-        const dados = JSON.parse(sessaoSalva);
-        setUsuario(dados);
-      }
-    } catch (e) {
-      console.error('Erro ao restaurar sessão:', e);
-      localStorage.removeItem(CHAVE_SESSION);
-    }
-    setCarregando(false);
+    fetch('http://localhost:3000/api/usuarios/sessao', { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) throw new Error('Não autenticado');
+        return res.json();
+      })
+      .then(data => {
+        setUsuario(data.usuario);
+      })
+      .catch(() => {
+        setUsuario(null);
+      })
+      .finally(() => {
+        setCarregando(false);
+      });
   }, []);
 
-  const login = useCallback((email, senha) => {
+  const login = useCallback(async (email, senha) => {
     try {
-      const dbRaw = localStorage.getItem(CHAVE_DB);
-      if (!dbRaw) {
-        console.error('DB não encontrado');
-        return { sucesso: false, mensagem: 'Erro interno. Tente novamente.' };
-      }
+      const res = await fetch('http://localhost:3000/api/usuarios/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, senha }),
+        credentials: 'include'
+      });
 
-      const db = JSON.parse(dbRaw);
-      const encontrado = db.find(u => u.email === email && u.senha === senha);
+      const data = await res.json();
 
-      if (encontrado) {
-        const { senha: _, ...dadosSeguros } = encontrado;
-        setUsuario(dadosSeguros);
-        localStorage.setItem(CHAVE_SESSION, JSON.stringify(dadosSeguros));
+      if (res.ok) {
+        setUsuario(data.usuario);
         return { sucesso: true };
+      } else {
+        return { sucesso: false, mensagem: data.error || 'Email ou senha inválidos.' };
       }
-
-      return { sucesso: false, mensagem: 'Email ou senha inválidos.' };
     } catch (e) {
       console.error('Erro no login:', e);
-      return { sucesso: false, mensagem: 'Erro ao processar login.' };
+      return { sucesso: false, mensagem: 'Erro de conexão com o servidor.' };
     }
   }, []);
 
-  const registrar = useCallback((dados) => {
+  const registrar = useCallback(async (dados) => {
     try {
-      const db = JSON.parse(localStorage.getItem(CHAVE_DB) || '[]');
+      const resCadastro = await fetch('http://localhost:3000/api/usuarios/cadastro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+      });
 
-      if (db.find(u => u.email === dados.email)) {
-        return { sucesso: false, mensagem: 'Este email já está cadastrado.' };
+      const dataCadastro = await resCadastro.json();
+
+      if (resCadastro.ok) {
+        // Como o cadastro não devolve token, fazemos o login automaticamente
+        return await login(dados.email, dados.senha);
+      } else {
+        return { sucesso: false, mensagem: dataCadastro.error || 'Erro ao criar conta.' };
       }
-
-      const novoUsuario = { id: Date.now(), ...dados, tipo: 'hospede' };
-      db.push(novoUsuario);
-      localStorage.setItem(CHAVE_DB, JSON.stringify(db));
-
-      const { senha: _, ...dadosSeguros } = novoUsuario;
-      setUsuario(dadosSeguros);
-      localStorage.setItem(CHAVE_SESSION, JSON.stringify(dadosSeguros));
-      return { sucesso: true };
     } catch (e) {
       console.error('Erro no registro:', e);
-      return { sucesso: false, mensagem: 'Erro ao criar conta.' };
+      return { sucesso: false, mensagem: 'Erro de conexão com o servidor.' };
     }
-  }, []);
+  }, [login]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    try {
+      await fetch('http://localhost:3000/api/usuarios/logout', { 
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (e) {
+      console.error('Erro ao fazer logout:', e);
+    }
     setUsuario(null);
-    localStorage.removeItem(CHAVE_SESSION);
   }, []);
 
   if (carregando) {

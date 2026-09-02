@@ -850,9 +850,30 @@ function DashboardCliente() {
 
   // Carregar dados
   useEffect(() => {
-    const { reservas: r, cupons: c } = inicializarDados();
-    setReservas(r);
-    setCupons(c);
+    async function carregarDados() {
+      try {
+        // Carrega Cupons do LocalStorage (Mock temporário)
+        const { cupons: c } = inicializarDados();
+        setCupons(c);
+
+        // Busca as reservas reais do Back-end!
+        const resposta = await fetch('http://localhost:3000/api/hospede/reservas', {
+          credentials: 'include' // Envia o cookie JWT
+        });
+
+        if (resposta.ok) {
+          const reservasReais = await resposta.json();
+          setReservas(reservasReais);
+        } else {
+          throw new Error('Falha ao carregar reservas');
+        }
+      } catch (erro) {
+        console.error('Erro ao buscar dados do dashboard:', erro);
+        fb('erro', 'Erro ao carregar suas reservas. Tente novamente.');
+      }
+    }
+    
+    carregarDados();
   }, []);
 
   const salvarReservas = (novas) => {

@@ -504,7 +504,7 @@ function DashboardAdministrador() {
   const [feedback, setFeedback] = useState({ tipo:'', msg:'' });
   const [modalRecusa, setModalRecusa] = useState(null);
 
-  useEffect(() => { if (tipo !== 'admin') navigate('/'); }, [tipo, navigate]);
+  useEffect(() => { if (tipo !== 'proprietario') navigate('/'); }, [tipo, navigate]);
 
   useEffect(() => {
     const onResize = () => setSidebarAberta(window.innerWidth >= 992);
@@ -512,10 +512,26 @@ function DashboardAdministrador() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  useEffect(() => { setReservas(inicializarReservas()); }, []);
+  // Busca reservas do Banco de Dados
+  useEffect(() => { 
+    async function buscarReservas() {
+      try {
+        const resposta = await fetch('http://localhost:3000/api/proprietario/reservas', {
+          credentials: 'include'
+        });
+        if (resposta.ok) {
+          const dados = await resposta.json();
+          setReservas(dados);
+        }
+      } catch (erro) {
+        console.error("Erro ao buscar reservas:", erro);
+      }
+    }
+    buscarReservas();
+  }, []);
 
+  // Temporário: Salvar na tela enquanto não criamos as rotas de aprovar/recusar no backend
   const salvar = (novas) => {
-    localStorage.setItem(CHAVE_RESERVAS, JSON.stringify(novas));
     setReservas(novas);
   };
 

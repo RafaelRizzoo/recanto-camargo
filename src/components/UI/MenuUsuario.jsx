@@ -63,7 +63,7 @@ function MenuUsuario() {
             <div className="menu-info">
               <div className="menu-nome">{usuario?.nome}</div>
               <div className="menu-email">{usuario?.email}</div>
-              <span className={`menu-badge ${tipo}`}>{tipo === 'admin' ? 'Proprietário' : 'Hóspede'}</span>
+              <span className={`menu-badge ${tipo}`}>{tipo === 'proprietario' ? 'Proprietário' : 'Hóspede'}</span>
             </div>
           </div>
 
@@ -76,10 +76,10 @@ function MenuUsuario() {
               </>
             )}
             
-            {tipo === 'admin' && (
+            {tipo === 'proprietario' && (
               <>
                 <button className="menu-item" onClick={() => { navigate('/DashboardAdministrador'); setAberto(false); }}>
-                  <i className="bi bi-speedometer2"></i> Painel Admin
+                  <i className="bi bi-speedometer2"></i> Painel Proprietário
                 </button>
               </>
             )}
