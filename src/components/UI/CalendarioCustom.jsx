@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { verificarSeFeriado } from '../../utils/feriados';
@@ -6,12 +6,13 @@ import { verificarSeFeriado } from '../../utils/feriados';
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 
 function CalendarioCustom({ valor, onChange, minDate }) {
-  const reservas = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
-    } catch {
-      return [];
-    }
+  const [reservas, setReservas] = useState([]);
+
+  useEffect(() => {
+    fetch('http://localhost:3000/api/reservas/datas-ocupadas')
+      .then(res => res.json())
+      .then(data => setReservas(data))
+      .catch(err => console.error('Erro ao carregar datas ocupadas:', err));
   }, []);
 
   const tileClassName = ({ date, view }) => {
