@@ -235,13 +235,14 @@ function Reserva() {
       });
 
       if (!resposta.ok) {
-        throw new Error('Falha ao comunicar com a API');
+        const errorData = await resposta.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao comunicar com a API');
       }
 
       const dadosAPI = await resposta.json();
       console.log('✅ Retorno da API:', dadosAPI);
       
-      // Marcar cupom como usado no localStorage (Mantido como estava por enquanto)
+      // Marcar cupom como usado no localStorage
       if (cupomAplicado) {
         const cuponsStr = localStorage.getItem('recanto_cupons_cliente');
         if (cuponsStr) {
@@ -254,11 +255,10 @@ function Reserva() {
         }
       }
       
-      // Redirecionar passando o ID que o banco de dados acabou de criar!
       navigate('/ReservaConcluida/' + dadosAPI.reservaId);
     } catch (erro) {
       console.error(erro);
-      setErros({ geral: 'Erro ao salvar reserva no Banco de Dados. O servidor Node está ligado?' });
+      setErros({ geral: erro.message || 'Erro ao salvar reserva no Banco de Dados.' });
     }
   }
 

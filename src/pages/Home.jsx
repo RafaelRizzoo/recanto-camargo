@@ -72,7 +72,7 @@ function Home() {
     setErroDispo('');
   }
 
-  function verificarDisponibilidade() {
+  async function verificarDisponibilidade() {
     if (!dispo.checkin || !dispo.checkout) {
       setErroDispo('Selecione as datas de entrada e saída.');
       setFeedbackDispo(null);
@@ -98,23 +98,32 @@ function Home() {
       setFeedbackDispo(null);
       return;
     }
-    if (verificarConflito(dispo.checkin, dispo.checkout)) {
-      setErroDispo('Período indisponível. Escolha outras datas.');
-      setFeedbackDispo(null);
-      return;
+
+    try {
+      const response = await fetch(`http://localhost:3000/api/reservas/disponibilidade?checkin=${dispo.checkin}&checkout=${dispo.checkout}`);
+      const data = await response.json();
+      
+      if (!data.disponivel) {
+        setErroDispo('Período indisponível. Escolha outras datas.');
+        setFeedbackDispo(null);
+        return;
+      }
+      
+      const msDiff = saida.getTime() - entrada.getTime();
+      const dias = Math.round(msDiff / (1000 * 3600 * 24));
+      
+      const strCheckin = entrada.toLocaleDateString('pt-BR');
+      const strCheckout = saida.toLocaleDateString('pt-BR');
+      
+      setFeedbackDispo(`Reserva de ${dias} noite${dias > 1 ? 's' : ''} disponível! Check-in: ${strCheckin} | Check-out: ${strCheckout}`);
+      
+      setTimeout(() => {
+        navigate(`/Reserva?checkin=${dispo.checkin}&checkout=${dispo.checkout}&hospedes=${dispo.pessoas}`);
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      setErroDispo('Erro ao consultar servidor.');
     }
-    
-    const msDiff = saida.getTime() - entrada.getTime();
-    const dias = Math.round(msDiff / (1000 * 3600 * 24));
-    
-    const strCheckin = entrada.toLocaleDateString('pt-BR');
-    const strCheckout = saida.toLocaleDateString('pt-BR');
-    
-    setFeedbackDispo(`Reserva de ${dias} noite${dias > 1 ? 's' : ''} disponível! Check-in: ${strCheckin} | Check-out: ${strCheckout}`);
-    
-    setTimeout(() => {
-      navigate(`/Reserva?checkin=${dispo.checkin}&checkout=${dispo.checkout}&hospedes=${dispo.pessoas}`);
-    }, 2000);
   }
 
 

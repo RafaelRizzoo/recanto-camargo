@@ -9,7 +9,7 @@ const db = require('./db');
 
 const app = express();
 
-// Configurações iniciais (Proteção Sênior)
+// Configurações iniciais 
 app.use(cors({
     origin: 'http://localhost:5173', // Apenas o nosso front-end tem acesso
     credentials: true // Permite a troca de cookies seguros
@@ -228,7 +228,7 @@ const verificarProprietario = (req, res, next) => {
         return res.status(403).json({ error: 'Acesso negado. Esta área é restrita aos proprietários.' });
     }
     
-    next(); // Pode passar, chefia!
+    next(); // Acesso Liberado para Proprietário.
 };
 
 // ==========================================
@@ -245,16 +245,71 @@ app.get('/api/imoveis', async (req, res) => {
     }
 });
 
+// Rota Pública para o Front-end checar se a data está livre (Usada na Home)
+app.get('/api/reservas/disponibilidade', async (req, res) => {
+    try {
+        const { checkin, checkout } = req.query;
+        if (!checkin || !checkout) {
+            return res.status(400).json({ error: 'Forneça checkin e checkout.' });
+        }
+
+        const imoId = 1;
+        const queryConflito = `
+            SELECT Res_Id FROM res_reserva 
+            WHERE Imo_Id = ? 
+            AND Res_Status IN ('CONFIRMADA', 'PENDENTE')
+            AND (Res_DataCheckIn < ?) 
+            AND (Res_DataCheckOut > ?)
+        `;
+        const valoresConflito = [imoId, checkout, checkin];
+        const [reservasConflitantes] = await db.query(queryConflito, valoresConflito);
+
+        if (reservasConflitantes.length > 0) {
+            return res.json({ disponivel: false });
+        }
+        
+        return res.json({ disponivel: true });
+    } catch (error) {
+        console.error('Erro ao checar disponibilidade:', error);
+        res.status(500).json({ error: 'Erro interno ao checar disponibilidade.' });
+    }
+});
+
+// Rota Pública para o Calendário pintar os dias ocupados
+app.get('/api/reservas/datas-ocupadas', async (req, res) => {
+    try {
+        const imoId = 1;
+        const query = `
+            SELECT 
+                DATE_FORMAT(Res_DataCheckIn, '%Y-%m-%d') as checkin, 
+                DATE_FORMAT(Res_DataCheckOut, '%Y-%m-%d') as checkout 
+            FROM res_reserva 
+            WHERE Imo_Id = ? 
+            AND Res_Status IN ('CONFIRMADA', 'PENDENTE')
+            AND Res_DataCheckOut >= CURDATE()
+        `;
+        const [datas] = await db.query(query, [imoId]);
+        res.json(datas);
+    } catch (error) {
+        console.error('Erro ao buscar datas ocupadas:', error);
+        res.status(500).json({ error: 'Erro interno ao buscar datas ocupadas.' });
+    }
+});
+
 // Passamos o verificarToken aqui! A rota agora é protegida.
 app.post('/api/reservas', verificarToken, async (req, res) => {
     // Ignoramos COMPLETAMENTE o 'valorTotal' que o front-end envia (Proteção contra Fraude)
     const { checkin, checkout, hospedes, observacoes } = req.body;
     
-    const imoId = 1; // Chalé padrão (Futuramente dinâmico)
+    const imoId = 1; // Imóvel padrão (Futuramente dinâmico)
     const hospedeId = req.usuario.id; // Pegando do token JWT inviolável
+
+    // 1. Pegamos uma conexão EXCLUSIVA para esta transação
+    const conexao = await db.getConnection();
 
     try {
         if (!checkin || !checkout || !hospedes) {
+            conexao.release();
             return res.status(400).json({ error: 'Dados incompletos para a reserva.' });
         }
 
@@ -265,40 +320,80 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
         hoje.setHours(0, 0, 0, 0);
 
         if (dataCheckin < hoje) {
+            conexao.release();
             return res.status(400).json({ error: 'Você não pode reservar uma data no passado.' });
         }
         if (dataCheckout <= dataCheckin) {
+            conexao.release();
             return res.status(400).json({ error: 'A data de checkout deve ser maior que o check-in.' });
         }
 
-        // --- CÁLCULO SEGURO DO PREÇO (BLINDADO) ---
-        // 1. Busca o preço oficial atualizado direto da "vitrine" (Tabela Imóvel)
-        const [imoveis] = await db.query('SELECT Imo_ValorFixo FROM imo_imovel WHERE Imo_Id = ? AND Imo_Status = "ATIVO"', [imoId]);
+        // =========================================================
+        // INÍCIO DA BLINDAGEM ANTI-OVERBOOKING (PESSIMISTIC LOCK)
+        // =========================================================
+        await conexao.beginTransaction();
+
+        // PASSO 1: A CAMADA FÍSICA (LOCK)
+        // O "FOR UPDATE" no final cria um muro em volta deste imóvel.
+        const [imoveis] = await conexao.query(
+            'SELECT Imo_ValorFixo FROM imo_imovel WHERE Imo_Id = ? AND Imo_Status = "ATIVO" FOR UPDATE', 
+            [imoId]
+        );
+
         if (imoveis.length === 0) {
+            await conexao.rollback();
+            conexao.release();
             return res.status(404).json({ error: 'Imóvel não encontrado ou inativo.' });
         }
         const precoDiariaDb = parseFloat(imoveis[0].Imo_ValorFixo);
 
-        // 2. Calcula matematicamente quantas noites a pessoa vai ficar
+        // PASSO 2: A CAMADA MATEMÁTICA (SOBREPOSIÇÃO)
+        // Agora que somos os únicos olhando para este imóvel, verificamos se as datas batem.
+        const queryConflito = `
+            SELECT Res_Id FROM res_reserva 
+            WHERE Imo_Id = ? 
+            AND Res_Status IN ('CONFIRMADA', 'PENDENTE')
+            AND (Res_DataCheckIn < ?) 
+            AND (Res_DataCheckOut > ?)
+        `;
+        const valoresConflito = [imoId, checkout, checkin];
+        const [reservasConflitantes] = await conexao.query(queryConflito, valoresConflito);
+
+        if (reservasConflitantes.length > 0) {
+            // Se achou conflito, aborta a transação, destranca o imóvel e avisa o usuário
+            await conexao.rollback();
+            conexao.release();
+            return res.status(409).json({ error: 'As datas selecionadas já foram reservadas por outro hóspede.' });
+        }
+
+        // =========================================================
+        // FIM DA BLINDAGEM - SE CHEGAMOS AQUI, A DATA É NOSSA!
+        // =========================================================
+
+        // --- CÁLCULO SEGURO DO PREÇO ---
         const msPorDia = 1000 * 60 * 60 * 24;
         const diffTime = Math.abs(dataCheckout - dataCheckin);
         const quantidadeNoites = Math.ceil(diffTime / msPorDia);
-
-        // 3. O Servidor gera o preço final inviolável
         const valorFinalSeguro = quantidadeNoites * precoDiariaDb;
-        // -------------------------------------------------------------
         
         // 4. Salva a fotografia do momento na reserva
-        const query = `
+        const queryInsert = `
             INSERT INTO res_reserva 
             (Imo_Id, Hos_Hospede_Usu_Id, Res_DataCheckIn, Res_DataCheckOut, Res_QuantidadeDeHospedes, Res_ValorTotal, Res_Status, Res_DataReserva, Res_ObsHospede) 
             VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMADA', NOW(), ?)
         `;
-        const valores = [imoId, hospedeId, checkin, checkout, hospedes, valorFinalSeguro, observacoes || null];
-        const [resultado] = await db.query(query, valores);
+        const valoresInsert = [imoId, hospedeId, checkin, checkout, hospedes, valorFinalSeguro, observacoes || null];
+        const [resultado] = await conexao.query(queryInsert, valoresInsert);
         
+        // Sucesso absoluto! Salva definitivamente no banco e destranca o imóvel para o próximo da fila.
+        await conexao.commit();
+        conexao.release();
+
         res.status(201).json({ message: 'Reserva criada com sucesso no MySQL!', reservaId: resultado.insertId });
     } catch (error) {
+        // Se qualquer coisa der errado (banco cair, erro de digitação, etc), desfaz tudo e destranca o chalé.
+        await conexao.rollback();
+        conexao.release();
         console.error('Erro ao criar reserva:', error);
         res.status(500).json({ error: 'Erro interno ao criar reserva.' });
     }

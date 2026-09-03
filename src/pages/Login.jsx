@@ -30,6 +30,7 @@ function Login() {
       navigate(location.state?.from || '/', { replace: true });
     } else {
       setErro(resultado.mensagem);
+      setDados(prev => ({ ...prev, senha: '' }));
     }
   };
 
