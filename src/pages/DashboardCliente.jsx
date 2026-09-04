@@ -8,104 +8,7 @@ import PropTypes from 'prop-types';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import './DashboardCliente.css';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const RESERVAS_CLIENTE_MOCK = [
-  {
-    id: 'RC001',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-05-20',
-    checkout: '2026-05-24',
-    hospedes: 4,
-    valorTotal: 1080.00,
-    valorDiaria: 270.00,
-    status: 'aprovada',
-    criadaEm: '2026-04-20',
-    observacao: 'Preciso de berço para bebê de 8 meses.',
-    formaPagamento: 'PIX',
-    avaliacao: null,
-  },
-  {
-    id: 'RC002',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-06-10',
-    checkout: '2026-06-14',
-    hospedes: 2,
-    valorTotal: 1080.00,
-    valorDiaria: 270.00,
-    status: 'pendente',
-    criadaEm: '2026-04-25',
-    observacao: 'Viagem de aniversário.',
-    formaPagamento: 'Cartão de Crédito',
-    avaliacao: null,
-  },
-  {
-    id: 'RC003',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-03-10',
-    checkout: '2026-03-13',
-    hospedes: 3,
-    valorTotal: 810.00,
-    valorDiaria: 270.00,
-    status: 'concluida',
-    criadaEm: '2026-02-15',
-    observacao: '',
-    formaPagamento: 'PIX',
-    avaliacao: {
-      nota: 5,
-      comentario: 'Lugar maravilhoso! Voltaremos com certeza.',
-      data: '2026-03-15',
-    },
-  },
-  {
-    id: 'RC004',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-01-05',
-    checkout: '2026-01-08',
-    hospedes: 5,
-    valorTotal: 810.00,
-    valorDiaria: 270.00,
-    status: 'concluida',
-    criadaEm: '2025-12-10',
-    observacao: 'Levarei meu pet.',
-    formaPagamento: 'PIX',
-    avaliacao: null,
-  },
-  {
-    id: 'RC005',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-02-20',
-    checkout: '2026-02-23',
-    hospedes: 3,
-    valorTotal: 810.00,
-    valorDiaria: 270.00,
-    status: 'recusada',
-    criadaEm: '2026-01-15',
-    observacao: '',
-    formaPagamento: 'PIX',
-    avaliacao: null,
-    motivoRecusa: 'Não podemos aceitar reservas na data devido a uma manutenção na casa. Pedimos desculpas pelo inconveniente.',
-  },
-];
-
 const CHAVE_RESERVAS_CLIENTE = 'recanto_reservas_cliente';
-
-function inicializarDados() {
-  try {
-    const res = localStorage.getItem(CHAVE_RESERVAS_CLIENTE);
-    if (!res) localStorage.setItem(CHAVE_RESERVAS_CLIENTE, JSON.stringify(RESERVAS_CLIENTE_MOCK));
-
-    return {
-      reservas: res ? JSON.parse(res) : RESERVAS_CLIENTE_MOCK,
-    };
-  } catch {
-    return { reservas: RESERVAS_CLIENTE_MOCK };
-  }
-}
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 const fmtData = (s) => {
@@ -134,6 +37,43 @@ const normalizarCupom = (cupom) => {
     icone: tipoDesconto === 'PERCENTUAL' ? '🎁' : '🏷️',
     ativo: true,
     usado: Boolean(cupom.usado),
+  };
+};
+
+const normalizarDataAvaliacao = (data) => {
+  const valor = String(data || '');
+  const dataIso = valor.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(dataIso) ? dataIso : '';
+};
+
+const normalizarRespostaProprietario = (resposta) => {
+  if (!resposta || typeof resposta !== 'object') return null;
+
+  const nota = Number(resposta.nota ?? resposta.Ava_NotaPropietario);
+  if (!Number.isFinite(nota) || nota < 1 || nota > 5 || !Number.isInteger(nota * 2)) return null;
+
+  return {
+    nota,
+    comentario: String(resposta.comentario ?? resposta.Ava_ComentarioPropietario ?? ''),
+    data: normalizarDataAvaliacao(resposta.data ?? resposta.Ava_DataPropietario),
+  };
+};
+
+const normalizarAvaliacao = (avaliacao) => {
+  if (!avaliacao || typeof avaliacao !== 'object') return null;
+
+  const nota = Number(avaliacao.nota ?? avaliacao.Ava_Nota);
+  const data = normalizarDataAvaliacao(avaliacao.data ?? avaliacao.Ava_Data);
+  if (!Number.isFinite(nota) || nota < 1 || nota > 5 || !Number.isInteger(nota * 2) || !data) return null;
+
+  return {
+    id: avaliacao.id ?? avaliacao.avaliacaoId ?? avaliacao.Ava_Id,
+    nota,
+    comentario: String(avaliacao.comentario ?? avaliacao.Ava_Comentario ?? ''),
+    data,
+    respostaProprietario: normalizarRespostaProprietario(
+      avaliacao.respostaProprietario ?? avaliacao.resposta
+    ),
   };
 };
 
@@ -177,27 +117,19 @@ function BadgeStatus({ status }) {
 }
 BadgeStatus.propTypes = { status: PropTypes.string.isRequired };
 
-function Estrelas({ nota, interativa = false, onSelecionar }) {
-  const [hover, setHover] = useState(0);
+function Estrelas({ nota, tamanho = '1.1rem' }) {
   return (
-    <div className="cli-estrelas">
-      {[1, 2, 3, 4, 5].map(n => (
-        <i
-          key={n}
-          className={`bi ${(interativa ? (hover || nota) : nota) >= n ? 'bi-star-fill' : 'bi-star'}`}
-          style={{ color: '#f59e0b', cursor: interativa ? 'pointer' : 'default', fontSize: '1.1rem' }}
-          onClick={() => interativa && onSelecionar?.(n)}
-          onMouseEnter={() => interativa && setHover(n)}
-          onMouseLeave={() => interativa && setHover(0)}
-        />
-      ))}
+    <div className="cli-estrelas" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map(n => {
+        const icone = nota >= n ? 'bi-star-fill' : nota >= n - 0.5 ? 'bi-star-half' : 'bi-star';
+        return <i key={n} className={`bi ${icone}`} style={{ color: '#f59e0b', fontSize: tamanho }} />;
+      })}
     </div>
   );
 }
 Estrelas.propTypes = {
   nota: PropTypes.number.isRequired,
-  interativa: PropTypes.bool,
-  onSelecionar: PropTypes.func,
+  tamanho: PropTypes.string,
 };
 
 // ─── Modal Detalhe da Reserva ─────────────────────────────────────────────────
@@ -342,13 +274,37 @@ ModalCancelar.propTypes = {
 };
 
 // ─── Modal Avaliação ──────────────────────────────────────────────────────────
-function ModalAvaliar({ reserva, aoFechar, aoEnviar }) {
+function ModalAvaliar({ reserva, aoFechar, aoEnviar, enviando, erro }) {
   const [nota, setNota] = useState(5);
   const [comentario, setComentario] = useState('');
+
+  useEffect(() => {
+    setNota(5);
+    setComentario('');
+  }, [reserva?.id]);
+
   if (!reserva) return null;
+
+  const descricaoNota = nota <= 1.5
+    ? 'Muito ruim'
+    : nota <= 2.5
+      ? 'Ruim'
+      : nota <= 3.5
+        ? 'Regular'
+        : nota <= 4.5
+          ? 'Bom'
+          : 'Excelente!';
+
   return (
-    <Modal show onHide={aoFechar} centered className="cli-modal">
-      <Modal.Header closeButton className="cli-modal-header">
+    <Modal
+      show
+      onHide={() => { if (!enviando) aoFechar(); }}
+      backdrop={enviando ? 'static' : true}
+      keyboard={!enviando}
+      centered
+      className="cli-modal cli-modal-avaliar"
+    >
+      <Modal.Header closeButton={!enviando} className="cli-modal-header">
         <Modal.Title>Avaliar Estadia</Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
@@ -361,31 +317,61 @@ function ModalAvaliar({ reserva, aoFechar, aoEnviar }) {
         </div>
         <div className="text-center mb-4">
           <p className="fw-semibold mb-2" style={{ color: '#223a5e' }}>Como foi sua estadia?</p>
-          <div className="d-flex justify-content-center gap-2" style={{ fontSize: '2rem' }}>
-            <Estrelas nota={nota} interativa onSelecionar={setNota} />
+          <div className="d-flex justify-content-center mb-2">
+            <Estrelas nota={nota} tamanho="2rem" />
           </div>
-          <div className="text-muted small mt-1">
-            {['', 'Muito ruim', 'Ruim', 'Regular', 'Bom', 'Excelente!'][nota]}
+          <label htmlFor="nota-avaliacao" className="visually-hidden">Nota da estadia</label>
+          <input
+            id="nota-avaliacao"
+            type="range"
+            className="form-range cli-nota-range mx-auto"
+            min="1"
+            max="5"
+            step="0.5"
+            value={nota}
+            onChange={e => setNota(Number(e.target.value))}
+            disabled={enviando}
+            aria-valuetext={`${nota.toLocaleString('pt-BR')} de 5 — ${descricaoNota}`}
+          />
+          <div className="text-muted small mt-1" aria-live="polite">
+            <strong>{nota.toLocaleString('pt-BR')} de 5</strong> — {descricaoNota}
+            <span className="d-block">Ajuste de meio em meio ponto.</span>
           </div>
         </div>
-        <label className="label-config mb-2 d-block">Seu comentário (opcional)</label>
+        <label htmlFor="comentario-avaliacao" className="label-config mb-2 d-block">Seu comentário (opcional)</label>
         <textarea
+          id="comentario-avaliacao"
           className="form-controle-config w-100"
           rows={4}
+          maxLength={255}
           placeholder="Conte como foi sua experiência no Recanto Camargo..."
           value={comentario}
           onChange={e => setComentario(e.target.value)}
+          disabled={enviando}
           style={{ borderRadius: '12px', padding: '0.75rem', border: '1px solid #e2e8f0', resize: 'vertical' }}
         />
+        <div className="text-end text-muted small mt-1">{comentario.length}/255</div>
+        {erro && <Alert variant="danger" className="mt-3 mb-0" role="alert">{erro}</Alert>}
       </Modal.Body>
       <Modal.Footer className="border-0 pt-0 gap-2">
-        <Button variant="outline-secondary" style={{ borderRadius: '50px' }} onClick={aoFechar}>Cancelar</Button>
+        <Button
+          variant="outline-secondary"
+          style={{ borderRadius: '50px' }}
+          onClick={aoFechar}
+          disabled={enviando}
+        >
+          Cancelar
+        </Button>
         <Button
           className="btn-autenticacao btn-inline"
           style={{ minWidth: '160px' }}
           onClick={() => aoEnviar(reserva.id, nota, comentario)}
+          disabled={enviando}
         >
-          <i className="bi bi-send me-2"></i>Enviar Avaliação
+          {enviando
+            ? <><span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando...</>
+            : <><i className="bi bi-send me-2"></i>Enviar Avaliação</>
+          }
         </Button>
       </Modal.Footer>
     </Modal>
@@ -395,6 +381,8 @@ ModalAvaliar.propTypes = {
   reserva: PropTypes.object,
   aoFechar: PropTypes.func.isRequired,
   aoEnviar: PropTypes.func.isRequired,
+  enviando: PropTypes.bool.isRequired,
+  erro: PropTypes.string.isRequired,
 };
 
 // ─── Card de Reserva ──────────────────────────────────────────────────────────
@@ -816,6 +804,20 @@ function MinhasAvaliacoes({ reservas, onAvaliar }) {
               {r.avaliacao.comentario && (
                 <p className="cli-avaliacao-texto">"{r.avaliacao.comentario}"</p>
               )}
+              {r.avaliacao.respostaProprietario && (
+                <div className="cli-resposta-proprietario">
+                  <div className="cli-resposta-proprietario-header">
+                    <strong><i className="bi bi-reply-fill me-2"></i>Resposta do proprietário</strong>
+                    {r.avaliacao.respostaProprietario.data && (
+                      <span>{fmtData(r.avaliacao.respostaProprietario.data)}</span>
+                    )}
+                  </div>
+                  <Estrelas nota={r.avaliacao.respostaProprietario.nota} />
+                  {r.avaliacao.respostaProprietario.comentario && (
+                    <p>{r.avaliacao.respostaProprietario.comentario}</p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -845,6 +847,8 @@ function DashboardCliente() {
   const [modalDetalhe,  setModalDetalhe]  = useState(null);
   const [modalCancelar, setModalCancelar] = useState(null);
   const [modalAvaliar,  setModalAvaliar]  = useState(null);
+  const [avaliacaoEnviando, setAvaliacaoEnviando] = useState(false);
+  const [erroAvaliacao, setErroAvaliacao] = useState('');
 
   // Proteção de rota
   useEffect(() => { if (tipo !== 'hospede') navigate('/'); }, [tipo, navigate]);
@@ -858,8 +862,6 @@ function DashboardCliente() {
 
   // Carregar dados
   useEffect(() => {
-    inicializarDados();
-
     async function carregarReservas() {
       try {
         // Busca as reservas reais do Back-end!
@@ -867,12 +869,16 @@ function DashboardCliente() {
           credentials: 'include' // Envia o cookie JWT
         });
 
-        if (resposta.ok) {
-          const reservasReais = await resposta.json();
-          setReservas(reservasReais);
-        } else {
-          throw new Error('Falha ao carregar reservas');
+        const dados = await resposta.json().catch(() => null);
+        if (!resposta.ok) {
+          throw new Error(dados?.error || 'Falha ao carregar reservas');
         }
+        if (!Array.isArray(dados)) throw new Error('Resposta inválida ao carregar reservas');
+
+        setReservas(dados.map(reserva => ({
+          ...reserva,
+          avaliacao: normalizarAvaliacao(reserva.avaliacao),
+        })));
       } catch (erro) {
         console.error('Erro ao buscar dados do dashboard:', erro);
         fb('erro', 'Erro ao carregar suas reservas. Tente novamente.');
@@ -928,18 +934,67 @@ function DashboardCliente() {
     fb('sucesso', `Reserva #${id} cancelada com sucesso.`);
   }, [reservas]);
 
-  // Enviar avaliação
-  const enviarAvaliacao = useCallback((id, nota, comentario) => {
-    const atualizadas = reservas.map(r =>
-      r.id === id ? {
-        ...r,
-        avaliacao: { nota, comentario, data: new Date().toISOString().slice(0, 10) }
-      } : r
-    );
-    salvarReservas(atualizadas);
+  const abrirModalAvaliacao = useCallback((reserva) => {
+    setErroAvaliacao('');
+    setModalAvaliar(reserva);
+  }, []);
+
+  const fecharModalAvaliacao = useCallback(() => {
+    if (avaliacaoEnviando) return;
+    setErroAvaliacao('');
     setModalAvaliar(null);
-    fb('sucesso', 'Avaliação enviada! Obrigado pelo seu feedback.');
-  }, [reservas]);
+  }, [avaliacaoEnviando]);
+
+  // Enviar avaliação real; a resposta confirmada pelo servidor atualiza a tela.
+  const enviarAvaliacao = useCallback(async (id, nota, comentario) => {
+    if (avaliacaoEnviando) return;
+
+    const notaNumero = Number(nota);
+    const comentarioLimpo = comentario.trim();
+    if (!Number.isFinite(notaNumero) || notaNumero < 1 || notaNumero > 5 || !Number.isInteger(notaNumero * 2)) {
+      setErroAvaliacao('Escolha uma nota entre 1 e 5, em intervalos de meio ponto.');
+      return;
+    }
+    if (comentarioLimpo.length > 255) {
+      setErroAvaliacao('O comentário deve ter no máximo 255 caracteres.');
+      return;
+    }
+
+    setAvaliacaoEnviando(true);
+    setErroAvaliacao('');
+
+    try {
+      const resposta = await fetch('http://localhost:3000/api/avaliacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reservaId: id, nota: notaNumero, comentario: comentarioLimpo }),
+      });
+      const dados = await resposta.json().catch(() => null);
+
+      if (!resposta.ok) {
+        throw new Error(dados?.error || 'Não foi possível enviar sua avaliação.');
+      }
+
+      const avaliacaoCriada = normalizarAvaliacao(dados?.avaliacao ?? dados);
+      if (!avaliacaoCriada) {
+        throw new Error('O servidor retornou uma avaliação inválida. Atualize a página e tente novamente.');
+      }
+
+      setReservas(atuais => atuais.map(reserva =>
+        String(reserva.id) === String(id)
+          ? { ...reserva, avaliacao: avaliacaoCriada }
+          : reserva
+      ));
+      setModalAvaliar(null);
+      fb('sucesso', 'Avaliação enviada! Obrigado pelo seu feedback.');
+    } catch (erro) {
+      console.error('Erro ao enviar avaliação:', erro);
+      setErroAvaliacao(erro.message || 'Não foi possível enviar sua avaliação.');
+    } finally {
+      setAvaliacaoEnviando(false);
+    }
+  }, [avaliacaoEnviando]);
 
   const irAba = (id) => {
     setAbaAtiva(id);
@@ -972,7 +1027,7 @@ function DashboardCliente() {
               reservas={reservas}
               onVer={setModalDetalhe}
               onCancelar={setModalCancelar}
-              onAvaliar={setModalAvaliar}
+              onAvaliar={abrirModalAvaliacao}
             />
           </>
         );
@@ -980,7 +1035,7 @@ function DashboardCliente() {
         return (
           <>
             <p className="dash-section-label">Suas Avaliações</p>
-            <MinhasAvaliacoes reservas={reservas} onAvaliar={setModalAvaliar} />
+            <MinhasAvaliacoes reservas={reservas} onAvaliar={abrirModalAvaliacao} />
           </>
         );
       case 'cupons':
@@ -1087,7 +1142,13 @@ function DashboardCliente() {
 
       <ModalDetalheReserva reserva={modalDetalhe}  aoFechar={() => setModalDetalhe(null)} />
       <ModalCancelar       reserva={modalCancelar} aoFechar={() => setModalCancelar(null)} aoConfirmar={confirmarCancelamento} />
-      <ModalAvaliar        reserva={modalAvaliar}  aoFechar={() => setModalAvaliar(null)}  aoEnviar={enviarAvaliacao} />
+      <ModalAvaliar
+        reserva={modalAvaliar}
+        aoFechar={fecharModalAvaliacao}
+        aoEnviar={enviarAvaliacao}
+        enviando={avaliacaoEnviando}
+        erro={erroAvaliacao}
+      />
     </div>
   );
 }

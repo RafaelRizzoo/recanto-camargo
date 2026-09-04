@@ -52,6 +52,7 @@ const Ico = {
   Reservas:()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>,
   Cal:     ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
   Previsao:()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  Estrela: ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
   Config:  ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
   Voltar:  ()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
   Sair:    ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
@@ -76,6 +77,28 @@ function CardResumo({ icone, titulo, valor, sub, cor='#3b6399' }) {
         {sub && <div className="sub-resumo-admin mt-1">{sub}</div>}
       </Card.Body>
     </Card>
+  );
+}
+
+function EstrelasAvaliacao({ nota, tamanho = '1rem' }) {
+  const valor = Math.min(5, Math.max(0, Number(nota) || 0));
+
+  return (
+    <span
+      className="avaliacao-admin-estrelas"
+      role="img"
+      aria-label={`${valor.toLocaleString('pt-BR')} de 5 estrelas`}
+      style={{ fontSize: tamanho }}
+    >
+      {[1, 2, 3, 4, 5].map(posicao => {
+        const classe = valor >= posicao
+          ? 'bi-star-fill'
+          : valor >= posicao - 0.5
+            ? 'bi-star-half'
+            : 'bi-star';
+        return <i key={posicao} className={`bi ${classe}`} aria-hidden="true" />;
+      })}
+    </span>
   );
 }
 
@@ -210,6 +233,248 @@ function ModalRecusa({ reserva, aoFechar, aoConfirmar }) {
         </Button>
       </Modal.Footer>
     </Modal>
+  );
+}
+
+function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
+  const [nota, setNota] = useState(5);
+  const [comentario, setComentario] = useState('');
+  const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    setNota(5);
+    setComentario('');
+    setErro('');
+    setEnviando(false);
+  }, [avaliacao?.id]);
+
+  if (!avaliacao) return null;
+
+  const comentarioLimpo = comentario.trim();
+  const notaValida = Number.isFinite(Number(nota))
+    && Number(nota) >= 1
+    && Number(nota) <= 5
+    && Number(nota) * 2 === Math.round(Number(nota) * 2);
+  const formularioValido = notaValida && comentarioLimpo.length >= 1 && comentarioLimpo.length <= 255;
+
+  const fechar = () => {
+    if (!enviando) aoFechar();
+  };
+
+  const enviarResposta = async (evento) => {
+    evento.preventDefault();
+    if (!formularioValido || enviando) return;
+
+    setEnviando(true);
+    setErro('');
+
+    try {
+      const resposta = await fetch(`http://localhost:3000/api/proprietario/avaliacoes/${avaliacao.id}/responder`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ nota: Number(nota), comentario: comentarioLimpo }),
+      });
+      const dados = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(dados.error || 'Não foi possível enviar a resposta. Tente novamente.');
+      }
+
+      aoResponder(avaliacao.id, dados.respostaProprietario);
+    } catch (falha) {
+      setErro(falha.message || 'Não foi possível enviar a resposta. Tente novamente.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal
+      show
+      onHide={fechar}
+      centered
+      className="modal-reserva-admin"
+      backdrop={enviando ? 'static' : true}
+      keyboard={!enviando}
+    >
+      <form onSubmit={enviarResposta}>
+        <Modal.Header closeButton={!enviando} className="modal-header-admin">
+          <Modal.Title>Responder avaliação</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          <div className="avaliacao-modal-contexto mb-4">
+            <div className="mini-avatar">{avaliacao.hospede.nome.charAt(0)}</div>
+            <div>
+              <div className="fw-bold">{avaliacao.hospede.nome}</div>
+              <div className="text-muted small">
+                Reserva #{avaliacao.reserva.id} · {avaliacao.imovel.nome}
+              </div>
+            </div>
+          </div>
+
+          <div className="avaliacao-original-admin mb-4">
+            <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+              <EstrelasAvaliacao nota={avaliacao.nota} tamanho="1.15rem" />
+              <span className="text-muted small">{fmtData(avaliacao.data)}</span>
+            </div>
+            <p className="mb-0">“{avaliacao.comentario}”</p>
+          </div>
+
+          <label htmlFor="nota-hospede" className="label-secao-modal d-block">
+            Nota do hóspede: <strong>{Number(nota).toLocaleString('pt-BR')}</strong>/5
+          </label>
+          <input
+            id="nota-hospede"
+            className="form-range avaliacao-nota-range"
+            type="range"
+            min="1"
+            max="5"
+            step="0.5"
+            value={nota}
+            onChange={evento => setNota(Number(evento.target.value))}
+            aria-valuetext={`${Number(nota).toLocaleString('pt-BR')} de 5 estrelas`}
+            disabled={enviando}
+          />
+          <div className="d-flex justify-content-between text-muted small mb-4" aria-hidden="true">
+            <span>1 — Ruim</span>
+            <span>5 — Excelente</span>
+          </div>
+
+          <div className="d-flex align-items-center justify-content-between gap-2">
+            <label htmlFor="comentario-proprietario" className="label-secao-modal mb-2">
+              Comentário <span className="text-danger">*</span>
+            </label>
+            <span className={`avaliacao-contador${comentario.length >= 240 ? ' limite' : ''}`}>
+              {comentario.length}/255
+            </span>
+          </div>
+          <textarea
+            id="comentario-proprietario"
+            className="form-controle-config w-100"
+            rows={4}
+            maxLength={255}
+            placeholder="Conte como foi receber este hóspede..."
+            value={comentario}
+            onChange={evento => setComentario(evento.target.value)}
+            disabled={enviando}
+            required
+            style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid #e2e8f0', resize: 'vertical' }}
+          />
+
+          {erro && (
+            <Alert variant="danger" className="border-0 mt-3 mb-0" role="alert">
+              <i className="bi bi-exclamation-circle me-2" aria-hidden="true" />{erro}
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0 gap-2">
+          <Button variant="outline-secondary" type="button" onClick={fechar} disabled={enviando} style={{ borderRadius: '50px' }}>
+            Cancelar
+          </Button>
+          <Button variant="primary" type="submit" disabled={!formularioValido || enviando} className="btn-acao-modal">
+            {enviando ? (
+              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> Enviando...</>
+            ) : (
+              <><i className="bi bi-send me-1" aria-hidden="true" /> Enviar resposta</>
+            )}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
+  );
+}
+
+function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoResponder }) {
+  if (carregando) {
+    return (
+      <div className="estado-avaliacoes-admin" role="status" aria-live="polite">
+        <span className="spinner-border text-primary" aria-hidden="true" />
+        <span>Carregando avaliações...</span>
+      </div>
+    );
+  }
+
+  if (erro) {
+    return (
+      <div className="estado-avaliacoes-admin erro" role="alert">
+        <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+        <h5>Não foi possível carregar as avaliações</h5>
+        <p>{erro}</p>
+        <Button variant="outline-primary" onClick={aoTentarNovamente}>Tentar novamente</Button>
+      </div>
+    );
+  }
+
+  if (avaliacoes.length === 0) {
+    return (
+      <div className="estado-avaliacoes-admin">
+        <i className="bi bi-chat-square-heart" aria-hidden="true" />
+        <h5>Nenhuma avaliação aguardando resposta</h5>
+        <p>Quando um hóspede avaliar uma estadia concluída, ela aparecerá aqui.</p>
+      </div>
+    );
+  }
+
+  const media = avaliacoes.reduce((total, item) => total + Number(item.nota || 0), 0) / avaliacoes.length;
+
+  return (
+    <>
+      <Row className="g-3 mb-4">
+        <Col xs={12} sm={6} xl={4}>
+          <CardResumo
+            icone={<i className="bi bi-chat-square-dots fs-4" aria-hidden="true" />}
+            titulo="Aguardando resposta"
+            valor={avaliacoes.length}
+            sub="avaliações pendentes"
+            cor="#f59e0b"
+          />
+        </Col>
+        <Col xs={12} sm={6} xl={4}>
+          <CardResumo
+            icone={<i className="bi bi-star-fill fs-4" aria-hidden="true" />}
+            titulo="Média recebida"
+            valor={media.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+            sub="entre as pendentes"
+            cor="#f37321"
+          />
+        </Col>
+      </Row>
+
+      <div className="avaliacoes-admin-grid">
+        {avaliacoes.map(avaliacao => (
+          <article key={avaliacao.id} className="card-avaliacao-admin">
+            <div className="card-avaliacao-admin-topo">
+              <div className="d-flex align-items-center gap-2">
+                <div className="avatar-avaliacao-admin">{avaliacao.hospede.nome.charAt(0)}</div>
+                <div>
+                  <div className="fw-bold" style={{ color: '#223a5e' }}>{avaliacao.hospede.nome}</div>
+                  <div className="text-muted small">Reserva #{avaliacao.reserva.id}</div>
+                </div>
+              </div>
+              <span className="badge-resposta-pendente">A responder</span>
+            </div>
+
+            <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap my-3">
+              <EstrelasAvaliacao nota={avaliacao.nota} tamanho="1.05rem" />
+              <span className="text-muted small">{fmtData(avaliacao.data)}</span>
+            </div>
+
+            <p className="comentario-avaliacao-admin">“{avaliacao.comentario}”</p>
+
+            <div className="meta-avaliacao-admin">
+              <span><i className="bi bi-house me-1" aria-hidden="true" />{avaliacao.imovel.nome}</span>
+              <span><i className="bi bi-calendar3 me-1" aria-hidden="true" />{fmtData(avaliacao.reserva.checkin)} → {fmtData(avaliacao.reserva.checkout)}</span>
+            </div>
+
+            <button type="button" className="btn-responder-avaliacao" onClick={() => aoResponder(avaliacao)}>
+              <i className="bi bi-reply me-2" aria-hidden="true" />Responder avaliação
+            </button>
+          </article>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -503,6 +768,10 @@ function DashboardAdministrador() {
   const [filtro, setFiltro] = useState('todas');
   const [feedback, setFeedback] = useState({ tipo:'', msg:'' });
   const [modalRecusa, setModalRecusa] = useState(null);
+  const [avaliacoesPendentes, setAvaliacoesPendentes] = useState([]);
+  const [carregandoAvaliacoes, setCarregandoAvaliacoes] = useState(true);
+  const [erroAvaliacoes, setErroAvaliacoes] = useState('');
+  const [avaliacaoSelecionada, setAvaliacaoSelecionada] = useState(null);
 
   useEffect(() => { if (tipo !== 'proprietario') navigate('/'); }, [tipo, navigate]);
 
@@ -529,6 +798,40 @@ function DashboardAdministrador() {
     }
     buscarReservas();
   }, []);
+
+  const buscarAvaliacoesPendentes = useCallback(async (signal) => {
+    setCarregandoAvaliacoes(true);
+    setErroAvaliacoes('');
+
+    try {
+      const resposta = await fetch('http://localhost:3000/api/proprietario/avaliacoes/pendentes', {
+        credentials: 'include',
+        signal,
+      });
+      const dados = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(dados.error || 'Não foi possível carregar as avaliações.');
+      }
+      if (!Array.isArray(dados)) {
+        throw new Error('O servidor retornou um formato de avaliações inválido.');
+      }
+
+      setAvaliacoesPendentes(dados);
+    } catch (falha) {
+      if (falha.name !== 'AbortError') {
+        setErroAvaliacoes(falha.message || 'Não foi possível carregar as avaliações.');
+      }
+    } finally {
+      if (!signal?.aborted) setCarregandoAvaliacoes(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controlador = new AbortController();
+    buscarAvaliacoesPendentes(controlador.signal);
+    return () => controlador.abort();
+  }, [buscarAvaliacoesPendentes]);
 
   // Temporário: Salvar na tela enquanto não criamos as rotas de aprovar/recusar no backend
   const salvar = (novas) => {
@@ -572,6 +875,12 @@ function DashboardAdministrador() {
     });
   }, [reservas, adicionar]);
 
+  const confirmarRespostaAvaliacao = useCallback((id) => {
+    setAvaliacoesPendentes(atuais => atuais.filter(item => item.id !== id));
+    setAvaliacaoSelecionada(null);
+    fb('sucesso', 'Resposta enviada com sucesso.');
+  }, []);
+
   const pendentes    = reservas.filter(r => r.status === 'pendente').length;
   const aprovadas    = reservas.filter(r => r.status === 'aprovada').length;
   const receita      = reservas.filter(r => r.status === 'aprovada').reduce((a,r) => a + (r.total || r.valorTotal || 0), 0);
@@ -592,6 +901,7 @@ function DashboardAdministrador() {
     { id:'reservas',    label:'Reservas',    icone:<Ico.Reservas/>},
     { id:'calendario',  label:'Calendário',  icone:<Ico.Cal/>    },
     { id:'previsao',    label:'Previsão',    icone:<Ico.Previsao/>},
+    { id:'avaliacoes',  label:'Avaliações',  icone:<Ico.Estrela/>},
   ];
 
   const irAba = (id) => {
@@ -654,6 +964,18 @@ function DashboardAdministrador() {
         <>
           <p className="dash-section-label">Previsão de Receita</p>
           <PrevisaoReceita reservas={reservas}/>
+        </>
+      );
+      case 'avaliacoes': return (
+        <>
+          <p className="dash-section-label">Avaliações dos Hóspedes</p>
+          <PainelAvaliacoes
+            avaliacoes={avaliacoesPendentes}
+            carregando={carregandoAvaliacoes}
+            erro={erroAvaliacoes}
+            aoTentarNovamente={() => buscarAvaliacoesPendentes()}
+            aoResponder={setAvaliacaoSelecionada}
+          />
         </>
       );
       default: return null;
@@ -724,6 +1046,11 @@ function DashboardAdministrador() {
       </main>
       <ModalReserva reserva={selecionada} aoFechar={() => setSelecionada(null)} aoAprovar={aprovar} aoRecusar={recusar}/>
       <ModalRecusa reserva={modalRecusa} aoFechar={() => setModalRecusa(null)} aoConfirmar={confirmarRecusa}/>
+      <ModalResponderAvaliacao
+        avaliacao={avaliacaoSelecionada}
+        aoFechar={() => setAvaliacaoSelecionada(null)}
+        aoResponder={confirmarRespostaAvaliacao}
+      />
     </div>
   );
 }

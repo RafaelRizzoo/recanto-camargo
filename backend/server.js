@@ -239,19 +239,107 @@ class ErroHttp extends Error {
     }
 }
 
-async function garantirHospede(executor, usuarioId) {
+async function garantirHospede(executor, usuarioId, bloquear = false) {
+    const lock = bloquear ? ' FOR UPDATE' : '';
     const [hospedes] = await executor.query(
         `SELECT h.Usu_Id
          FROM hos_hospede h
          INNER JOIN usu_usuario u ON u.Usu_Id = h.Usu_Id
          WHERE h.Usu_Id = ? AND u.Usu_Status = ?
-         LIMIT 1`,
+         LIMIT 1${lock}`,
         [usuarioId, 'ATIVO']
     );
 
     if (hospedes.length === 0) {
         throw new ErroHttp(403, 'Acesso permitido apenas a hóspedes.');
     }
+}
+
+async function garantirProprietario(executor, usuarioId, bloquear = false) {
+    const lock = bloquear ? ' FOR UPDATE' : '';
+    const [proprietarios] = await executor.query(
+        `SELECT p.Usu_Id
+         FROM pro_proprietario p
+         INNER JOIN usu_usuario u ON u.Usu_Id = p.Usu_Id
+         WHERE p.Usu_Id = ? AND u.Usu_Status = ?
+         LIMIT 1${lock}`,
+        [usuarioId, 'ATIVO']
+    );
+
+    if (proprietarios.length === 0) {
+        throw new ErroHttp(403, 'Acesso permitido apenas a proprietários ativos.');
+    }
+}
+
+function normalizarIdPositivo(valor, nomeCampo) {
+    const validoComoNumero = typeof valor === 'number'
+        && Number.isSafeInteger(valor)
+        && valor > 0;
+    const validoComoTexto = typeof valor === 'string'
+        && /^[1-9]\d*$/.test(valor.trim())
+        && Number.isSafeInteger(Number(valor));
+
+    if (!validoComoNumero && !validoComoTexto) {
+        throw new ErroHttp(400, `${nomeCampo} inválido.`);
+    }
+
+    return Number(valor);
+}
+
+function normalizarNota(valor) {
+    const nota = typeof valor === 'number'
+        ? valor
+        : (typeof valor === 'string' && valor.trim() !== '' ? Number(valor) : NaN);
+
+    if (!Number.isFinite(nota) || nota < 1 || nota > 5 || !Number.isInteger(nota * 2)) {
+        throw new ErroHttp(400, 'A nota deve estar entre 1 e 5, em intervalos de meio ponto.');
+    }
+
+    return nota;
+}
+
+function normalizarComentario(valor, obrigatorio = false) {
+    if (valor !== undefined && valor !== null && typeof valor !== 'string') {
+        throw new ErroHttp(400, 'O comentário deve ser um texto válido.');
+    }
+
+    const comentario = typeof valor === 'string' ? valor.trim() : '';
+
+    if (obrigatorio && comentario.length === 0) {
+        throw new ErroHttp(400, 'Informe um comentário para a resposta.');
+    }
+    if (comentario.length > 255) {
+        throw new ErroHttp(400, 'O comentário deve ter no máximo 255 caracteres.');
+    }
+
+    return comentario;
+}
+
+function normalizarRespostaProprietario(avaliacao, incluirNota = true) {
+    const semResposta = avaliacao.respostaNota === null
+        && avaliacao.respostaComentario === null
+        && avaliacao.respostaData === null;
+
+    if (semResposta) return null;
+
+    const resposta = {
+        comentario: avaliacao.respostaComentario || '',
+        data: avaliacao.respostaData
+    };
+
+    if (incluirNota) resposta.nota = Number(avaliacao.respostaNota);
+
+    return resposta;
+}
+
+function normalizarAvaliacao(avaliacao, incluirNotaProprietario = true) {
+    return {
+        id: Number(avaliacao.id),
+        nota: Number(avaliacao.nota),
+        comentario: avaliacao.comentario || '',
+        data: avaliacao.data,
+        respostaProprietario: normalizarRespostaProprietario(avaliacao, incluirNotaProprietario)
+    };
 }
 
 function normalizarCupom(cupom) {
@@ -705,6 +793,333 @@ app.get('/api/reservas/:id', async (req, res) => {
 });
 
 // ==========================================
+// ROTAS DE AVALIAÇÕES
+// ==========================================
+
+app.post('/api/avaliacoes', verificarToken, async (req, res) => {
+    let conexao;
+    let transacaoAtiva = false;
+    let conexaoDestruida = false;
+
+    try {
+        const reservaId = normalizarIdPositivo(req.body?.reservaId, 'Identificador da reserva');
+        const nota = normalizarNota(req.body?.nota);
+        const comentario = normalizarComentario(req.body?.comentario);
+        const hospedeId = req.usuario.id;
+
+        conexao = await db.getConnection();
+        await conexao.beginTransaction();
+        transacaoAtiva = true;
+
+        await garantirHospede(conexao, hospedeId, true);
+
+        const [reservas] = await conexao.query(
+            `SELECT Res_Id, Imo_Id, Hos_Hospede_Usu_Id, Res_Status
+             FROM res_reserva
+             WHERE Res_Id = ?
+             FOR UPDATE`,
+            [reservaId]
+        );
+
+        if (reservas.length === 0) {
+            throw new ErroHttp(404, 'Reserva não encontrada.');
+        }
+
+        const reserva = reservas[0];
+        if (Number(reserva.Hos_Hospede_Usu_Id) !== Number(hospedeId)) {
+            throw new ErroHttp(403, 'Você não pode avaliar uma reserva de outro hóspede.');
+        }
+        if (reserva.Res_Status !== 'CONCLUIDA') {
+            throw new ErroHttp(400, 'A reserva precisa estar concluída antes de ser avaliada.');
+        }
+
+        // Serializa avaliações do mesmo imóvel para impedir atualização perdida da média.
+        const [imoveis] = await conexao.query(
+            'SELECT Imo_Id FROM imo_imovel WHERE Imo_Id = ? FOR UPDATE',
+            [reserva.Imo_Id]
+        );
+        if (imoveis.length === 0) {
+            throw new ErroHttp(404, 'Imóvel da reserva não encontrado.');
+        }
+
+        // O lock da reserva serializa duplicatas da mesma reserva. Esta leitura
+        // permanece sem FOR UPDATE para não criar gap locks no índice UNIQUE.
+        const [avaliacoesExistentes] = await conexao.query(
+            'SELECT Ava_Id FROM ava_avaliacao WHERE Res_Id = ? LIMIT 1',
+            [reservaId]
+        );
+        if (avaliacoesExistentes.length > 0) {
+            throw new ErroHttp(409, 'Esta reserva já foi avaliada.');
+        }
+
+        const [resultado] = await conexao.query(
+            `INSERT INTO ava_avaliacao
+             (Imo_Id, Res_Id, Usu_Hos_Id, Ava_Nota, Ava_Comentario, Ava_Data)
+             VALUES (?, ?, ?, ?, ?, NOW())`,
+            [reserva.Imo_Id, reservaId, hospedeId, nota, comentario]
+        );
+
+        await conexao.query(
+            `UPDATE imo_imovel
+             SET Imo_NotaMedial = (
+                 SELECT ROUND(AVG(Ava_Nota), 1)
+                 FROM ava_avaliacao
+                 WHERE Imo_Id = ?
+             )
+             WHERE Imo_Id = ?`,
+            [reserva.Imo_Id, reserva.Imo_Id]
+        );
+
+        const [avaliacoesCriadas] = await conexao.query(
+            `SELECT
+                Ava_Id AS id,
+                Ava_Nota AS nota,
+                Ava_Comentario AS comentario,
+                DATE_FORMAT(Ava_Data, '%Y-%m-%d') AS data,
+                Ava_NotaPropietario AS respostaNota,
+                Ava_ComentarioPropietario AS respostaComentario,
+                DATE_FORMAT(Ava_DataPropietario, '%Y-%m-%d') AS respostaData
+             FROM ava_avaliacao
+             WHERE Ava_Id = ?`,
+            [resultado.insertId]
+        );
+
+        await conexao.commit();
+        transacaoAtiva = false;
+
+        res.status(201).json({
+            message: 'Avaliação enviada com sucesso.',
+            avaliacao: normalizarAvaliacao(avaliacoesCriadas[0])
+        });
+    } catch (error) {
+        if (transacaoAtiva && conexao) {
+            try {
+                await conexao.rollback();
+            } catch (rollbackError) {
+                console.error('Erro ao desfazer a transação da avaliação:', rollbackError);
+                conexao.destroy();
+                conexaoDestruida = true;
+            }
+        }
+
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ error: 'Esta reserva já foi avaliada.' });
+        }
+
+        console.error('Erro ao criar avaliação:', error);
+        res.status(500).json({ error: 'Erro interno ao criar avaliação.' });
+    } finally {
+        if (conexao && !conexaoDestruida) conexao.release();
+    }
+});
+
+app.get('/api/avaliacoes/imovel/:imoId', async (req, res) => {
+    try {
+        const imovelId = normalizarIdPositivo(req.params.imoId, 'Identificador do imóvel');
+        const [avaliacoes] = await db.query(
+            `SELECT
+                a.Ava_Id AS id,
+                a.Ava_Nota AS nota,
+                a.Ava_Comentario AS comentario,
+                DATE_FORMAT(a.Ava_Data, '%Y-%m-%d') AS data,
+                NULL AS respostaNota,
+                a.Ava_ComentarioPropietario AS respostaComentario,
+                DATE_FORMAT(a.Ava_DataPropietario, '%Y-%m-%d') AS respostaData
+             FROM ava_avaliacao a
+             INNER JOIN res_reserva r
+                ON r.Res_Id = a.Res_Id
+                AND r.Imo_Id = a.Imo_Id
+                AND r.Hos_Hospede_Usu_Id = a.Usu_Hos_Id
+             WHERE a.Imo_Id = ? AND r.Res_Status = ?
+             ORDER BY a.Ava_Data DESC, a.Ava_Id DESC`,
+            [imovelId, 'CONCLUIDA']
+        );
+
+        // Esta resposta pública não consulta nem expõe IDs de reserva/hóspede ou PII.
+        res.json(avaliacoes.map(avaliacao => normalizarAvaliacao(avaliacao, false)));
+    } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Erro ao buscar avaliações públicas:', error);
+        res.status(500).json({ error: 'Erro interno ao buscar avaliações.' });
+    }
+});
+
+app.get('/api/proprietario/avaliacoes/pendentes', verificarToken, verificarProprietario, async (req, res) => {
+    try {
+        const proprietarioId = req.usuario.id;
+        await garantirProprietario(db, proprietarioId);
+
+        const [avaliacoes] = await db.query(
+            `SELECT
+                a.Ava_Id AS id,
+                a.Ava_Nota AS nota,
+                a.Ava_Comentario AS comentario,
+                DATE_FORMAT(a.Ava_Data, '%Y-%m-%d') AS data,
+                i.Imo_Id AS imovelId,
+                i.Imo_Nome AS imovelNome,
+                r.Res_Id AS reservaId,
+                DATE_FORMAT(r.Res_DataCheckIn, '%Y-%m-%d') AS checkin,
+                DATE_FORMAT(r.Res_DataCheckOut, '%Y-%m-%d') AS checkout,
+                u.Usu_Nome AS hospedeNome
+             FROM ava_avaliacao a
+             INNER JOIN imo_imovel i ON i.Imo_Id = a.Imo_Id
+             INNER JOIN res_reserva r
+                ON r.Res_Id = a.Res_Id
+                AND r.Imo_Id = a.Imo_Id
+                AND r.Hos_Hospede_Usu_Id = a.Usu_Hos_Id
+             INNER JOIN usu_usuario u ON u.Usu_Id = a.Usu_Hos_Id
+             WHERE i.Pro_Proprietario_Usu_Id = ?
+               AND r.Res_Status = ?
+               AND a.Ava_NotaPropietario IS NULL
+               AND a.Ava_ComentarioPropietario IS NULL
+               AND a.Ava_DataPropietario IS NULL
+             ORDER BY a.Ava_Data ASC, a.Ava_Id ASC`,
+            [proprietarioId, 'CONCLUIDA']
+        );
+
+        res.json(avaliacoes.map(avaliacao => ({
+            id: Number(avaliacao.id),
+            nota: Number(avaliacao.nota),
+            comentario: avaliacao.comentario || '',
+            data: avaliacao.data,
+            imovel: {
+                id: Number(avaliacao.imovelId),
+                nome: avaliacao.imovelNome
+            },
+            reserva: {
+                id: Number(avaliacao.reservaId),
+                checkin: avaliacao.checkin,
+                checkout: avaliacao.checkout
+            },
+            hospede: { nome: avaliacao.hospedeNome }
+        })));
+    } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Erro ao buscar avaliações pendentes:', error);
+        res.status(500).json({ error: 'Erro interno ao buscar avaliações pendentes.' });
+    }
+});
+
+app.patch('/api/proprietario/avaliacoes/:id/responder', verificarToken, verificarProprietario, async (req, res) => {
+    let conexao;
+    let transacaoAtiva = false;
+    let conexaoDestruida = false;
+
+    try {
+        const avaliacaoId = normalizarIdPositivo(req.params.id, 'Identificador da avaliação');
+        const nota = normalizarNota(req.body?.nota);
+        const comentario = normalizarComentario(req.body?.comentario, true);
+        const proprietarioId = req.usuario.id;
+
+        conexao = await db.getConnection();
+        await conexao.beginTransaction();
+        transacaoAtiva = true;
+
+        await garantirProprietario(conexao, proprietarioId, true);
+
+        const [avaliacoes] = await conexao.query(
+            `SELECT
+                a.Ava_Id,
+                a.Ava_NotaPropietario,
+                a.Ava_ComentarioPropietario,
+                a.Ava_DataPropietario,
+                r.Res_Status
+             FROM ava_avaliacao a
+             INNER JOIN imo_imovel i ON i.Imo_Id = a.Imo_Id
+             INNER JOIN res_reserva r
+                ON r.Res_Id = a.Res_Id
+                AND r.Imo_Id = a.Imo_Id
+                AND r.Hos_Hospede_Usu_Id = a.Usu_Hos_Id
+             WHERE a.Ava_Id = ? AND i.Pro_Proprietario_Usu_Id = ?
+             FOR UPDATE`,
+            [avaliacaoId, proprietarioId]
+        );
+
+        if (avaliacoes.length === 0) {
+            throw new ErroHttp(404, 'Avaliação não encontrada para este proprietário.');
+        }
+
+        const avaliacao = avaliacoes[0];
+        if (avaliacao.Res_Status !== 'CONCLUIDA') {
+            throw new ErroHttp(400, 'Somente avaliações de reservas concluídas podem ser respondidas.');
+        }
+
+        const jaRespondida = avaliacao.Ava_NotaPropietario !== null
+            || avaliacao.Ava_ComentarioPropietario !== null
+            || avaliacao.Ava_DataPropietario !== null;
+        if (jaRespondida) {
+            throw new ErroHttp(409, 'Esta avaliação já foi respondida.');
+        }
+
+        const [resultado] = await conexao.query(
+            `UPDATE ava_avaliacao
+             SET Ava_NotaPropietario = ?,
+                 Ava_ComentarioPropietario = ?,
+                 Ava_DataPropietario = NOW()
+             WHERE Ava_Id = ?
+               AND Ava_NotaPropietario IS NULL
+               AND Ava_ComentarioPropietario IS NULL
+               AND Ava_DataPropietario IS NULL`,
+            [nota, comentario, avaliacaoId]
+        );
+
+        if (resultado.affectedRows !== 1) {
+            throw new ErroHttp(409, 'Esta avaliação já foi respondida.');
+        }
+
+        const [respostas] = await conexao.query(
+            `SELECT
+                Ava_NotaPropietario AS nota,
+                Ava_ComentarioPropietario AS comentario,
+                DATE_FORMAT(Ava_DataPropietario, '%Y-%m-%d') AS data
+             FROM ava_avaliacao
+             WHERE Ava_Id = ?`,
+            [avaliacaoId]
+        );
+
+        await conexao.commit();
+        transacaoAtiva = false;
+
+        res.json({
+            message: 'Resposta enviada com sucesso.',
+            respostaProprietario: {
+                nota: Number(respostas[0].nota),
+                comentario: respostas[0].comentario,
+                data: respostas[0].data
+            }
+        });
+    } catch (error) {
+        if (transacaoAtiva && conexao) {
+            try {
+                await conexao.rollback();
+            } catch (rollbackError) {
+                console.error('Erro ao desfazer a resposta da avaliação:', rollbackError);
+                conexao.destroy();
+                conexaoDestruida = true;
+            }
+        }
+
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Erro ao responder avaliação:', error);
+        res.status(500).json({ error: 'Erro interno ao responder avaliação.' });
+    } finally {
+        if (conexao && !conexaoDestruida) conexao.release();
+    }
+});
+
+// ==========================================
 // ROTAS DO HÓSPEDE (DASHBOARD)
 // ==========================================
 app.get('/api/hospede/reservas', verificarToken, async (req, res) => {
@@ -724,9 +1139,20 @@ app.get('/api/hospede/reservas', verificarToken, async (req, res) => {
                 r.Res_ObsHospede as observacao,
                 i.Imo_Nome as imovel,
                 'Ponte Alta, Aparecida - SP' as localizacao,
-                i.Imo_ValorFixo as valorDiaria
+                i.Imo_ValorFixo as valorDiaria,
+                a.Ava_Id as avaliacaoId,
+                a.Ava_Nota as avaliacaoNota,
+                a.Ava_Comentario as avaliacaoComentario,
+                DATE_FORMAT(a.Ava_Data, '%Y-%m-%d') as avaliacaoData,
+                a.Ava_NotaPropietario as respostaNota,
+                a.Ava_ComentarioPropietario as respostaComentario,
+                DATE_FORMAT(a.Ava_DataPropietario, '%Y-%m-%d') as respostaData
             FROM res_reserva r
             JOIN imo_imovel i ON r.Imo_Id = i.Imo_Id
+            LEFT JOIN ava_avaliacao a
+                ON a.Res_Id = r.Res_Id
+                AND a.Imo_Id = r.Imo_Id
+                AND a.Usu_Hos_Id = r.Hos_Hospede_Usu_Id
             WHERE r.Hos_Hospede_Usu_Id = ?
             ORDER BY r.Res_DataCheckIn DESC
         `;
@@ -742,16 +1168,37 @@ app.get('/api/hospede/reservas', verificarToken, async (req, res) => {
         };
 
         // Formatar datas para o padrão do frontend YYYY-MM-DD
-        const reservasFormatadas = reservas.map(r => ({
-            ...r,
-            id: r.id.toString(), // Frontend espera string (ex: '5')
-            checkin: r.checkin.toISOString().split('T')[0],
-            checkout: r.checkout.toISOString().split('T')[0],
-            criadaEm: r.criadaEm.toISOString().split('T')[0],
-            status: statusMap[r.status] || 'pendente',
-            formaPagamento: 'PIX', // Mock por enquanto
-            avaliacao: null // Mock por enquanto
-        }));
+        const reservasFormatadas = reservas.map(r => {
+            const {
+                avaliacaoId,
+                avaliacaoNota,
+                avaliacaoComentario,
+                avaliacaoData,
+                respostaNota,
+                respostaComentario,
+                respostaData,
+                ...reserva
+            } = r;
+
+            return {
+                ...reserva,
+                id: reserva.id.toString(), // Frontend espera string (ex: '5')
+                checkin: reserva.checkin.toISOString().split('T')[0],
+                checkout: reserva.checkout.toISOString().split('T')[0],
+                criadaEm: reserva.criadaEm.toISOString().split('T')[0],
+                status: statusMap[reserva.status] || 'pendente',
+                formaPagamento: 'PIX', // Mock por enquanto
+                avaliacao: avaliacaoId === null ? null : normalizarAvaliacao({
+                    id: avaliacaoId,
+                    nota: avaliacaoNota,
+                    comentario: avaliacaoComentario,
+                    data: avaliacaoData,
+                    respostaNota,
+                    respostaComentario,
+                    respostaData
+                })
+            };
+        });
 
         res.json(reservasFormatadas);
     } catch (error) {
@@ -766,6 +1213,9 @@ app.get('/api/hospede/reservas', verificarToken, async (req, res) => {
 
 app.get('/api/proprietario/reservas', verificarToken, verificarProprietario, async (req, res) => {
     try {
+        const proprietarioId = req.usuario.id;
+        await garantirProprietario(db, proprietarioId);
+
         const query = `
             SELECT 
                 r.Res_Id as id,
@@ -777,11 +1227,13 @@ app.get('/api/proprietario/reservas', verificarToken, verificarProprietario, asy
                 r.Res_Status as status,
                 r.Res_DataReserva as criadaEm
             FROM res_reserva r
+            JOIN imo_imovel i ON r.Imo_Id = i.Imo_Id
             JOIN hos_hospede h ON r.Hos_Hospede_Usu_Id = h.Usu_Id
             JOIN usu_usuario u ON h.Usu_Id = u.Usu_Id
+            WHERE i.Pro_Proprietario_Usu_Id = ?
             ORDER BY r.Res_DataCheckIn ASC
         `;
-        const [reservas] = await db.query(query);
+        const [reservas] = await db.query(query, [proprietarioId]);
 
         const statusMap = {
             'PENDENTE': 'pendente',
@@ -804,6 +1256,10 @@ app.get('/api/proprietario/reservas', verificarToken, verificarProprietario, asy
 
         res.json(reservasFormatadas);
     } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
         console.error('Erro ao buscar reservas para o proprietário:', error);
         res.status(500).json({ error: 'Erro interno no servidor' });
     }

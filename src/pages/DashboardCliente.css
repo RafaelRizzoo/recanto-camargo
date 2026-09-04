@@ -1020,6 +1020,43 @@
 
 .cli-estrelas { display: flex; gap: 0.2rem; }
 
+.cli-nota-range {
+  max-width: 280px;
+  accent-color: #f37321;
+}
+
+.cli-resposta-proprietario {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  background: #f0f7ff;
+  border-radius: 10px;
+  border-left: 3px solid #3b6399;
+  color: #475569;
+}
+
+.cli-resposta-proprietario-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.5rem;
+  color: #223a5e;
+  font-size: 0.85rem;
+}
+
+.cli-resposta-proprietario-header span {
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.cli-resposta-proprietario p {
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* ── Estado Vazio ──────────────────────────────────────────── */
 .cli-estado-vazio {
   text-align: center;
@@ -1078,4 +1115,25 @@
 @media (max-width: 576px) {
   .cli-proxima-grid { grid-template-columns: repeat(2, 1fr); }
   .cli-card-resumo-valor { font-size: 1.5rem; }
+
+  .cli-avaliacao-pendente {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .cli-avaliacao-pendente .flex-grow-1,
+  .cli-avaliacao-header .flex-grow-1 {
+    min-width: 0;
+  }
+
+  .cli-avaliacao-pendente .cli-btn-avaliar {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cli-avaliacao-header { flex-wrap: wrap; }
+
+  .cli-modal-avaliar .modal-footer .btn {
+    flex: 1 1 100%;
+  }
 }
