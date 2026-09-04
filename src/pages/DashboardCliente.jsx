@@ -92,53 +92,18 @@ const RESERVAS_CLIENTE_MOCK = [
   },
 ];
 
-const CUPONS_MOCK = [
-  {
-    id: 'CUP001',
-    codigo: 'RECANTO10',
-    descricao: '10% de desconto na próxima reserva',
-    validoAte: '2026-12-31',
-    usado: false,
-    ativo: true,
-    icone: '🎁',
-  },
-  {
-    id: 'CUP002',
-    codigo: 'PRIMEIRA15',
-    descricao: '15% na primeira reserva direta',
-    validoAte: '2026-06-30',
-    usado: false,
-    ativo: true,
-    icone: '⭐',
-  },
-  {
-    id: 'CUP003',
-    codigo: 'FIDELIDADE5',
-    descricao: 'R$ 50 de desconto — cliente fiel',
-    validoAte: '2026-03-01',
-    usado: false,
-    ativo: false,
-    icone: '🏆',
-  },
-];
-
 const CHAVE_RESERVAS_CLIENTE = 'recanto_reservas_cliente';
-const CHAVE_CUPONS           = 'recanto_cupons_cliente';
 
 function inicializarDados() {
   try {
     const res = localStorage.getItem(CHAVE_RESERVAS_CLIENTE);
     if (!res) localStorage.setItem(CHAVE_RESERVAS_CLIENTE, JSON.stringify(RESERVAS_CLIENTE_MOCK));
 
-    const cup = localStorage.getItem(CHAVE_CUPONS);
-    if (!cup) localStorage.setItem(CHAVE_CUPONS, JSON.stringify(CUPONS_MOCK));
-
     return {
       reservas: res ? JSON.parse(res) : RESERVAS_CLIENTE_MOCK,
-      cupons:   cup ? JSON.parse(cup) : CUPONS_MOCK,
     };
   } catch {
-    return { reservas: RESERVAS_CLIENTE_MOCK, cupons: CUPONS_MOCK };
+    return { reservas: RESERVAS_CLIENTE_MOCK };
   }
 }
 
@@ -151,6 +116,26 @@ const fmtData = (s) => {
 
 const fmtMoeda = (v) =>
   Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const normalizarCupom = (cupom) => {
+  const tipoDesconto = String(cupom.tipoDesconto || '').toUpperCase();
+  const valorDesconto = Number(cupom.valorDesconto);
+  const valorPercentual = valorDesconto.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+
+  return {
+    id: cupom.cupomId,
+    codigo: cupom.codigo,
+    tipoDesconto,
+    valorDesconto,
+    validoAte: cupom.validoAte,
+    descricao: tipoDesconto === 'PERCENTUAL'
+      ? `${valorPercentual}% de desconto na próxima reserva`
+      : `${fmtMoeda(valorDesconto)} de desconto na próxima reserva`,
+    icone: tipoDesconto === 'PERCENTUAL' ? '🎁' : '🏷️',
+    ativo: true,
+    usado: Boolean(cupom.usado),
+  };
+};
 
 const calcNoites = (ci, co) =>
   Math.round((new Date(co + 'T00:00:00') - new Date(ci + 'T00:00:00')) / 86400000);
@@ -694,7 +679,7 @@ MinhasReservas.propTypes = {
 };
 
 // ─── Aba: Cupons ──────────────────────────────────────────────────────────────
-function MeusCupons({ cupons }) {
+function MeusCupons({ cupons, carregando, erro }) {
   const [copiado, setCopiado] = useState(null);
   const hoje = new Date();
 
@@ -710,6 +695,23 @@ function MeusCupons({ cupons }) {
   };
 
   const expirado = (validoAte) => new Date(validoAte + 'T23:59:59') < hoje;
+
+  if (carregando) {
+    return (
+      <div className="text-center text-muted py-4" role="status">
+        <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+        Carregando cupons...
+      </div>
+    );
+  }
+
+  if (erro) {
+    return <Alert variant="danger">{erro}</Alert>;
+  }
+
+  if (cupons.length === 0) {
+    return <Alert variant="info">Nenhum cupom disponível no momento.</Alert>;
+  }
 
   return (
     <>
@@ -754,7 +756,11 @@ function MeusCupons({ cupons }) {
     </>
   );
 }
-MeusCupons.propTypes = { cupons: PropTypes.array.isRequired };
+MeusCupons.propTypes = {
+  cupons: PropTypes.array.isRequired,
+  carregando: PropTypes.bool.isRequired,
+  erro: PropTypes.string.isRequired,
+};
 
 // ─── Aba: Avaliações ──────────────────────────────────────────────────────────
 function MinhasAvaliacoes({ reservas, onAvaliar }) {
@@ -831,6 +837,8 @@ function DashboardCliente() {
   const [abaAtiva,      setAbaAtiva]      = useState('visao-geral');
   const [reservas,      setReservas]      = useState([]);
   const [cupons,        setCupons]        = useState([]);
+  const [cuponsCarregando, setCuponsCarregando] = useState(true);
+  const [erroCupons,     setErroCupons]    = useState('');
   const [feedback,      setFeedback]      = useState({ tipo: '', msg: '' });
 
   // Modais
@@ -850,12 +858,10 @@ function DashboardCliente() {
 
   // Carregar dados
   useEffect(() => {
-    async function carregarDados() {
-      try {
-        // Carrega Cupons do LocalStorage (Mock temporário)
-        const { cupons: c } = inicializarDados();
-        setCupons(c);
+    inicializarDados();
 
+    async function carregarReservas() {
+      try {
         // Busca as reservas reais do Back-end!
         const resposta = await fetch('http://localhost:3000/api/hospede/reservas', {
           credentials: 'include' // Envia o cookie JWT
@@ -872,8 +878,34 @@ function DashboardCliente() {
         fb('erro', 'Erro ao carregar suas reservas. Tente novamente.');
       }
     }
-    
-    carregarDados();
+
+    async function carregarCupons() {
+      try {
+        setErroCupons('');
+        const resposta = await fetch('http://localhost:3000/api/cupons/meus', {
+          credentials: 'include',
+        });
+        const dados = await resposta.json().catch(() => null);
+
+        if (!resposta.ok) {
+          throw new Error(dados?.error || 'Não foi possível carregar seus cupons.');
+        }
+        if (!Array.isArray(dados)) {
+          throw new Error('Resposta inválida ao carregar cupons.');
+        }
+
+        setCupons(dados.map(normalizarCupom));
+      } catch (erro) {
+        console.error('Erro ao buscar cupons:', erro);
+        setCupons([]);
+        setErroCupons(erro.message || 'Não foi possível carregar seus cupons.');
+      } finally {
+        setCuponsCarregando(false);
+      }
+    }
+
+    carregarReservas();
+    carregarCupons();
   }, []);
 
   const salvarReservas = (novas) => {
@@ -955,7 +987,7 @@ function DashboardCliente() {
         return (
           <>
             <p className="dash-section-label">Cupons de Desconto</p>
-            <MeusCupons cupons={cupons} />
+            <MeusCupons cupons={cupons} carregando={cuponsCarregando} erro={erroCupons} />
           </>
         );
       default: return null;

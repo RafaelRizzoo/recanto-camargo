@@ -231,6 +231,248 @@ const verificarProprietario = (req, res, next) => {
     next(); // Acesso Liberado para Proprietário.
 };
 
+class ErroHttp extends Error {
+    constructor(status, message) {
+        super(message);
+        this.name = 'ErroHttp';
+        this.status = status;
+    }
+}
+
+async function garantirHospede(executor, usuarioId) {
+    const [hospedes] = await executor.query(
+        `SELECT h.Usu_Id
+         FROM hos_hospede h
+         INNER JOIN usu_usuario u ON u.Usu_Id = h.Usu_Id
+         WHERE h.Usu_Id = ? AND u.Usu_Status = ?
+         LIMIT 1`,
+        [usuarioId, 'ATIVO']
+    );
+
+    if (hospedes.length === 0) {
+        throw new ErroHttp(403, 'Acesso permitido apenas a hóspedes.');
+    }
+}
+
+function normalizarCupom(cupom) {
+    const id = Number(cupom.Cup_Id);
+    const valorDesconto = Number(cupom.Cup_ValorDoDesconto);
+    const limiteUso = Number(cupom.Cup_LimiteUso);
+    const tipoDesconto = cupom.Cup_TipoDesconto;
+
+    const idInvalido = !Number.isSafeInteger(id) || id <= 0;
+    const percentualInvalido = tipoDesconto === 'PERCENTUAL' && valorDesconto > 100;
+    const tipoInvalido = !['PERCENTUAL', 'FIXO'].includes(tipoDesconto);
+    const valorInvalido = !Number.isFinite(valorDesconto) || valorDesconto <= 0;
+    const limiteInvalido = !Number.isSafeInteger(limiteUso) || limiteUso <= 0;
+
+    if (idInvalido || tipoInvalido || valorInvalido || percentualInvalido || limiteInvalido) {
+        throw new ErroHttp(409, 'Este cupom possui uma configuração inválida.');
+    }
+
+    return {
+        id,
+        codigo: cupom.Cup_Codigo,
+        tipoDesconto,
+        valorDesconto,
+        validoAte: cupom.Cup_DataValidade,
+        limiteUso
+    };
+}
+
+async function buscarCupomPorCodigo(executor, codigo) {
+    const [cupons] = await executor.query(
+        `SELECT
+            Cup_Id,
+            Cup_Codigo,
+            Cup_TipoDesconto,
+            Cup_ValorDoDesconto,
+            DATE_FORMAT(Cup_DataValidade, '%Y-%m-%d') AS Cup_DataValidade,
+            Cup_LimiteUso,
+            (Cup_DataValidade < CURDATE()) AS Cup_Expirado
+         FROM cup_cupom
+         WHERE UPPER(Cup_Codigo) = UPPER(?)
+         LIMIT 2`,
+        [codigo]
+    );
+
+    if (cupons.length === 0) {
+        throw new ErroHttp(404, 'Cupom não encontrado.');
+    }
+
+    // O schema atual ainda não possui UNIQUE em Cup_Codigo; em caso de
+    // ambiguidade, falhamos de forma fechada em vez de escolher um cupom ao acaso.
+    if (cupons.length > 1) {
+        console.error('Inconsistência de integridade: código de cupom duplicado.');
+        throw new ErroHttp(409, 'Não foi possível validar este cupom.');
+    }
+
+    return cupons[0];
+}
+
+async function buscarCupomPorIdComLock(executor, cupomId) {
+    const [cupons] = await executor.query(
+        `SELECT
+            Cup_Id,
+            Cup_Codigo,
+            Cup_TipoDesconto,
+            Cup_ValorDoDesconto,
+            DATE_FORMAT(Cup_DataValidade, '%Y-%m-%d') AS Cup_DataValidade,
+            Cup_LimiteUso,
+            (Cup_DataValidade < CURDATE()) AS Cup_Expirado
+         FROM cup_cupom
+         WHERE Cup_Id = ?
+         FOR UPDATE`,
+        [cupomId]
+    );
+
+    if (cupons.length === 0) {
+        throw new ErroHttp(404, 'Cupom não encontrado.');
+    }
+
+    return cupons[0];
+}
+
+async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = false) {
+    if (Number(cupomDb.Cup_Expirado) === 1) {
+        throw new ErroHttp(400, 'Este cupom expirou.');
+    }
+
+    const cupom = normalizarCupom(cupomDb);
+
+    const [contagensCodigo] = await executor.query(
+        'SELECT COUNT(*) AS totalCodigos FROM cup_cupom WHERE UPPER(Cup_Codigo) = UPPER(?)',
+        [cupom.codigo]
+    );
+    const totalCodigos = Number(contagensCodigo[0].totalCodigos);
+
+    // Também falha fechado quando um cliente tenta pular /api/cupons/validar
+    // e envia diretamente o ID de um cupom cujo código está duplicado.
+    if (!Number.isSafeInteger(totalCodigos) || totalCodigos !== 1) {
+        console.error('Inconsistência de integridade: código de cupom duplicado ou inválido.');
+        throw new ErroHttp(409, 'Não foi possível validar este cupom.');
+    }
+
+    // Regra provisória de produto: qualquer reserva vinculada consome o cupom,
+    // inclusive CANCELADA, até a definição final do fluxo de cancelamento.
+    const consultaUsos = bloquearUsos
+        ? `SELECT Hos_Hospede_Usu_Id
+           FROM res_reserva
+           WHERE Cup_Id = ?
+           FOR UPDATE`
+        : `SELECT Hos_Hospede_Usu_Id
+           FROM res_reserva
+           WHERE Cup_Id = ?`;
+    const [usos] = await executor.query(consultaUsos, [cupom.id]);
+
+    if (usos.some(uso => Number(uso.Hos_Hospede_Usu_Id) === Number(hospedeId))) {
+        throw new ErroHttp(400, 'Você já utilizou este cupom.');
+    }
+
+    const totalUsos = usos.length;
+
+    if (!Number.isSafeInteger(totalUsos) || totalUsos < 0) {
+        throw new ErroHttp(409, 'Não foi possível verificar o limite deste cupom.');
+    }
+    if (totalUsos >= cupom.limiteUso) {
+        throw new ErroHttp(400, 'Este cupom atingiu o limite de utilização.');
+    }
+
+    return cupom;
+}
+
+// ==========================================
+// ROTAS DE CUPONS
+// ==========================================
+
+app.get('/api/cupons/meus', verificarToken, async (req, res) => {
+    try {
+        await garantirHospede(db, req.usuario.id);
+
+        const [cupons] = await db.query(
+            `SELECT
+                c.Cup_Id,
+                c.Cup_Codigo,
+                c.Cup_TipoDesconto,
+                c.Cup_ValorDoDesconto,
+                DATE_FORMAT(c.Cup_DataValidade, '%Y-%m-%d') AS Cup_DataValidade,
+                c.Cup_LimiteUso,
+                EXISTS (
+                    SELECT 1
+                    FROM res_reserva usada
+                    WHERE usada.Cup_Id = c.Cup_Id
+                      AND usada.Hos_Hospede_Usu_Id = ?
+                ) AS Cup_Usado
+             FROM cup_cupom c
+             WHERE c.Cup_DataValidade >= CURDATE()
+               AND c.Cup_LimiteUso > (
+                   SELECT COUNT(*) FROM res_reserva r WHERE r.Cup_Id = c.Cup_Id
+               )
+               AND c.Cup_ValorDoDesconto > ?
+               AND (
+                   (c.Cup_TipoDesconto = ? AND c.Cup_ValorDoDesconto <= ?)
+                   OR c.Cup_TipoDesconto = ?
+               )
+               AND (
+                   SELECT COUNT(*)
+                   FROM cup_cupom duplicado
+                   WHERE UPPER(duplicado.Cup_Codigo) = UPPER(c.Cup_Codigo)
+               ) = ?
+             ORDER BY c.Cup_DataValidade ASC, c.Cup_Id ASC`,
+            [req.usuario.id, 0, 'PERCENTUAL', 100, 'FIXO', 1]
+        );
+
+        const resposta = cupons.map(cupom => {
+            const normalizado = normalizarCupom(cupom);
+            return {
+                cupomId: normalizado.id,
+                codigo: normalizado.codigo,
+                tipoDesconto: normalizado.tipoDesconto,
+                valorDesconto: normalizado.valorDesconto,
+                validoAte: normalizado.validoAte,
+                usado: Number(cupom.Cup_Usado) === 1
+            };
+        });
+
+        res.json(resposta);
+    } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Erro ao buscar cupons:', error);
+        res.status(500).json({ error: 'Erro interno ao buscar cupons.' });
+    }
+});
+
+app.post('/api/cupons/validar', verificarToken, async (req, res) => {
+    try {
+        await garantirHospede(db, req.usuario.id);
+
+        const codigo = typeof req.body?.codigo === 'string' ? req.body.codigo.trim() : '';
+        if (!codigo || codigo.length > 45) {
+            return res.status(400).json({ error: 'Informe um código de cupom válido.' });
+        }
+
+        const cupomDb = await buscarCupomPorCodigo(db, codigo);
+        const cupom = await validarRegrasCupom(db, cupomDb, req.usuario.id);
+
+        res.json({
+            cupomId: cupom.id,
+            codigo: cupom.codigo,
+            tipoDesconto: cupom.tipoDesconto,
+            valorDesconto: cupom.valorDesconto
+        });
+    } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Erro ao validar cupom:', error);
+        res.status(500).json({ error: 'Erro interno ao validar cupom.' });
+    }
+});
+
 // ==========================================
 // ROTAS DE IMÓVEIS E RESERVAS
 // ==========================================
@@ -299,15 +541,30 @@ app.get('/api/reservas/datas-ocupadas', async (req, res) => {
 // Passamos o verificarToken aqui! A rota agora é protegida.
 app.post('/api/reservas', verificarToken, async (req, res) => {
     // Ignoramos COMPLETAMENTE o 'valorTotal' que o front-end envia (Proteção contra Fraude)
-    const { checkin, checkout, hospedes, observacoes } = req.body;
+    const { checkin, checkout, hospedes, observacoes, cupomId } = req.body || {};
     
     const imoId = 1; // Imóvel padrão (Futuramente dinâmico)
     const hospedeId = req.usuario.id; // Pegando do token JWT inviolável
+
+    const cupomFoiInformado = cupomId !== undefined && cupomId !== null;
+    const cupomIdValidoComoNumero = typeof cupomId === 'number'
+        && Number.isSafeInteger(cupomId)
+        && cupomId > 0;
+    const cupomIdValidoComoTexto = typeof cupomId === 'string'
+        && /^[1-9]\d*$/.test(cupomId.trim())
+        && Number.isSafeInteger(Number(cupomId));
+
+    if (cupomFoiInformado && !cupomIdValidoComoNumero && !cupomIdValidoComoTexto) {
+        return res.status(400).json({ error: 'Identificador de cupom inválido.' });
+    }
+    const cupomIdSeguro = cupomFoiInformado ? Number(cupomId) : null;
 
     // 1. Pegamos uma conexão EXCLUSIVA para esta transação
     const conexao = await db.getConnection();
 
     try {
+        await garantirHospede(conexao, hospedeId);
+
         if (!checkin || !checkout || !hospedes) {
             conexao.release();
             return res.status(400).json({ error: 'Dados incompletos para a reserva.' });
@@ -374,15 +631,37 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
         const msPorDia = 1000 * 60 * 60 * 24;
         const diffTime = Math.abs(dataCheckout - dataCheckin);
         const quantidadeNoites = Math.ceil(diffTime / msPorDia);
-        const valorFinalSeguro = quantidadeNoites * precoDiariaDb;
+        // TODO(próxima sprint): valorFinalSeguro não inclui a taxa de limpeza;
+        // alinhar a divergência com o total exibido no frontend.
+        let valorFinalSeguro = quantidadeNoites * precoDiariaDb;
+        let cupomAplicadoId = null;
+
+        if (cupomIdSeguro !== null) {
+            // Mantém a ordem oficial de locks: primeiro imóvel, depois cupom.
+            // O lock do cupom serializa a revalidação do limite e do uso por hóspede.
+            const cupomDb = await buscarCupomPorIdComLock(conexao, cupomIdSeguro);
+            const cupom = await validarRegrasCupom(conexao, cupomDb, hospedeId, true);
+
+            const subtotalCentavos = Math.round(valorFinalSeguro * 100);
+            if (!Number.isSafeInteger(subtotalCentavos) || subtotalCentavos < 0) {
+                throw new ErroHttp(400, 'Não foi possível calcular o valor da reserva.');
+            }
+
+            const descontoCentavos = cupom.tipoDesconto === 'PERCENTUAL'
+                ? Math.round(subtotalCentavos * (cupom.valorDesconto / 100))
+                : Math.round(cupom.valorDesconto * 100);
+
+            valorFinalSeguro = Math.max(0, subtotalCentavos - descontoCentavos) / 100;
+            cupomAplicadoId = cupom.id;
+        }
         
         // 4. Salva a fotografia do momento na reserva
         const queryInsert = `
             INSERT INTO res_reserva 
-            (Imo_Id, Hos_Hospede_Usu_Id, Res_DataCheckIn, Res_DataCheckOut, Res_QuantidadeDeHospedes, Res_ValorTotal, Res_Status, Res_DataReserva, Res_ObsHospede) 
-            VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMADA', NOW(), ?)
+            (Cup_Id, Imo_Id, Hos_Hospede_Usu_Id, Res_DataCheckIn, Res_DataCheckOut, Res_QuantidadeDeHospedes, Res_ValorTotal, Res_Status, Res_DataReserva, Res_ObsHospede)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'CONFIRMADA', NOW(), ?)
         `;
-        const valoresInsert = [imoId, hospedeId, checkin, checkout, hospedes, valorFinalSeguro, observacoes || null];
+        const valoresInsert = [cupomAplicadoId, imoId, hospedeId, checkin, checkout, hospedes, valorFinalSeguro, observacoes || null];
         const [resultado] = await conexao.query(queryInsert, valoresInsert);
         
         // Sucesso absoluto! Salva definitivamente no banco e destranca o imóvel para o próximo da fila.
@@ -392,8 +671,18 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
         res.status(201).json({ message: 'Reserva criada com sucesso no MySQL!', reservaId: resultado.insertId });
     } catch (error) {
         // Se qualquer coisa der errado (banco cair, erro de digitação, etc), desfaz tudo e destranca o chalé.
-        await conexao.rollback();
-        conexao.release();
+        try {
+            await conexao.rollback();
+            conexao.release();
+        } catch (rollbackError) {
+            console.error('Erro ao desfazer a transação da reserva:', rollbackError);
+            conexao.destroy();
+        }
+
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
         console.error('Erro ao criar reserva:', error);
         res.status(500).json({ error: 'Erro interno ao criar reserva.' });
     }

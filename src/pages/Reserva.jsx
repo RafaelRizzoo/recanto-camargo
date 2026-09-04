@@ -122,49 +122,70 @@ function Reserva() {
   const [cupomInput, setCupomInput] = useState('');
   const [cupomAplicado, setCupomAplicado] = useState(null);
   const [erroCupom, setErroCupom] = useState('');
+  const [validandoCupom, setValidandoCupom] = useState(false);
 
   const imagens = imagensCarrosselHome.filter(img => !img.ehVideo);
   const noites = calcularNoites(datas.checkin, datas.checkout);
   const subtotal = noites * DIARIA;
-  
+
+  // Apenas PREVIEW para o usuário; o valor definitivo é sempre recalculado no servidor.
+  const valorBasePreview = subtotal + TAXA_LIMPEZA;
   let desconto = 0;
   if (cupomAplicado) {
-    if (cupomAplicado.codigo === 'RECANTO10') desconto = (subtotal + TAXA_LIMPEZA) * 0.10;
-    else if (cupomAplicado.codigo === 'PRIMEIRA15') desconto = (subtotal + TAXA_LIMPEZA) * 0.15;
-    else if (cupomAplicado.codigo === 'FIDELIDADE5') desconto = 50;
+    if (cupomAplicado.tipoDesconto === 'PERCENTUAL') {
+      desconto = valorBasePreview * (cupomAplicado.valorDesconto / 100);
+    } else if (cupomAplicado.tipoDesconto === 'FIXO') {
+      desconto = cupomAplicado.valorDesconto;
+    }
   }
-  
-  const total = noites > 0 ? (subtotal + TAXA_LIMPEZA) - desconto : 0;
 
-  function aplicarCupom() {
+  desconto = Math.min(valorBasePreview, Math.max(0, desconto));
+  const total = noites > 0 ? Math.max(0, valorBasePreview - desconto) : 0;
+
+  async function aplicarCupom() {
     setErroCupom('');
-    if (!cupomInput.trim()) return;
-    
+    const codigo = cupomInput.trim();
+    if (!codigo) {
+      setErroCupom('Informe um código de cupom.');
+      return;
+    }
+
+    setValidandoCupom(true);
+
     try {
-      const cuponsStr = localStorage.getItem('recanto_cupons_cliente');
-      const cupons = cuponsStr ? JSON.parse(cuponsStr) : [];
-      const cupomEncontrado = cupons.find(c => c.codigo.toUpperCase() === cupomInput.toUpperCase().trim());
-      
-      if (!cupomEncontrado) {
-        setErroCupom('Cupom inválido.');
-        setCupomAplicado(null);
-        return;
+      const resposta = await fetch('http://localhost:3000/api/cupons/validar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ codigo }),
+      });
+      const dados = await resposta.json().catch(() => null);
+
+      if (!resposta.ok) {
+        throw new Error(dados?.error || 'Erro ao validar cupom.');
       }
-      if (!cupomEncontrado.ativo) {
-        setErroCupom('Este cupom expirou ou não está mais ativo.');
-        setCupomAplicado(null);
-        return;
+      if (!dados || !Number.isSafeInteger(Number(dados.cupomId)) || Number(dados.cupomId) <= 0
+        || !['PERCENTUAL', 'FIXO'].includes(dados.tipoDesconto)) {
+        throw new Error('Resposta inválida ao validar cupom.');
       }
-      if (cupomEncontrado.usado) {
-        setErroCupom('Este cupom já foi utilizado.');
-        setCupomAplicado(null);
-        return;
+
+      const valorDesconto = Number(dados.valorDesconto);
+      if (!Number.isFinite(valorDesconto) || valorDesconto < 0) {
+        throw new Error('Resposta inválida ao validar cupom.');
       }
-      
-      setCupomAplicado(cupomEncontrado);
+
+      setCupomAplicado({
+        cupomId: Number(dados.cupomId),
+        codigo: dados.codigo,
+        tipoDesconto: dados.tipoDesconto,
+        valorDesconto,
+      });
       setCupomInput('');
-    } catch {
-      setErroCupom('Erro ao validar cupom.');
+    } catch (erro) {
+      setCupomAplicado(null);
+      setErroCupom(erro.message || 'Erro ao validar cupom.');
+    } finally {
+      setValidandoCupom(false);
     }
   }
 
@@ -229,8 +250,8 @@ function Reserva() {
           checkin: datas.checkin + ' 14:00:00', // Adicionando hora padrão
           checkout: datas.checkout + ' 12:00:00',
           hospedes: parseInt(hospedes, 10),
-          valorTotal: total,
-          observacoes: observacoes
+          observacoes,
+          ...(cupomAplicado ? { cupomId: cupomAplicado.cupomId } : {}),
         })
       });
 
@@ -241,20 +262,7 @@ function Reserva() {
 
       const dadosAPI = await resposta.json();
       console.log('✅ Retorno da API:', dadosAPI);
-      
-      // Marcar cupom como usado no localStorage
-      if (cupomAplicado) {
-        const cuponsStr = localStorage.getItem('recanto_cupons_cliente');
-        if (cuponsStr) {
-          const cupons = JSON.parse(cuponsStr);
-          const idx = cupons.findIndex(c => c.codigo === cupomAplicado.codigo);
-          if (idx !== -1) {
-            cupons[idx].usado = true;
-            localStorage.setItem('recanto_cupons_cliente', JSON.stringify(cupons));
-          }
-        }
-      }
-      
+
       navigate('/ReservaConcluida/' + dadosAPI.reservaId);
     } catch (erro) {
       console.error(erro);
@@ -434,9 +442,17 @@ function Reserva() {
                             placeholder="Cupom de desconto"
                             value={cupomInput}
                             onChange={(e) => setCupomInput(e.target.value)}
+                            disabled={validandoCupom}
                             style={{ textTransform: 'uppercase' }}
                           />
-                          <Button variant="outline-secondary" onClick={aplicarCupom}>Aplicar</Button>
+                          <Button
+                            type="button"
+                            variant="outline-secondary"
+                            onClick={aplicarCupom}
+                            disabled={validandoCupom}
+                          >
+                            {validandoCupom ? 'Validando...' : 'Aplicar'}
+                          </Button>
                         </div>
                         {erroCupom && <div className="text-danger small mt-1"><i className="bi bi-exclamation-circle me-1" />{erroCupom}</div>}
                       </>
