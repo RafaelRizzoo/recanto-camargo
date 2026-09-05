@@ -817,7 +817,7 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
         const queryInsert = `
             INSERT INTO res_reserva 
             (Cup_Id, Imo_Id, Hos_Hospede_Usu_Id, Res_DataCheckIn, Res_DataCheckOut, Res_QuantidadeDeHospedes, Res_ValorTotal, Res_Status, Res_DataReserva, Res_ObsHospede)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'CONFIRMADA', NOW(), ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDENTE', NOW(), ?)
         `;
         const valoresInsert = [cupomAplicadoId, imoId, hospedeId, checkin, checkout, hospedes, valorFinalSeguro, observacoes || null];
         const [resultado] = await conexao.query(queryInsert, valoresInsert);
@@ -839,13 +839,13 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
         const destinatario = destinatarios[0];
         const formatoData = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' });
         const periodo = `${formatoData.format(dataCheckin)} a ${formatoData.format(dataCheckout)}`;
-        const tituloHospede = 'Reserva confirmada';
-        const mensagemHospede = `Sua reserva #${resultado.insertId}, de ${periodo}, foi confirmada. Consulte os detalhes no seu painel.`;
+        const tituloHospede = 'Reserva Recebida — Aguardando Aprovação';
+        const mensagemHospede = `Sua reserva #${resultado.insertId}, de ${periodo}, foi recebida e aguarda aprovação do proprietário. Acompanhe pelo seu painel.`;
         const tituloProprietario = 'Nova reserva';
-        const mensagemProprietario = `A reserva #${resultado.insertId}, de ${periodo}, foi confirmada para o seu imóvel. Consulte os detalhes no seu painel.`;
+        const mensagemProprietario = `A reserva #${resultado.insertId}, de ${periodo}, aguarda sua aprovação ou recusa. Consulte os detalhes no seu painel.`;
 
         // Reserva e avisos persistem juntos; nenhum email é enviado antes do commit.
-        await notificacoes.criarNotificacao(hospedeId, tituloHospede, mensagemHospede, 'SUCESSO', 'bi-calendar-check', conexao);
+        await notificacoes.criarNotificacao(hospedeId, tituloHospede, mensagemHospede, 'INFO', 'bi-info-circle', conexao);
         await notificacoes.criarNotificacao(destinatario.proprietarioId, tituloProprietario, mensagemProprietario, 'INFO', 'bi-calendar-plus', conexao);
         
         // Sucesso absoluto! Salva definitivamente no banco e destranca o imóvel para o próximo da fila.
@@ -854,12 +854,12 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
 
         res.status(201).json({ message: 'Reserva criada com sucesso no MySQL!', reservaId: resultado.insertId });
 
-        // Efeito colateral isolado: indisponibilidade do Resend não altera a reserva confirmada.
+        // Efeito colateral isolado: indisponibilidade do Resend não altera a reserva salva.
         // TODO: adotar uma outbox persistente para retentar envios após falha/reinício do processo.
         void Promise.resolve().then(() => Promise.all([
-            enviarEmail(destinatario.hospedeEmail, tituloHospede, criarHtmlEmail(tituloHospede, mensagemHospede), `reserva/${resultado.insertId}/confirmada/hospede`),
-            enviarEmail(destinatario.proprietarioEmail, tituloProprietario, criarHtmlEmail(tituloProprietario, mensagemProprietario), `reserva/${resultado.insertId}/confirmada/proprietario`)
-        ])).catch(() => console.error('Falha ao processar emails da reserva já confirmada.'));
+            enviarEmail(destinatario.hospedeEmail, tituloHospede, criarHtmlEmail(tituloHospede, mensagemHospede), `reserva/${resultado.insertId}/pendente/hospede`),
+            enviarEmail(destinatario.proprietarioEmail, tituloProprietario, criarHtmlEmail(tituloProprietario, mensagemProprietario), `reserva/${resultado.insertId}/pendente/proprietario`)
+        ])).catch(() => console.error('Falha ao processar emails da reserva já salva.'));
     } catch (error) {
         // Se qualquer coisa der errado (banco cair, erro de digitação, etc), desfaz tudo e destranca o chalé.
         try {
@@ -1273,6 +1273,7 @@ app.get('/api/hospede/reservas', verificarToken, async (req, res) => {
             'PENDENTE': 'pendente',
             'CONFIRMADA': 'aprovada', // Frontend usa 'aprovada'
             'CANCELADA': 'cancelada',
+            'RECUSADA': 'recusada',
             'CONCLUIDA': 'concluida'
         };
 
@@ -1320,6 +1321,119 @@ app.get('/api/hospede/reservas', verificarToken, async (req, res) => {
 // ROTAS DO PROPRIETÁRIO (PAINEL DE ADMIN)
 // ==========================================
 
+function decidirReserva(novoStatus) {
+    return async (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        let conexao;
+        let transacaoAtiva = false;
+        let conexaoDestruida = false;
+
+        try {
+            const reservaId = normalizarIdPositivo(req.params.id, 'Identificador da reserva');
+            if (reservaId > 2147483647) {
+                throw new ErroHttp(400, 'Identificador da reserva inválido.');
+            }
+            const motivoRecebido = novoStatus === 'RECUSADA' ? req.body?.motivo : undefined;
+            if (motivoRecebido !== undefined && typeof motivoRecebido !== 'string') {
+                throw new ErroHttp(400, 'O motivo deve ser um texto de até 250 caracteres.');
+            }
+            const motivo = (motivoRecebido || '').trim();
+            if ([...motivo].length > 250) {
+                throw new ErroHttp(400, 'O motivo deve ter no máximo 250 caracteres.');
+            }
+
+            conexao = await db.getConnection();
+            await garantirProprietario(conexao, req.usuario.id);
+            const [referencias] = await conexao.query(
+                'SELECT Imo_Id FROM res_reserva WHERE Res_Id = ?',
+                [reservaId]
+            );
+            if (referencias.length === 0) {
+                throw new ErroHttp(404, 'Reserva não encontrada.');
+            }
+
+            await conexao.beginTransaction();
+            transacaoAtiva = true;
+            // Mesma ordem da criação: trava o imóvel antes de decidir a reserva.
+            const [imoveis] = await conexao.query(
+                'SELECT Imo_Id, Pro_Proprietario_Usu_Id FROM imo_imovel WHERE Imo_Id = ? FOR UPDATE',
+                [referencias[0].Imo_Id]
+            );
+            if (imoveis.length === 0 || Number(imoveis[0].Pro_Proprietario_Usu_Id) !== Number(req.usuario.id)) {
+                throw new ErroHttp(403, 'Você não pode decidir reservas de outro proprietário.');
+            }
+
+            const [reservas] = await conexao.query(
+                `SELECT Res_Status, Hos_Hospede_Usu_Id,
+                        DATE_FORMAT(Res_DataCheckIn, '%d/%m/%Y') AS checkin,
+                        DATE_FORMAT(Res_DataCheckOut, '%d/%m/%Y') AS checkout
+                 FROM res_reserva WHERE Res_Id = ? AND Imo_Id = ? FOR UPDATE`,
+                [reservaId, imoveis[0].Imo_Id]
+            );
+            if (reservas.length === 0) {
+                throw new ErroHttp(404, 'Reserva não encontrada para este imóvel.');
+            }
+            const reserva = reservas[0];
+            if (reserva.Res_Status !== 'PENDENTE') {
+                throw new ErroHttp(400, 'Somente reservas pendentes podem ser aprovadas ou recusadas.');
+            }
+            const [resultado] = await conexao.query(
+                'UPDATE res_reserva SET Res_Status = ? WHERE Res_Id = ? AND Imo_Id = ? AND Res_Status = ?',
+                [novoStatus, reservaId, imoveis[0].Imo_Id, 'PENDENTE']
+            );
+            if (resultado.affectedRows !== 1) {
+                throw new ErroHttp(400, 'Esta reserva já não está pendente de decisão.');
+            }
+
+            const aprovada = novoStatus === 'CONFIRMADA';
+            const titulo = aprovada ? 'Reserva Aprovada' : 'Reserva Recusada';
+            const mensagem = `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi ${aprovada ? 'aprovada' : 'recusada'} pelo proprietário.${motivo ? ` Motivo: ${motivo}` : ''}`;
+            // A decisão e seu aviso são atômicos; o email só é tentado após o commit.
+            await notificacoes.criarNotificacao(
+                reserva.Hos_Hospede_Usu_Id, titulo, mensagem,
+                aprovada ? 'SUCESSO' : 'AVISO',
+                aprovada ? 'bi-calendar-check' : 'bi-exclamation-circle', conexao
+            );
+            const [hospedes] = await conexao.query(
+                'SELECT Usu_Email FROM usu_usuario WHERE Usu_Id = ?',
+                [reserva.Hos_Hospede_Usu_Id]
+            );
+            await conexao.commit();
+            transacaoAtiva = false;
+            conexao.release();
+            conexao = null;
+
+            res.json({ message: `${titulo} com sucesso.`, reservaId, status: novoStatus });
+            if (hospedes[0]?.Usu_Email) {
+                void Promise.resolve().then(() => enviarEmail(
+                    hospedes[0].Usu_Email, titulo, criarHtmlEmail(titulo, mensagem),
+                    `reserva/${reservaId}/${aprovada ? 'confirmada' : 'recusada'}/hospede`
+                )).catch(() => console.error('Falha ao processar email da decisão da reserva já salva.'));
+            }
+        } catch (error) {
+            if (transacaoAtiva && conexao) {
+                try {
+                    await conexao.rollback();
+                } catch {
+                    conexao.destroy();
+                    conexaoDestruida = true;
+                    console.error('Erro ao desfazer a decisão da reserva.');
+                }
+            }
+            if (error instanceof ErroHttp) {
+                return res.status(error.status).json({ error: error.message });
+            }
+            console.error('Erro ao decidir reserva.');
+            res.status(500).json({ error: 'Não foi possível salvar a decisão da reserva.' });
+        } finally {
+            if (conexao && !conexaoDestruida) conexao.release();
+        }
+    };
+}
+
+app.patch('/api/proprietario/reservas/:id/aprovar', verificarToken, verificarProprietario, decidirReserva('CONFIRMADA'));
+app.patch('/api/proprietario/reservas/:id/recusar', verificarToken, verificarProprietario, decidirReserva('RECUSADA'));
+
 app.get('/api/proprietario/reservas', verificarToken, verificarProprietario, async (req, res) => {
     try {
         const proprietarioId = req.usuario.id;
@@ -1347,7 +1461,8 @@ app.get('/api/proprietario/reservas', verificarToken, verificarProprietario, asy
         const statusMap = {
             'PENDENTE': 'pendente',
             'CONFIRMADA': 'aprovada',
-            'CANCELADA': 'recusada', // No painel do proprietário eles usam recusada
+            'CANCELADA': 'cancelada',
+            'RECUSADA': 'recusada',
             'CONCLUIDA': 'concluida'
         };
 

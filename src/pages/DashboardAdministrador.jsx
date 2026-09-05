@@ -18,7 +18,8 @@ const noites   = (ci, co) => Math.round((new Date(co+'T00:00:00') - new Date(ci+
 const STATUS_CFG = {
   pendente: { label:'Pendente', bg:'#fff3cd', cor:'#856404' },
   aprovada: { label:'Confirmada', bg:'#d1e7dd', cor:'#0f5132' },
-  recusada: { label:'Cancelada', bg:'#f8d7da', cor:'#842029' },
+  recusada: { label:'Recusada', bg:'#f8d7da', cor:'#842029' },
+  cancelada: { label:'Cancelada', bg:'#f8d7da', cor:'#842029' },
   concluida: { label:'Concluída', bg:'#dbeafe', cor:'#1e40af' },
 };
 
@@ -79,17 +80,32 @@ function EstrelasAvaliacao({ nota, tamanho = '1rem' }) {
 }
 
 // ─── Modal Detalhe ────────────────────────────────────────────────────────────
-function ModalReserva({ reserva, aoFechar }) {
+function ModalReserva({ reserva, aoFechar, aoDecidir }) {
+  const [motivo, setMotivo] = useState('');
+  const [erroDecisao, setErroDecisao] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const envioRef = useRef(false);
+  useEffect(() => { setMotivo(''); setErroDecisao(''); }, [reserva?.id]);
+  async function decidir(acao) {
+    if (envioRef.current) return;
+    envioRef.current = true;
+    setEnviando(true);
+    setErroDecisao('');
+    try { await aoDecidir(reserva.id, acao, motivo); }
+    catch (erro) { setErroDecisao(erro.message || 'Não foi possível salvar a decisão.'); }
+    finally { envioRef.current = false; setEnviando(false); }
+  }
   if (!reserva) return null;
   const r = reserva;
   const n = noites(reserva.checkin, reserva.checkout);
 
   return (
-    <Modal show onHide={aoFechar} centered size="lg" className="modal-reserva-admin">
+    <Modal show onHide={() => !enviando && aoFechar()} centered size="lg" className="modal-reserva-admin">
       <Modal.Header closeButton className="modal-header-admin">
         <Modal.Title>Reserva #{reserva.id}</Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
+        {erroDecisao && <Alert variant="danger" role="alert">{erroDecisao}</Alert>}
         <Row className="g-4">
           <Col md={6}>
             <p className="label-secao-modal">Hóspede</p>
@@ -143,7 +159,20 @@ function ModalReserva({ reserva, aoFechar }) {
             </Col>
           )}
         </Row>
+        {r.status === 'pendente' && (
+          <div className="mt-3">
+            <label htmlFor="motivo-recusa" className="form-label">Motivo da recusa (opcional)</label>
+            <textarea id="motivo-recusa" className="form-control" rows={3} maxLength={250}
+              value={motivo} disabled={enviando} onChange={e => setMotivo(e.target.value)} />
+          </div>
+        )}
       </Modal.Body>
+      {r.status === 'pendente' && <Modal.Footer className="gap-2 flex-wrap">
+        <Button variant="outline-danger" disabled={enviando} onClick={() => decidir('recusar')}>Recusar reserva</Button>
+        <Button variant="success" disabled={enviando} onClick={() => decidir('aprovar')}>
+          {enviando ? 'Salvando…' : 'Aprovar reserva'}
+        </Button>
+      </Modal.Footer>}
     </Modal>
   );
 }
@@ -403,7 +432,7 @@ function TabelaReservas({ reservas, onVer, filtro, setFiltro, reservasGerais }) 
       <div className="tabela-header-admin">
         <h5 className="mb-0 fw-bold" style={{color:'#223a5e'}}>Gerenciar Reservas</h5>
         <div className="filtros-status-admin">
-          {['todas','aprovada','concluida','recusada', ...(baseContagem.some(r => r.status === 'pendente') ? ['pendente'] : [])].map(f => (
+          {['todas','pendente','aprovada','concluida','recusada','cancelada'].map(f => (
             <button
               key={f}
               type="button"
@@ -744,6 +773,25 @@ function DashboardAdministrador() {
     };
   }, [usuarioId, tipo, buscarReservas]);
 
+  async function decidirReserva(id, acao, motivo) {
+    const sessao = sessaoReservasRef.current;
+    if (!sessao?.ativa) throw new Error('Faça login novamente para decidir a reserva.');
+    const resposta = await fetch(`http://localhost:3000/api/proprietario/reservas/${id}/${acao}`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(acao === 'recusar' ? { motivo } : {}),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (!sessao.ativa || sessaoReservasRef.current !== sessao) return;
+    if (!resposta.ok) throw new Error(dados.error || 'Não foi possível salvar a decisão.');
+    const statusSalvo = dados.status === 'CONFIRMADA' ? 'aprovada' : 'recusada';
+    setReservas(atuais => atuais.map(r => String(r.id) === String(id) ? { ...r, status: statusSalvo } : r));
+    setSelecionada(null);
+    setFeedback({ tipo: 'sucesso', msg: dados.message || 'Decisão salva com sucesso.' });
+    await buscarReservas();
+  }
+
   const buscarAvaliacoesPendentes = useCallback(async (signal) => {
     setCarregandoAvaliacoes(true);
     setErroAvaliacoes('');
@@ -829,7 +877,7 @@ function DashboardAdministrador() {
             <p className="dash-section-label">Resumo Geral</p>
             <Row className="g-3 mb-4">
               <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-calendar-check fs-4"></i>} titulo="Total de Reservas" valor={reservas.length} sub="desde o início" cor="#3b6399"/></Col>
-              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-calendar-check fs-4"></i>} titulo="Reservas Confirmadas" valor={aprovadas} sub="confirmação automática" cor="#f59e0b"/></Col>
+              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-calendar-check fs-4"></i>} titulo="Reservas Confirmadas" valor={aprovadas} sub="aprovadas pelo proprietário" cor="#f59e0b"/></Col>
               <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-house-check fs-4"></i>} titulo="Ocupação no Mês" valor={`${ocupacao}%`} sub={`${diasOcupados}/${diasNoMes} dias`} cor="#198754"/></Col>
               <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-cash-coin fs-4"></i>} titulo="Receita Confirmada" valor={fmtMoeda(receita)} sub={`${aprovadas} confirmadas`} cor="#0d6efd"/></Col>
             </Row>
@@ -944,7 +992,7 @@ function DashboardAdministrador() {
         )}
         <div className="dashboard-admin-conteudo">{renderConteudo()}</div>
       </main>
-      <ModalReserva reserva={selecionada} aoFechar={() => setSelecionada(null)}/>
+      <ModalReserva reserva={selecionada} aoFechar={() => setSelecionada(null)} aoDecidir={decidirReserva}/>
       <ModalResponderAvaliacao
         avaliacao={avaliacaoSelecionada}
         aoFechar={() => setAvaliacaoSelecionada(null)}

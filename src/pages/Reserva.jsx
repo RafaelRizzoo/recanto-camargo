@@ -480,7 +480,7 @@ function Reserva() {
 
                 {autenticado ? (
                   <Botao larguraTotal onClick={handleSubmit} tipo="button" className="py-3 fs-5">
-                    Confirmar Reserva
+                    Solicitar Reserva
                   </Botao>
                 ) : (
                   <>

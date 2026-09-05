@@ -45,19 +45,20 @@ async function main() {
     await guest.goto(`${base}/Reserva?checkin=${entrada}&checkout=${saida}`);
     await guest.locator('select').first().selectOption('2');
     const reservaResponse = guest.waitForResponse(r => r.url().endsWith('/api/reservas') && r.request().method() === 'POST');
-    await guest.getByRole('button', { name: 'Confirmar Reserva', exact: true }).click();
+    await guest.getByRole('button', { name: 'Solicitar Reserva', exact: true }).click();
     assert.equal((await reservaResponse).status(), 201);
     await guest.waitForURL(/ReservaConcluida/);
-    console.log('QA: reserva confirmada pela interface.');
+    await guest.getByText('A solicitação foi recebida para análise do proprietário.', { exact: false }).waitFor();
+    console.log('QA: reserva solicitada pela interface.');
     const inicioPolling = performance.now();
     await owner.locator('.notif-titulo-item').filter({ hasText: 'Nova reserva' }).waitFor({ timeout: 20000 });
     await owner.locator('table').getByText('Hóspede QA', { exact: true }).waitFor();
     resultados.push({ teste: 'reserva pela UI + aviso do proprietário via polling', ms: Math.round(performance.now() - inicioPolling) });
     await guest.goto(`${base}/DashboardCliente`);
     await guest.locator('.notif-sino').click();
-    await guest.locator('.notif-titulo-item').filter({ hasText: 'Reserva confirmada' }).waitFor();
+    await guest.locator('.notif-titulo-item').filter({ hasText: 'Aguardando Aprovação' }).waitFor();
     assert.equal(await guest.evaluate(() => localStorage.getItem('recanto_notificacoes')), null);
-    await guest.getByRole('button', { name: 'Reserva confirmada. Marcar como lida' }).press('Enter');
+    await guest.getByRole('button', { name: /Aguardando Aprovação.*Marcar como lida/ }).press('Enter');
     await guest.waitForFunction(() => !document.querySelector('.notif-dot'));
     await guest.reload();
     await guest.locator('.notif-sino').click();
@@ -91,6 +92,24 @@ async function main() {
       assert.equal(await page.locator('.notif-dropdown').count(), 0);
       assert.equal(await page.locator('.notif-sino').evaluate(el => el === document.activeElement), true);
     }
+
+    await owner.setViewportSize({ width: 375, height: 667 });
+    await owner.getByTitle('Ver detalhes').first().click();
+    await owner.getByRole('button', { name: 'Aprovar reserva', exact: true }).waitFor();
+    const modal = owner.getByRole('dialog');
+    const larguraModal = await modal.evaluate(el => ({ scroll: el.scrollWidth, largura: el.clientWidth }));
+    assert.ok(larguraModal.scroll <= larguraModal.largura + 1, 'Modal de decisão deve caber no celular');
+    const aprovarResponse = owner.waitForResponse(r => r.url().endsWith('/aprovar'));
+    await owner.getByRole('button', { name: 'Aprovar reserva', exact: true }).click();
+    assert.equal((await aprovarResponse).status(), 200);
+    await modal.waitFor({ state: 'detached' });
+    await owner.reload();
+    await owner.locator('table .badge-status-admin').filter({ hasText: 'Confirmada' }).waitFor();
+    await guest.reload();
+    await guest.locator('.notif-sino').click();
+    await guest.locator('.notif-titulo-item').filter({ hasText: 'Reserva Aprovada' }).waitFor();
+    await guest.keyboard.press('Escape');
+    resultados.push({ teste: 'RN05: aprovação pelo modal em celular persiste após refresh e notifica hóspede', ok: true });
 
     await guest.setViewportSize({ width: 1366, height: 900 });
     await guest.route('**/api/notificacoes', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Teste indisponível"}' }), { times: 1 });

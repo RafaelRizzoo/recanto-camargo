@@ -83,7 +83,7 @@ function ReservaConcluida() {
               <i className="bi bi-check-lg" style={{ fontSize: '3rem', color: '#fff' }} />
             </div>
             <h2 style={{ fontWeight: 700, margin: 0, fontSize: '2rem' }}>Reserva Solicitada!</h2>
-            <p style={{ opacity: 0.9, marginTop: '10px', fontSize: '1.1rem' }}>Falta pouco para garantir seus momentos inesquecíveis.</p>
+            <p style={{ opacity: 0.9, marginTop: '10px', fontSize: '1.1rem' }}>A solicitação foi recebida para análise do proprietário. Acompanhe a aprovação ou recusa no seu painel.</p>
           </div>
 
           {/* Corpo do Recibo */}

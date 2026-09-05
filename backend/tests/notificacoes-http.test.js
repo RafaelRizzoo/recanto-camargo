@@ -35,7 +35,7 @@ const banco = {
         if (texto.startsWith('SELECT Res_Id FROM res_reserva')) return [estado.conflito ? [{ Res_Id: 500 }] : []];
         if (texto.startsWith('INSERT INTO res_reserva')) {
             assert.ok(estado.transacao);
-            assert.match(texto, /'CONFIRMADA'/);
+            assert.match(texto, /'PENDENTE'/);
             estado.pendentes.push({ tipo: 'reserva', parametros });
             return [{ insertId: 123 }];
         }
@@ -159,7 +159,7 @@ function reserva() {
     return { checkin, checkout, hospedes: 2, observacoes: 'Observação privada: não deve ir ao email.', valorTotal: 0.01, proprietarioId: 666, hospedeEmail: 'intruso@example.com' };
 }
 
-test('reserva direta confirma com preço do servidor e duas notificações na mesma transação', async () => {
+test('reserva nasce pendente com preço do servidor e duas notificações na mesma transação', async () => {
     const resposta = await chamar('/api/reservas', { method: 'POST', body: reserva() });
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(resposta.status, 201);
@@ -176,7 +176,7 @@ test('reserva direta confirma com preço do servidor e duas notificações na me
 });
 
 for (const falha of ['sincrona', 'rejeicao']) {
-    test(`reserva permanece confirmada quando email falha (${falha})`, async () => {
+    test(`reserva permanece pendente quando email falha (${falha})`, async () => {
         estado.falhaEmail = falha;
         const logs = [];
         const logAnterior = console.error;

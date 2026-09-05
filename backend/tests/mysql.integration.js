@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { criarAmbienteMySQL } = require('./support/mysql-harness');
 
-test('MySQL real: reserva direta, persistência, isolamento, concorrência e desempenho', {
+test('MySQL real: reserva pendente, persistência, isolamento, concorrência e desempenho', {
     skip: process.env.RUN_MYSQL_INTEGRATION !== '1'
 }, async t => {
     const qa = await criarAmbienteMySQL();
@@ -28,14 +28,14 @@ test('MySQL real: reserva direta, persistência, isolamento, concorrência e des
         const dataEntrada = checkin.toISOString().slice(0, 10);
         const dataSaida = new Date(checkin.getTime() + 86400000).toISOString().slice(0, 10);
         let reservaId;
-        await t.test('reserva confirma com preço do servidor e persiste dois avisos', async () => {
+        await t.test('reserva nasce pendente com preço do servidor e persiste dois avisos', async () => {
             const reserva = await api('/api/reservas', guest, 'POST', {
                 checkin: dataEntrada, checkout: dataSaida, hospedes: 2, valorTotal: 1
             });
             assert.equal(reserva.status, 201);
             reservaId = reserva.data.reservaId;
             const [rows] = await qa.admin.query('SELECT Res_Status, Res_ValorTotal FROM res_reserva WHERE Res_Id = ?', [reservaId]);
-            assert.equal(rows[0].Res_Status, 'CONFIRMADA');
+            assert.equal(rows[0].Res_Status, 'PENDENTE');
             assert.equal(Number(rows[0].Res_ValorTotal), 200);
             const [avisos] = await qa.admin.query('SELECT Usu_Id FROM not_notificacao ORDER BY Usu_Id');
             assert.deepEqual(avisos.map(n => n.Usu_Id), [1, 2]);
@@ -101,7 +101,7 @@ test('MySQL real: reserva direta, persistência, isolamento, concorrência e des
                 for (let i = 0; i < 50 && tentativas < 2; i++) await new Promise(resolve => setImmediate(resolve));
                 assert.equal(tentativas, 2);
                 const [rows] = await qa.admin.query('SELECT Res_Status FROM res_reserva WHERE Res_Id = ?', [reserva.data.reservaId]);
-                assert.equal(rows[0].Res_Status, 'CONFIRMADA');
+                assert.equal(rows[0].Res_Status, 'PENDENTE');
                 const [avisos] = await qa.admin.query('SELECT COUNT(*) AS total FROM not_notificacao');
                 assert.equal(avisos[0].total, 64);
             } finally {
