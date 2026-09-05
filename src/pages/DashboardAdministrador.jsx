@@ -1,39 +1,14 @@
 /**
  * DashboardAdministrador.jsx
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Row, Col, Card, Modal, Alert, Button } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import { useNotificacoes } from '../hooks/useNotificacoes';
 import Notificacoes from '../components/UI/Notificacoes';
 import 'react-calendar/dist/Calendar.css';
 import './DashboardAdministrador.css';
-
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-const RESERVAS_MOCK = [
-  { id:'R001', hospede:'Fernanda Lima',    email:'fernanda@email.com', telefone:'(12) 98765-4321', checkin:'2026-05-10', checkout:'2026-05-14', hospedes:4, status:'pendente', valorTotal:1080, observacao:'Preciso de berço para bebê de 8 meses.', criadaEm:'2026-04-20' },
-  { id:'R002', hospede:'Carlos Eduardo',   email:'carlos@email.com',   telefone:'(11) 99999-1234', checkin:'2026-05-17', checkout:'2026-05-19', hospedes:2, status:'pendente', valorTotal:580,  observacao:'', criadaEm:'2026-04-21' },
-  { id:'R003', hospede:'Mariana Souza',    email:'mariana@email.com',  telefone:'(12) 97777-8888', checkin:'2026-04-28', checkout:'2026-05-02', hospedes:6, status:'aprovada', valorTotal:1160, observacao:'Levaremos pet (cachorro pequeno).', criadaEm:'2026-04-10' },
-{ id:'R004', hospede:'Roberto Alves', email:'roberto@email.com', telefone:'(21) 98888-5555', checkin:'2026-04-15', checkout:'2026-04-17', hospedes:3, status:'recusada', valorTotal:580, observacao:'', criadaEm:'2026-04-05', motivoRecusa:'Datas já reservadas por outro hóspede.' },
-  { id:'R005', hospede:'Patricia Mendes',  email:'patricia@email.com', telefone:'(12) 96666-3333', checkin:'2026-06-01', checkout:'2026-06-07', hospedes:5, status:'aprovada', valorTotal:1740, observacao:'Aniversário de casamento.', criadaEm:'2026-04-22' },
-  { id:'R006', hospede:'Juliana Costa',    email:'juliana@email.com',  telefone:'(13) 94444-2222', checkin:'2026-05-23', checkout:'2026-05-25', hospedes:2, status:'pendente', valorTotal:580,  observacao:'Viagem de lua de mel.', criadaEm:'2026-04-23' },
-  { id:'R007', hospede:'André Oliveira',   email:'andre@email.com',    telefone:'(12) 95555-1111', checkin:'2026-07-04', checkout:'2026-07-08', hospedes:4, status:'aprovada', valorTotal:1160, observacao:'', criadaEm:'2026-04-25' },
-  { id:'R008', hospede:'Beatriz Santos',   email:'beatriz@email.com',  telefone:'(11) 96666-2222', checkin:'2026-07-18', checkout:'2026-07-21', hospedes:3, status:'pendente', valorTotal:870,  observacao:'', criadaEm:'2026-04-26' },
-];
-
-const CHAVE_RESERVAS = 'recanto_camargo_reservas';
-
-function inicializarReservas() {
-  try {
-    const raw = localStorage.getItem(CHAVE_RESERVAS);
-    return raw ? JSON.parse(raw) : (() => {
-      localStorage.setItem(CHAVE_RESERVAS, JSON.stringify(RESERVAS_MOCK));
-      return RESERVAS_MOCK;
-    })();
-  } catch { return RESERVAS_MOCK; }
-}
 
 // ─── Utilitários ─────────────────────────────────────────────────────────────
 const fmtData  = (s) => { if (!s) return '—'; const [a,m,d]=s.split('-'); return `${d}/${m}/${a}`; };
@@ -42,8 +17,9 @@ const noites   = (ci, co) => Math.round((new Date(co+'T00:00:00') - new Date(ci+
 
 const STATUS_CFG = {
   pendente: { label:'Pendente', bg:'#fff3cd', cor:'#856404' },
-  aprovada: { label:'Aprovada', bg:'#d1e7dd', cor:'#0f5132' },
-  recusada: { label:'Recusada', bg:'#f8d7da', cor:'#842029' },
+  aprovada: { label:'Confirmada', bg:'#d1e7dd', cor:'#0f5132' },
+  recusada: { label:'Cancelada', bg:'#f8d7da', cor:'#842029' },
+  concluida: { label:'Concluída', bg:'#dbeafe', cor:'#1e40af' },
 };
 
 // ─── Ícones ───────────────────────────────────────────────────────────────────
@@ -103,7 +79,7 @@ function EstrelasAvaliacao({ nota, tamanho = '1rem' }) {
 }
 
 // ─── Modal Detalhe ────────────────────────────────────────────────────────────
-function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
+function ModalReserva({ reserva, aoFechar }) {
   if (!reserva) return null;
   const r = reserva;
   const n = noites(reserva.checkin, reserva.checkout);
@@ -129,7 +105,7 @@ function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
           <Col md={6}>
             <p className="label-secao-modal">Status</p>
             <BadgeStatus status={r.status} />
-            <div className="text-muted small mt-2">Solicitada em {fmtData(r.criadaEm)}</div>
+            <div className="text-muted small mt-2">Criada em {fmtData(r.criadaEm)}</div>
           </Col>
           <Col md={6}>
             <p className="label-secao-modal">Período</p>
@@ -168,73 +144,10 @@ function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
           )}
         </Row>
       </Modal.Body>
-      {reserva.status === 'pendente' && (
-        <Modal.Footer className="border-0 pt-0 gap-2">
-          <Button variant="outline-danger" className="btn-acao-modal" onClick={() => aoRecusar(reserva.id)}><Ico.X /> Recusar</Button>
-          <Button variant="success" className="btn-acao-modal" onClick={() => aoAprovar(reserva.id)}><Ico.Check /> Aprovar</Button>
-        </Modal.Footer>
-      )}
     </Modal>
   );
 }
 
-// ─── Modal Recusa ────────────────────────────────────────────────────────────
-function ModalRecusa({ reserva, aoFechar, aoConfirmar }) {
-  const [motivo, setMotivo] = useState('');
-  const podeRecusar = motivo.trim().length > 0;
-
-  if (!reserva) return null;
-
-  const handleConfirmar = () => {
-    if (!podeRecusar) return;
-    aoConfirmar(reserva.id, motivo.trim());
-    setMotivo('');
-  };
-
-  const handleFechar = () => {
-    setMotivo('');
-    aoFechar();
-  };
-
-  return (
-    <Modal show onHide={handleFechar} centered className="modal-reserva-admin">
-      <Modal.Header closeButton className="modal-header-admin" style={{background:'linear-gradient(135deg, #7f1d1d, #dc2626)'}}>
-        <Modal.Title>Recusar Reserva #{reserva.id}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body className="p-4">
-        <div className="obs-modal mb-3" style={{background:'#fff7ed',border:'1px solid #fdba74',color:'#9a3412'}}>
-          <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          Ao recusar esta reserva, o hóspede será notificado. Informe o motivo para que ele entenda a decisão.
-        </div>
-        <label className="label-secao-modal">Motivo da recusa <span className="text-danger">*</span></label>
-        <textarea
-          className="form-controle-config w-100"
-          rows={4}
-          placeholder="Informe o motivo da recusa (obrigatório)..."
-          value={motivo}
-          onChange={e => setMotivo(e.target.value)}
-          style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: motivo.trim().length === 0 && motivo.length > 0 ? '1px solid #dc2626' : '1px solid #e2e8f0', resize: 'vertical' }}
-        />
-        {!podeRecusar && motivo.length > 0 && (
-          <div className="text-danger small mt-2">
-            <i className="bi bi-exclamation-circle me-1"></i>É obrigatório informar o motivo da recusa.
-          </div>
-        )}
-        {podeRecusar && (
-          <div className="text-success small mt-2">
-            <i className="bi bi-check-circle me-1"></i>Motivo informado.
-          </div>
-        )}
-      </Modal.Body>
-      <Modal.Footer className="border-0 pt-0 gap-2">
-        <Button variant="outline-secondary" style={{borderRadius:'50px'}} onClick={handleFechar}>Voltar</Button>
-        <Button variant="danger" style={{borderRadius:'50px',padding:'0.55rem 1.5rem'}} onClick={handleConfirmar} disabled={!podeRecusar}>
-          <i className="bi bi-x-circle me-2"></i>Confirmar Recusa
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-}
 
 function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
   const [nota, setNota] = useState(5);
@@ -479,7 +392,7 @@ function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoR
 }
 
 // ─── Tabela ──────────────────────────────────────────────────
-function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFiltro, reservasGerais }) {
+function TabelaReservas({ reservas, onVer, filtro, setFiltro, reservasGerais }) {
   const baseContagem = reservasGerais || reservas;
 
   const lista = filtro === 'todas' ? reservas : reservas.filter(r => r.status === filtro);
@@ -490,7 +403,7 @@ function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFilt
       <div className="tabela-header-admin">
         <h5 className="mb-0 fw-bold" style={{color:'#223a5e'}}>Gerenciar Reservas</h5>
         <div className="filtros-status-admin">
-          {['todas','pendente','aprovada','recusada'].map(f => (
+          {['todas','aprovada','concluida','recusada', ...(baseContagem.some(r => r.status === 'pendente') ? ['pendente'] : [])].map(f => (
             <button
               key={f}
               type="button"
@@ -538,10 +451,6 @@ function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFilt
                 <td>
                   <div className="acoes-tabela">
                     <button className="btn-acao-tabela ver" onClick={() => onVer(r)} title="Ver detalhes"><i className="bi bi-eye"></i></button>
-                    {r.status === 'pendente' && <>
-                      <button className="btn-acao-tabela aprovar" onClick={() => onAprovar(r.id)} title="Aprovar"><Ico.Check/></button>
-                      <button className="btn-acao-tabela recusar" onClick={() => onRecusar(r.id)} title="Recusar"><Ico.X/></button>
-                    </>}
                   </div>
                 </td>
               </tr>
@@ -589,8 +498,8 @@ function CalendarioOcupacao({ reservas }) {
       <div className="calendario-header-admin">
         <h5 className="mb-0 fw-bold" style={{color:'#223a5e'}}>Calendário de Ocupação</h5>
         <div className="legenda-calendario">
-          <span className="legenda-item"><span className="dot dot-aprovada"></span>Aprovada</span>
-          <span className="legenda-item"><span className="dot dot-pendente"></span>Pendente</span>
+          <span className="legenda-item"><span className="dot dot-aprovada"></span>Confirmada</span>
+          {reservas.some(r => r.status === 'pendente') && <span className="legenda-item"><span className="dot dot-pendente"></span>Pendente</span>}
         </div>
       </div>
       <div className="react-calendar-container">
@@ -758,8 +667,9 @@ function PrevisaoReceita({ reservas }) {
 // ─── Dashboard Principal ──────────────────────────────────────────────────────
 function DashboardAdministrador() {
   const { usuario, tipo, logout } = useAutenticacao();
-  const { adicionar } = useNotificacoes();
   const navigate = useNavigate();
+  const usuarioId = usuario?.id ?? null;
+  const sessaoReservasRef = useRef(null);
 
   const [sidebarAberta, setSidebarAberta] = useState(() => window.innerWidth >= 992);
   const [abaAtiva,    setAbaAtiva]    = useState('visao-geral');
@@ -767,7 +677,6 @@ function DashboardAdministrador() {
   const [selecionada, setSelecionada] = useState(null);
   const [filtro, setFiltro] = useState('todas');
   const [feedback, setFeedback] = useState({ tipo:'', msg:'' });
-  const [modalRecusa, setModalRecusa] = useState(null);
   const [avaliacoesPendentes, setAvaliacoesPendentes] = useState([]);
   const [carregandoAvaliacoes, setCarregandoAvaliacoes] = useState(true);
   const [erroAvaliacoes, setErroAvaliacoes] = useState('');
@@ -781,23 +690,59 @@ function DashboardAdministrador() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Busca reservas do Banco de Dados
-  useEffect(() => { 
-    async function buscarReservas() {
-      try {
-        const resposta = await fetch('http://localhost:3000/api/proprietario/reservas', {
-          credentials: 'include'
-        });
-        if (resposta.ok) {
-          const dados = await resposta.json();
-          setReservas(dados);
-        }
-      } catch (erro) {
-        console.error("Erro ao buscar reservas:", erro);
-      }
+  const buscarReservas = useCallback(async () => {
+    const sessao = sessaoReservasRef.current;
+    if (!sessao?.ativa || sessao.usuarioId !== usuarioId || tipo !== 'proprietario') return;
+    if (sessao.promessa) {
+      // Uma notificação recebida durante o GET exige mais uma leitura ao final.
+      sessao.recarregar = true;
+      return sessao.promessa;
     }
+    const atual = () => sessao.ativa && sessaoReservasRef.current === sessao;
+    sessao.promessa = (async () => {
+      do {
+        sessao.recarregar = false;
+        const controlador = new AbortController();
+        sessao.controlador = controlador;
+        const timeout = window.setTimeout(() => controlador.abort(), 10_000);
+        try {
+          const resposta = await fetch('http://localhost:3000/api/proprietario/reservas', {
+            credentials: 'include', cache: 'no-store', signal: controlador.signal,
+          });
+          const dados = await resposta.json().catch(() => null);
+          if (!atual() || controlador.signal.aborted) return;
+          if (resposta.status === 401 || resposta.status === 403) {
+            sessao.ativa = false;
+            setReservas([]);
+            setSelecionada(null);
+            return;
+          }
+          if (!resposta.ok || !Array.isArray(dados)) throw new Error('Resposta inválida.');
+          setReservas(dados);
+        } catch (erro) {
+          if (atual() && erro.name !== 'AbortError') {
+            console.error('Não foi possível atualizar as reservas do painel.');
+          }
+        } finally {
+          window.clearTimeout(timeout);
+          if (sessao.controlador === controlador) sessao.controlador = null;
+        }
+      } while (atual() && sessao.recarregar);
+    })().finally(() => { sessao.promessa = null; });
+    return sessao.promessa;
+  }, [usuarioId, tipo]);
+
+  useEffect(() => {
+    const sessao = { usuarioId, ativa: !!usuarioId && tipo === 'proprietario', recarregar: false, promessa: null, controlador: null };
+    sessaoReservasRef.current = sessao;
+    setReservas([]);
+    setSelecionada(null);
     buscarReservas();
-  }, []);
+    return () => {
+      sessao.ativa = false;
+      sessao.controlador?.abort();
+    };
+  }, [usuarioId, tipo, buscarReservas]);
 
   const buscarAvaliacoesPendentes = useCallback(async (signal) => {
     setCarregandoAvaliacoes(true);
@@ -833,47 +778,12 @@ function DashboardAdministrador() {
     return () => controlador.abort();
   }, [buscarAvaliacoesPendentes]);
 
-  // Temporário: Salvar na tela enquanto não criamos as rotas de aprovar/recusar no backend
-  const salvar = (novas) => {
-    setReservas(novas);
-  };
 
   const fb = (tipo, msg) => {
     setFeedback({ tipo, msg });
     setTimeout(() => setFeedback({ tipo:'', msg:'' }), 3500);
   };
 
-  const aprovar = useCallback((id) => {
-    const r = reservas.find(x => x.id === id);
-    salvar(reservas.map(x => x.id === id ? { ...x, status:'aprovada' } : x));
-    setSelecionada(null);
-    fb('sucesso', `Reserva #${id} aprovada!`);
-    adicionar({
-      titulo: 'Reserva Aprovada ✅',
-      mensagem: `Reserva de ${r?.nome || r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi aprovada.`,
-      tipo: 'sucesso',
-      icone: 'bi-check-circle-fill',
-    });
-  }, [reservas, adicionar]);
-
-  const recusar = useCallback((id) => {
-    const r = reservas.find(x => x.id === id);
-    setModalRecusa(r);
-  }, [reservas]);
-
-  const confirmarRecusa = useCallback((id, motivo) => {
-    const r = reservas.find(x => x.id === id);
-    salvar(reservas.map(x => x.id === id ? { ...x, status:'recusada', motivoRecusa: motivo } : x));
-    setSelecionada(null);
-    setModalRecusa(null);
-    fb('erro', `Reserva #${id} recusada.`);
-    adicionar({
-      titulo: 'Reserva Recusada ❌',
-      mensagem: `Reserva de ${r?.nome || r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi recusada.`,
-      tipo: 'erro',
-      icone: 'bi-x-circle-fill',
-    });
-  }, [reservas, adicionar]);
 
   const confirmarRespostaAvaliacao = useCallback((id) => {
     setAvaliacoesPendentes(atuais => atuais.filter(item => item.id !== id));
@@ -881,7 +791,6 @@ function DashboardAdministrador() {
     fb('sucesso', 'Resposta enviada com sucesso.');
   }, []);
 
-  const pendentes    = reservas.filter(r => r.status === 'pendente').length;
   const aprovadas    = reservas.filter(r => r.status === 'aprovada').length;
   const receita      = reservas.filter(r => r.status === 'aprovada').reduce((a,r) => a + (r.total || r.valorTotal || 0), 0);
   const hoje         = new Date();
@@ -920,18 +829,11 @@ function DashboardAdministrador() {
             <p className="dash-section-label">Resumo Geral</p>
             <Row className="g-3 mb-4">
               <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-calendar-check fs-4"></i>} titulo="Total de Reservas" valor={reservas.length} sub="desde o início" cor="#3b6399"/></Col>
-              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-hourglass-split fs-4"></i>} titulo="Aguardando Aprovação" valor={pendentes} sub={pendentes > 0 ? 'requer atenção' : 'tudo em dia'} cor="#f59e0b"/></Col>
+              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-calendar-check fs-4"></i>} titulo="Reservas Confirmadas" valor={aprovadas} sub="confirmação automática" cor="#f59e0b"/></Col>
               <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-house-check fs-4"></i>} titulo="Ocupação no Mês" valor={`${ocupacao}%`} sub={`${diasOcupados}/${diasNoMes} dias`} cor="#198754"/></Col>
-              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-cash-coin fs-4"></i>} titulo="Receita Confirmada" valor={fmtMoeda(receita)} sub={`${aprovadas} aprovadas`} cor="#0d6efd"/></Col>
+              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-cash-coin fs-4"></i>} titulo="Receita Confirmada" valor={fmtMoeda(receita)} sub={`${aprovadas} confirmadas`} cor="#0d6efd"/></Col>
             </Row>
             
-            {pendentes > 0 && (
-              <div className="alerta-pendentes-admin mb-4" role="button" onClick={() => { setAbaAtiva('reservas'); setFiltro('pendente'); }}>
-                <i className="bi bi-bell-fill me-2"></i>
-                <strong>{pendentes} reserva{pendentes > 1 ? 's' : ''} aguardando aprovação.</strong>
-                <span className="ms-2" style={{textDecoration:'underline'}}>Ver agora →</span>
-              </div>
-            )}
 
             <p className="dash-section-label">Últimas Reservas</p>
             
@@ -939,8 +841,6 @@ function DashboardAdministrador() {
               reservas={ultimasReservas} 
               reservasGerais={reservas} 
               onVer={setSelecionada}
-              onAprovar={aprovar} 
-              onRecusar={recusar} 
               filtro={filtro} 
               setFiltro={setFiltro}
             />
@@ -951,7 +851,7 @@ function DashboardAdministrador() {
         <>
           <p className="dash-section-label">Gerenciamento de Reservas</p>
           <TabelaReservas reservas={reservas} onVer={setSelecionada}
-            onAprovar={aprovar} onRecusar={recusar} filtro={filtro} setFiltro={setFiltro}/>
+            filtro={filtro} setFiltro={setFiltro}/>
         </>
       );
       case 'calendario': return (
@@ -1032,7 +932,7 @@ function DashboardAdministrador() {
             </div>
           </div>
           <div className="topbar-direita">
-            <Notificacoes/>
+            <Notificacoes aoNovaNotificacao={buscarReservas}/>
             <div className="topbar-avatar" title={usuario?.nome}>{usuario?.nome?.charAt(0)}</div>
           </div>
         </div>
@@ -1044,8 +944,7 @@ function DashboardAdministrador() {
         )}
         <div className="dashboard-admin-conteudo">{renderConteudo()}</div>
       </main>
-      <ModalReserva reserva={selecionada} aoFechar={() => setSelecionada(null)} aoAprovar={aprovar} aoRecusar={recusar}/>
-      <ModalRecusa reserva={modalRecusa} aoFechar={() => setModalRecusa(null)} aoConfirmar={confirmarRecusa}/>
+      <ModalReserva reserva={selecionada} aoFechar={() => setSelecionada(null)}/>
       <ModalResponderAvaliacao
         avaliacao={avaliacaoSelecionada}
         aoFechar={() => setAvaliacaoSelecionada(null)}

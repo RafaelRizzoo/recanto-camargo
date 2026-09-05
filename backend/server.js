@@ -6,6 +6,11 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
+const { criarServicoNotificacoes, validarId: validarIdNotificacao } = require('./notificacoes');
+const { criarServicoEmail, criarHtmlEmail } = require('./email');
+
+const notificacoes = criarServicoNotificacoes(db);
+const { enviarEmail } = criarServicoEmail();
 
 const app = express();
 
@@ -562,6 +567,71 @@ app.post('/api/cupons/validar', verificarToken, async (req, res) => {
 });
 
 // ==========================================
+// ROTAS DE NOTIFICAÇÕES
+// ==========================================
+
+async function verificarUsuarioAtivoNotificacoes(req, res, next) {
+    res.set('Cache-Control', 'no-store');
+    try {
+        const usuarioId = validarIdNotificacao(req.usuario.id);
+        const [usuarios] = await db.query(
+            'SELECT Usu_Id FROM usu_usuario WHERE Usu_Id = ? AND Usu_Status = ? LIMIT 1',
+            [usuarioId, 'ATIVO']
+        );
+        if (usuarios.length === 0) {
+            return res.status(403).json({ error: 'Esta conta encontra-se inativa ou indisponível.' });
+        }
+        req.usuarioNotificacaoId = usuarioId;
+        next();
+    } catch (error) {
+        if (error instanceof TypeError) {
+            return res.status(401).json({ error: 'Sessão inválida ou expirada.' });
+        }
+        console.error('Erro ao verificar acesso às notificações.');
+        res.status(500).json({ error: 'Não foi possível acessar as notificações.' });
+    }
+}
+
+app.get('/api/notificacoes', verificarToken, verificarUsuarioAtivoNotificacoes, async (req, res) => {
+    try {
+        res.json(await notificacoes.listarNotificacoes(req.usuarioNotificacaoId));
+    } catch {
+        console.error('Erro ao buscar notificações.');
+        res.status(500).json({ error: 'Não foi possível carregar as notificações.' });
+    }
+});
+
+app.patch('/api/notificacoes/marcar-todas-lidas', verificarToken, verificarUsuarioAtivoNotificacoes, async (req, res) => {
+    try {
+        await notificacoes.marcarTodasLidas(req.usuarioNotificacaoId);
+        res.json({ message: 'Notificações marcadas como lidas.' });
+    } catch {
+        console.error('Erro ao marcar notificações como lidas.');
+        res.status(500).json({ error: 'Não foi possível atualizar as notificações.' });
+    }
+});
+
+app.patch('/api/notificacoes/:id/lida', verificarToken, verificarUsuarioAtivoNotificacoes, async (req, res) => {
+    let notificacaoId;
+    try {
+        notificacaoId = validarIdNotificacao(req.params.id);
+    } catch {
+        return res.status(400).json({ error: 'Identificador de notificação inválido.' });
+    }
+
+    try {
+        const pertenceAoUsuario = await notificacoes.marcarLida(req.usuarioNotificacaoId, notificacaoId);
+        if (!pertenceAoUsuario) {
+            return res.status(404).json({ error: 'Notificação não encontrada.' });
+        }
+        res.json({ message: 'Notificação marcada como lida.' });
+    } catch {
+        console.error('Erro ao marcar notificação como lida.');
+        res.status(500).json({ error: 'Não foi possível atualizar a notificação.' });
+    }
+});
+
+// ==========================================
 // ROTAS DE IMÓVEIS E RESERVAS
 // ==========================================
 
@@ -751,12 +821,45 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
         `;
         const valoresInsert = [cupomAplicadoId, imoId, hospedeId, checkin, checkout, hospedes, valorFinalSeguro, observacoes || null];
         const [resultado] = await conexao.query(queryInsert, valoresInsert);
+
+        const [destinatarios] = await conexao.query(
+            `SELECT p.Usu_Id AS proprietarioId, proprietario.Usu_Email AS proprietarioEmail,
+                    hospede.Usu_Email AS hospedeEmail
+             FROM imo_imovel i
+             INNER JOIN pro_proprietario p ON p.Usu_Id = i.Pro_Proprietario_Usu_Id
+             INNER JOIN usu_usuario proprietario ON proprietario.Usu_Id = p.Usu_Id
+             INNER JOIN usu_usuario hospede ON hospede.Usu_Id = ?
+             WHERE i.Imo_Id = ?`,
+            [hospedeId, imoId]
+        );
+        if (destinatarios.length !== 1) {
+            throw new ErroHttp(409, 'Não foi possível identificar o responsável pelo imóvel.');
+        }
+
+        const destinatario = destinatarios[0];
+        const formatoData = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' });
+        const periodo = `${formatoData.format(dataCheckin)} a ${formatoData.format(dataCheckout)}`;
+        const tituloHospede = 'Reserva confirmada';
+        const mensagemHospede = `Sua reserva #${resultado.insertId}, de ${periodo}, foi confirmada. Consulte os detalhes no seu painel.`;
+        const tituloProprietario = 'Nova reserva';
+        const mensagemProprietario = `A reserva #${resultado.insertId}, de ${periodo}, foi confirmada para o seu imóvel. Consulte os detalhes no seu painel.`;
+
+        // Reserva e avisos persistem juntos; nenhum email é enviado antes do commit.
+        await notificacoes.criarNotificacao(hospedeId, tituloHospede, mensagemHospede, 'SUCESSO', 'bi-calendar-check', conexao);
+        await notificacoes.criarNotificacao(destinatario.proprietarioId, tituloProprietario, mensagemProprietario, 'INFO', 'bi-calendar-plus', conexao);
         
         // Sucesso absoluto! Salva definitivamente no banco e destranca o imóvel para o próximo da fila.
         await conexao.commit();
         conexao.release();
 
         res.status(201).json({ message: 'Reserva criada com sucesso no MySQL!', reservaId: resultado.insertId });
+
+        // Efeito colateral isolado: indisponibilidade do Resend não altera a reserva confirmada.
+        // TODO: adotar uma outbox persistente para retentar envios após falha/reinício do processo.
+        void Promise.resolve().then(() => Promise.all([
+            enviarEmail(destinatario.hospedeEmail, tituloHospede, criarHtmlEmail(tituloHospede, mensagemHospede), `reserva/${resultado.insertId}/confirmada/hospede`),
+            enviarEmail(destinatario.proprietarioEmail, tituloProprietario, criarHtmlEmail(tituloProprietario, mensagemProprietario), `reserva/${resultado.insertId}/confirmada/proprietario`)
+        ])).catch(() => console.error('Falha ao processar emails da reserva já confirmada.'));
     } catch (error) {
         // Se qualquer coisa der errado (banco cair, erro de digitação, etc), desfaz tudo e destranca o chalé.
         try {
@@ -1270,6 +1373,10 @@ app.get('/api/proprietario/reservas', verificarToken, verificarProprietario, asy
 // ==========================================
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    });
+}
+
+module.exports = app;

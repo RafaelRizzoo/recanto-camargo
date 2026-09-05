@@ -6,6 +6,7 @@ import { Row, Col, Card, Modal, Button, Alert } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+import Notificacoes from '../components/UI/Notificacoes';
 import './DashboardCliente.css';
 
 const CHAVE_RESERVAS_CLIENTE = 'recanto_reservas_cliente';
@@ -1124,7 +1125,7 @@ function DashboardCliente() {
               <span className="topbar-cli-sub">Olá, {usuario?.nome?.split(' ')[0]}! 👋</span>
             </div>
           </div>
-          {/* <div className="topbar-cli-avatar">{usuario?.nome?.charAt(0)}</div> */}
+          <Notificacoes />
         </div>
 
         {feedback.msg && (
