@@ -879,16 +879,22 @@ app.post('/api/reservas', verificarToken, async (req, res) => {
     }
 });
 
-app.get('/api/reservas/:id', async (req, res) => {
+app.get('/api/reservas/:id', verificarToken, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
     try {
         const { id } = req.params;
         const query = `
-            SELECT r.Res_Id as id, r.Res_DataCheckIn as checkin, r.Res_DataCheckOut as checkout, r.Res_ValorTotal as total, u.Usu_Nome as nome
+            SELECT r.Res_Id as id, r.Res_DataCheckIn as checkin, r.Res_DataCheckOut as checkout, r.Res_ValorTotal as total, u.Usu_Nome as nome,
+                   r.Hos_Hospede_Usu_Id as titularId
             FROM res_reserva r JOIN usu_usuario u ON r.Hos_Hospede_Usu_Id = u.Usu_Id WHERE r.Res_Id = ?
         `;
         const [rows] = await db.query(query, [id]);
         if (rows.length === 0) return res.status(404).json({ error: 'Reserva não encontrada no banco' });
-        res.json(rows[0]);
+        const { titularId, ...comprovante } = rows[0];
+        if (Number(titularId) !== Number(req.usuario.id)) {
+            return res.status(403).json({ error: 'Você não tem permissão para acessar esta reserva.' });
+        }
+        res.json(comprovante);
     } catch (error) {
         console.error('Erro ao buscar reserva:', error);
         res.status(500).json({ error: 'Erro interno ao buscar a reserva.' });

@@ -21,7 +21,7 @@ function ReservaConcluida() {
   const [erro, setErro] = useState(false);
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/reservas/${id}`)
+    fetch(`http://localhost:3000/api/reservas/${id}`, { credentials: 'include' })
       .then(resposta => {
         if (!resposta.ok) {
           throw new Error('Reserva não encontrada no Banco de Dados');
