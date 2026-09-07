@@ -993,6 +993,25 @@ app.post('/api/avaliacoes', verificarToken, async (req, res) => {
             [resultado.insertId]
         );
 
+        const [destinatariosProprietario] = await conexao.query(
+            `SELECT p.Usu_Id AS proprietarioId, u.Usu_Email AS proprietarioEmail
+             FROM imo_imovel i
+             INNER JOIN pro_proprietario p ON p.Usu_Id = i.Pro_Proprietario_Usu_Id
+             INNER JOIN usu_usuario u ON u.Usu_Id = p.Usu_Id
+             WHERE i.Imo_Id = ?`,
+            [reserva.Imo_Id]
+        );
+
+        if (destinatariosProprietario.length > 0) {
+            const proprietario = destinatariosProprietario[0];
+            const tituloAviso = 'Nova Avaliação Recebida';
+            const mensagemAviso = `Seu imóvel recebeu uma nova avaliação de ${nota.toFixed(1)} estrelas.${comentario ? ` Comentário: "${comentario}"` : ''}`;
+            await notificacoes.criarNotificacao(
+                proprietario.proprietarioId, tituloAviso, mensagemAviso,
+                'INFO', 'bi-info-circle', conexao
+            );
+        }
+
         await conexao.commit();
         transacaoAtiva = false;
 
@@ -1000,6 +1019,15 @@ app.post('/api/avaliacoes', verificarToken, async (req, res) => {
             message: 'Avaliação enviada com sucesso.',
             avaliacao: normalizarAvaliacao(avaliacoesCriadas[0])
         });
+
+        if (destinatariosProprietario[0]?.proprietarioEmail) {
+            void Promise.resolve().then(() => enviarEmail(
+                destinatariosProprietario[0].proprietarioEmail,
+                'Nova Avaliação Recebida',
+                criarHtmlEmail('Nova Avaliação Recebida', `Seu imóvel recebeu uma nova avaliação de ${nota.toFixed(1)} estrelas.`),
+                `avaliacao/${resultado.insertId}/notificacao/proprietario`
+            )).catch(() => console.error('Falha ao processar email de avaliação já salva.'));
+        }
     } catch (error) {
         if (transacaoAtiva && conexao) {
             try {
@@ -1228,12 +1256,56 @@ app.patch('/api/proprietario/avaliacoes/:id/responder', verificarToken, verifica
     }
 });
 
+async function conciliarReservasConcluidas(executor) {
+    try {
+        const [expiradas] = await executor.query(
+            `SELECT r.Res_Id, r.Hos_Hospede_Usu_Id, i.Imo_Nome,
+                    u.Usu_Email AS hospedeEmail
+             FROM res_reserva r
+             JOIN imo_imovel i ON i.Imo_Id = r.Imo_Id
+             JOIN usu_usuario u ON u.Usu_Id = r.Hos_Hospede_Usu_Id
+             WHERE r.Res_Status = 'CONFIRMADA'
+               AND r.Res_DataCheckOut < NOW()
+             LIMIT 50`
+        );
+
+        for (const r of expiradas) {
+            let conexao;
+            try {
+                conexao = await db.getConnection();
+                await conexao.beginTransaction();
+                const [res] = await conexao.query(
+                    'UPDATE res_reserva SET Res_Status = "CONCLUIDA" WHERE Res_Id = ? AND Res_Status = "CONFIRMADA"',
+                    [r.Res_Id]
+                );
+                if (res.affectedRows === 1) {
+                    const titulo = 'Estadia Concluída — Como foi sua experiência?';
+                    const mensagem = `Sua estadia no Chalé Recanto Camargo referente à reserva #${r.Res_Id} foi concluída. Conte-nos como foi avaliando sua experiência no painel!`;
+                    await notificacoes.criarNotificacao(
+                        r.Hos_Hospede_Usu_Id, titulo, mensagem,
+                        'SUCESSO', 'bi-calendar-check', conexao
+                    );
+                }
+                await conexao.commit();
+            } catch (err) {
+                if (conexao) await conexao.rollback().catch(() => {});
+                console.error(`Erro ao auto-concluir reserva #${r.Res_Id}:`, err.message);
+            } finally {
+                if (conexao) conexao.release();
+            }
+        }
+    } catch (err) {
+        console.error('Erro na conciliação de reservas concluídas:', err.message);
+    }
+}
+
 // ==========================================
 // ROTAS DO HÓSPEDE (DASHBOARD)
 // ==========================================
 app.get('/api/hospede/reservas', verificarToken, async (req, res) => {
     try {
         const hospedeId = req.usuario.id;
+        await conciliarReservasConcluidas(db);
         
         // Puxa as reservas do hóspede, incluindo nome do imóvel
         const query = `
@@ -1434,10 +1506,113 @@ function decidirReserva(novoStatus) {
 app.patch('/api/proprietario/reservas/:id/aprovar', verificarToken, verificarProprietario, decidirReserva('CONFIRMADA'));
 app.patch('/api/proprietario/reservas/:id/recusar', verificarToken, verificarProprietario, decidirReserva('RECUSADA'));
 
+app.patch('/api/proprietario/reservas/:id/concluir', verificarToken, verificarProprietario, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    let conexao;
+    let transacaoAtiva = false;
+    let conexaoDestruida = false;
+
+    try {
+        const reservaId = normalizarIdPositivo(req.params.id, 'Identificador da reserva');
+        if (reservaId > 2147483647) {
+            throw new ErroHttp(400, 'Identificador da reserva inválido.');
+        }
+
+        conexao = await db.getConnection();
+        await garantirProprietario(conexao, req.usuario.id);
+        const [referencias] = await conexao.query(
+            'SELECT Imo_Id FROM res_reserva WHERE Res_Id = ?',
+            [reservaId]
+        );
+        if (referencias.length === 0) {
+            throw new ErroHttp(404, 'Reserva não encontrada.');
+        }
+
+        await conexao.beginTransaction();
+        transacaoAtiva = true;
+
+        const [imoveis] = await conexao.query(
+            'SELECT Imo_Id, Pro_Proprietario_Usu_Id, Imo_Nome FROM imo_imovel WHERE Imo_Id = ? FOR UPDATE',
+            [referencias[0].Imo_Id]
+        );
+        if (imoveis.length === 0 || Number(imoveis[0].Pro_Proprietario_Usu_Id) !== Number(req.usuario.id)) {
+            throw new ErroHttp(403, 'Você não pode concluir reservas de outro proprietário.');
+        }
+
+        const [reservas] = await conexao.query(
+            `SELECT Res_Status, Hos_Hospede_Usu_Id,
+                    DATE_FORMAT(Res_DataCheckIn, '%d/%m/%Y') AS checkin,
+                    DATE_FORMAT(Res_DataCheckOut, '%d/%m/%Y') AS checkout
+             FROM res_reserva WHERE Res_Id = ? AND Imo_Id = ? FOR UPDATE`,
+            [reservaId, imoveis[0].Imo_Id]
+        );
+        if (reservas.length === 0) {
+            throw new ErroHttp(404, 'Reserva não encontrada para este imóvel.');
+        }
+        const reserva = reservas[0];
+        if (reserva.Res_Status !== 'CONFIRMADA') {
+            throw new ErroHttp(400, 'Somente reservas confirmadas podem ser concluídas.');
+        }
+
+        const [resultado] = await conexao.query(
+            'UPDATE res_reserva SET Res_Status = ? WHERE Res_Id = ? AND Imo_Id = ? AND Res_Status = ?',
+            ['CONCLUIDA', reservaId, imoveis[0].Imo_Id, 'CONFIRMADA']
+        );
+        if (resultado.affectedRows !== 1) {
+            throw new ErroHttp(400, 'Esta reserva não pôde ser concluída.');
+        }
+
+        const titulo = 'Estadia Concluída — Como foi sua experiência?';
+        const mensagem = `Sua estadia referente à reserva #${reservaId} (${imoveis[0].Imo_Nome}) foi concluída pelo proprietário. Conte-nos como foi avaliando sua experiência no painel!`;
+
+        await notificacoes.criarNotificacao(
+            reserva.Hos_Hospede_Usu_Id, titulo, mensagem,
+            'SUCESSO', 'bi-calendar-check', conexao
+        );
+
+        const [hospedes] = await conexao.query(
+            'SELECT Usu_Email FROM usu_usuario WHERE Usu_Id = ?',
+            [reserva.Hos_Hospede_Usu_Id]
+        );
+
+        await conexao.commit();
+        transacaoAtiva = false;
+        conexao.release();
+        conexao = null;
+
+        res.json({ message: 'Reserva concluída com sucesso.', reservaId, status: 'CONCLUIDA' });
+
+        if (hospedes[0]?.Usu_Email) {
+            void Promise.resolve().then(() => enviarEmail(
+                hospedes[0].Usu_Email, titulo, criarHtmlEmail(titulo, mensagem),
+                `reserva/${reservaId}/concluida/hospede`
+            )).catch(() => console.error('Falha ao processar email da conclusão da reserva já salva.'));
+        }
+    } catch (error) {
+        if (transacaoAtiva && conexao) {
+            try {
+                await conexao.rollback();
+            } catch {
+                conexao.destroy();
+                conexaoDestruida = true;
+                console.error('Erro ao desfazer a conclusão da reserva.');
+            }
+        }
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+        console.error('Erro ao concluir reserva:', error);
+        res.status(500).json({ error: 'Não foi possível concluir a reserva.' });
+    } finally {
+        if (conexao && !conexaoDestruida) conexao.release();
+    }
+});
+
 app.get('/api/proprietario/reservas', verificarToken, verificarProprietario, async (req, res) => {
     try {
         const proprietarioId = req.usuario.id;
         await garantirProprietario(db, proprietarioId);
+        await conciliarReservasConcluidas(db);
 
         const query = `
             SELECT 

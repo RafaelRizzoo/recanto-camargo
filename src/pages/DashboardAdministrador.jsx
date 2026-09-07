@@ -173,6 +173,11 @@ function ModalReserva({ reserva, aoFechar, aoDecidir }) {
           {enviando ? 'Salvando…' : 'Aprovar reserva'}
         </Button>
       </Modal.Footer>}
+      {r.status === 'aprovada' && <Modal.Footer className="gap-2 flex-wrap">
+        <Button variant="primary" disabled={enviando} onClick={() => decidir('concluir')}>
+          {enviando ? 'Concluindo…' : <><i className="bi bi-check2-circle me-1" /> Concluir Estadia</>}
+        </Button>
+      </Modal.Footer>}
     </Modal>
   );
 }
@@ -480,6 +485,9 @@ function TabelaReservas({ reservas, onVer, filtro, setFiltro, reservasGerais }) 
                 <td>
                   <div className="acoes-tabela">
                     <button className="btn-acao-tabela ver" onClick={() => onVer(r)} title="Ver detalhes"><i className="bi bi-eye"></i></button>
+                    {r.status === 'aprovada' && (
+                      <button className="btn-acao-tabela concluir text-primary" onClick={() => onVer(r)} title="Concluir Estadia"><i className="bi bi-check2-circle"></i></button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -785,7 +793,9 @@ function DashboardAdministrador() {
     const dados = await resposta.json().catch(() => ({}));
     if (!sessao.ativa || sessaoReservasRef.current !== sessao) return;
     if (!resposta.ok) throw new Error(dados.error || 'Não foi possível salvar a decisão.');
-    const statusSalvo = dados.status === 'CONFIRMADA' ? 'aprovada' : 'recusada';
+    const statusSalvo = dados.status === 'CONFIRMADA'
+      ? 'aprovada'
+      : (dados.status === 'CONCLUIDA' ? 'concluida' : 'recusada');
     setReservas(atuais => atuais.map(r => String(r.id) === String(id) ? { ...r, status: statusSalvo } : r));
     setSelecionada(null);
     setFeedback({ tipo: 'sucesso', msg: dados.message || 'Decisão salva com sucesso.' });

@@ -83,24 +83,44 @@
   margin: 0 !important;
   height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
   background: linear-gradient(180deg, rgba(34, 58, 94, 1) 21%, rgba(59, 99, 153, 1) 72%, rgba(65, 106, 163, 1) 100%);
   z-index: 10;
   box-shadow: -15px 0 30px rgba(0, 0, 0, 0.4);
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar moderna e translúcida */
+.coluna-formulario::-webkit-scrollbar {
+  width: 6px;
+}
+
+.coluna-formulario::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.coluna-formulario::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+}
+
+.coluna-formulario::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
 }
 
 /* ============================================
    CONTAINER DO FORMULÁRIO
    ============================================ */
 .container-formulario {
-  padding: 2rem 2.5rem 3rem 2.5rem;
+  padding: 1.5rem 2.2rem;
   width: 100%;
-  max-width: 450px;
+  max-width: 440px;
   position: relative;
   z-index: 1;
+  margin: auto 0;
 }
 
 /* ============================================
@@ -108,13 +128,13 @@
    ============================================ */
 .container-logo {
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .logo {
   width: 100%;
   height: auto;
-  max-width: 500px;
+  max-width: 240px;
   display: block;
   margin: 0 auto;
   animation:
@@ -127,20 +147,20 @@
    ============================================ */
 .titulo-autenticacao {
   font-family: 'Oleo Script Swash Caps', cursive;
-  font-size: 3rem;
+  font-size: 2.6rem;
   text-align: center;
   color: #ffffff;
-  margin-bottom: 0.3rem;
-  margin-top: 0.3rem;
+  margin-bottom: 0.15rem;
+  margin-top: 0.15rem;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .subtitulo-autenticacao {
   text-align: center;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-style: italic;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
@@ -186,5 +206,39 @@
   .subtitulo-autenticacao {
     font-size: 0.95rem;
     margin-bottom: 1.25rem;
+  }
+}
+
+@media (max-height: 820px) {
+  .container-formulario {
+    padding: 1rem 2rem;
+  }
+
+  .container-logo {
+    margin-bottom: 0.2rem;
+  }
+
+  .logo {
+    max-width: 170px;
+  }
+
+  .titulo-autenticacao {
+    font-size: 2.2rem;
+  }
+
+  .subtitulo-autenticacao {
+    margin-bottom: 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .grupo-entrada,
+  .grupo-entrada-animado {
+    margin-bottom: 0.65rem;
+  }
+
+  .form-controle-custom {
+    height: 44px;
+    padding: 0.6rem 2.75rem;
+    font-size: 0.9rem;
   }
 }

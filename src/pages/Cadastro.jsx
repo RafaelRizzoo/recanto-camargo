@@ -129,7 +129,7 @@ function Cadastro() {
           Cadastrar
         </Botao>
 
-        <div className="container-link-autenticacao text-center mt-3 mb-3">
+        <div className="container-link-autenticacao text-center mt-2 mb-2">
           <span className="text-white">Já tem conta? </span>
           <LinkAutenticacao para="/Login" variante="destaque">
             Fazer login
