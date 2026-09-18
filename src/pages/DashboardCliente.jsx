@@ -926,13 +926,29 @@ function DashboardCliente() {
   };
 
   // RN02 — Cancelamento
-  const confirmarCancelamento = useCallback((id, motivo) => {
-    const atualizadas = reservas.map(r =>
-      r.id === id ? { ...r, status: 'cancelada', motivoCancelamento: motivo } : r
-    );
-    salvarReservas(atualizadas);
-    setModalCancelar(null);
-    fb('sucesso', `Reserva #${id} cancelada com sucesso.`);
+  const confirmarCancelamento = useCallback(async (id, motivo) => {
+    try {
+      const resposta = await fetch(`http://localhost:3000/api/hospede/reservas/${id}/cancelar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ motivo })
+      });
+
+      if (!resposta.ok) {
+        throw new Error('Falha ao cancelar');
+      }
+
+      const atualizadas = reservas.map(r =>
+        r.id === id ? { ...r, status: 'cancelada', motivoCancelamento: motivo } : r
+      );
+      salvarReservas(atualizadas);
+      setModalCancelar(null);
+      fb('sucesso', `Reserva #${id} cancelada com sucesso.`);
+    } catch (erro) {
+      console.error(erro);
+      fb('erro', 'Não foi possível cancelar a reserva. Tente novamente.');
+    }
   }, [reservas]);
 
   const abrirModalAvaliacao = useCallback((reserva) => {
