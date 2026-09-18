@@ -73,7 +73,7 @@ async function criarAmbienteMySQL() {
             RESEND_API_KEY: '', RESEND_FROM_EMAIL: '', NODE_ENV: 'test'
         });
         const app = require('../../server');
-        pool = require('../../db');
+        pool = require('../../config/db');
         const [bancoApp] = await pool.query('SELECT DATABASE() AS nome');
         if (bancoApp[0].nome !== nome) throw new Error('A aplicação não está usando o banco descartável.');
         server = app.listen(Number(process.env.QA_API_PORT || 0), '127.0.0.1');

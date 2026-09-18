@@ -63,11 +63,15 @@ const banco = {
             return [{ affectedRows: alteradas.length }];
         }
         if (texto.startsWith('SELECT Not_Id FROM not_notificacao')) return [estado.notificacoes.filter(n => n.Not_Id === parametros[0] && n.Usu_Id === parametros[1])];
+        if (texto.startsWith('INSERT INTO his_historicoreservastatus')) {
+            assert.ok(estado.transacao, 'Auditoria deve compartilhar a transação.');
+            return [{ insertId: 900 + estado.pendentes.length }];
+        }
         throw new Error(`Consulta inesperada: ${texto}`);
     },
 };
 
-const caminhoDb = require.resolve('../db');
+const caminhoDb = require.resolve('../config/db');
 const caminhoEmail = require.resolve('../email');
 const dbAnterior = require.cache[caminhoDb];
 const emailAnterior = require.cache[caminhoEmail];

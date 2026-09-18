@@ -55,3 +55,9 @@ docs/
 ORIGINAL_REQUEST.md
 PROJECT.md
 TEST_INFRA.md
+
+# ============================================
+# BACKUPS & ARQUIVOS TEMPORÁRIOS LOCAIS
+# ============================================
+backend_backup/
+**/backend_backup/
