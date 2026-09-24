@@ -6,6 +6,7 @@ import { useAutenticacao } from '../hooks/useAutenticacao';
 import { imagensCarrosselHome, comodidades, depoimentos } from '../data/conteudoSite';
 import CalendarioCustom from '../components/UI/CalendarioCustom';
 import Lightbox from '../components/UI/Lightbox';
+import { API_BASE } from '../utils/api';
 
 const DIARIA = 270;
 const TAXA_LIMPEZA = 80;
@@ -153,7 +154,7 @@ function Reserva() {
     setValidandoCupom(true);
 
     try {
-      const resposta = await fetch('http://localhost:3000/api/cupons/validar', {
+      const resposta = await fetch(`${API_BASE}/api/cupons/validar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -242,7 +243,7 @@ function Reserva() {
 
     try {
       // 1. Enviar para o nosso Back-end de verdade (MySQL)
-      const resposta = await fetch('http://localhost:3000/api/reservas', {
+      const resposta = await fetch(`${API_BASE}/api/reservas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // ESSENCIAL: Envia o Cookie JWT do usuário!

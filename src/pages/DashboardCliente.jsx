@@ -7,6 +7,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import Notificacoes from '../components/UI/Notificacoes';
+import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 import './DashboardCliente.css';
 
 const CHAVE_RESERVAS_CLIENTE = 'recanto_reservas_cliente';
@@ -960,9 +961,18 @@ function DashboardCliente() {
   // Carregar dados
   useEffect(() => {
     async function carregarReservas() {
+      if (!IS_API_AVAILABLE) {
+        try {
+          const salvas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS_CLIENTE) || '[]');
+          setReservas(Array.isArray(salvas) ? salvas : []);
+        } catch {
+          setReservas([]);
+        }
+        return;
+      }
       try {
-        // Busca as reservas reais do Back-end!
-        const resposta = await fetch('http://localhost:3000/api/hospede/reservas', {
+        // Busca as reservas reais do Back-end
+        const resposta = await fetch(`${API_BASE}/api/hospede/reservas`, {
           credentials: 'include' // Envia o cookie JWT
         });
 
@@ -983,9 +993,13 @@ function DashboardCliente() {
     }
 
     async function carregarCupons() {
+      if (!IS_API_AVAILABLE) {
+        setCuponsCarregando(false);
+        return;
+      }
       try {
         setErroCupons('');
-        const resposta = await fetch('http://localhost:3000/api/cupons/meus', {
+        const resposta = await fetch(`${API_BASE}/api/cupons/meus`, {
           credentials: 'include',
         });
         const dados = await resposta.json().catch(() => null);
@@ -1008,8 +1022,9 @@ function DashboardCliente() {
     }
 
     async function carregarReputacao() {
+      if (!IS_API_AVAILABLE) return;
       try {
-        const resp = await fetch('http://localhost:3000/api/hospede/me/reputacao', {
+        const resp = await fetch(`${API_BASE}/api/hospede/me/reputacao`, {
           credentials: 'include',
         });
         if (resp.ok) {
@@ -1041,7 +1056,7 @@ function DashboardCliente() {
   // RN02 — Cancelamento
   const confirmarCancelamento = useCallback(async (id, motivo) => {
     try {
-      const resposta = await fetch(`http://localhost:3000/api/hospede/reservas/${id}/cancelar`, {
+      const resposta = await fetch(`${API_BASE}/api/hospede/reservas/${id}/cancelar`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -1111,7 +1126,7 @@ function DashboardCliente() {
     setErroAvaliacao('');
 
     try {
-      const resposta = await fetch('http://localhost:3000/api/avaliacoes', {
+      const resposta = await fetch(`${API_BASE}/api/avaliacoes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

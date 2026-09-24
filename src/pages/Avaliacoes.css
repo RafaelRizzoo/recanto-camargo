@@ -85,6 +85,28 @@
   font-size: 0.8rem;
   color: #64748b;
   font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.barra-dist-row:hover {
+  background-color: rgba(34, 58, 94, 0.05);
+  color: #223a5e;
+  transform: translateX(2px);
+}
+
+.barra-dist-row.ativa {
+  background-color: rgba(255, 146, 17, 0.12);
+  color: #223a5e;
+  font-weight: 700;
+  box-shadow: 0 0 0 1px rgba(255, 146, 17, 0.3);
+}
+
+.barra-dist-row.ativa .barra-dist-preenchimento {
+  box-shadow: 0 0 8px rgba(255, 146, 17, 0.5);
 }
 
 .barra-dist-label {
@@ -118,6 +140,13 @@
   color: #94a3b8;
   text-align: right;
   flex-shrink: 0;
+}
+
+.filtro-ativo-badge-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
 /* ── Card de Avaliação Individual ───────────────────────────────────────── */

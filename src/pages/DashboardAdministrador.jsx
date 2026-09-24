@@ -8,11 +8,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import Notificacoes from '../components/UI/Notificacoes';
+import { API_BASE } from '../utils/api';
 import 'react-calendar/dist/Calendar.css';
 import './DashboardAdministrador.css';
 
 // ─── Constantes & Utilitários ────────────────────────────────────────────────
-const API_BASE = 'http://localhost:3000';
 
 const fmtData  = (s) => {
   if (!s) return '—';

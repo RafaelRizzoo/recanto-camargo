@@ -11,6 +11,7 @@ import {
   pontosTuristicos,
 } from "../data/conteudoSite";
 import { verificarSeFeriado } from "../utils/feriados";
+import { API_BASE, IS_API_AVAILABLE } from "../utils/api";
 
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 const WHATSAPP_NUMERO = '5512996297452';
@@ -34,9 +35,10 @@ function verificarConflito(checkin, checkout) {
 function Home() {
   const navigate = useNavigate();
 
-  // ----- TESTE DE INTEGRAÇÃO COM O NOVO BACK-END -----
+  // ----- TESTE DE INTEGRAÇÃO COM O BACK-END (apenas se disponível) -----
   useEffect(() => {
-    fetch('http://localhost:3000/api/imoveis')
+    if (!IS_API_AVAILABLE) return;
+    fetch(`${API_BASE}/api/imoveis`)
       .then(response => response.json())
       .then(dados => {
         console.log("🔥 [SUCESSO] Dados vindos direto do MySQL via Back-end Node.js:");
@@ -100,13 +102,15 @@ function Home() {
     }
 
     try {
-      const response = await fetch(`http://localhost:3000/api/reservas/disponibilidade?checkin=${dispo.checkin}&checkout=${dispo.checkout}`);
-      const data = await response.json();
-      
-      if (!data.disponivel) {
-        setErroDispo('Período indisponível. Escolha outras datas.');
-        setFeedbackDispo(null);
-        return;
+      if (IS_API_AVAILABLE) {
+        const response = await fetch(`${API_BASE}/api/reservas/disponibilidade?checkin=${dispo.checkin}&checkout=${dispo.checkout}`);
+        const data = await response.json();
+        
+        if (!data.disponivel) {
+          setErroDispo('Período indisponível. Escolha outras datas.');
+          setFeedbackDispo(null);
+          return;
+        }
       }
       
       const msDiff = saida.getTime() - entrada.getTime();

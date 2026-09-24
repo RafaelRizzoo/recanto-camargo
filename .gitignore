@@ -43,9 +43,9 @@ Thumbs.db
 # ============================================
 coverage
 .claude/worktrees/
-. o p e n c o d e r u l e s  
- P R O J E C T _ C O N T E X T . m d  
- s c r i p t s / c o m p r i m i r . m j s  
+.opencoderules
+PROJECT_CONTEXT.md
+scripts/comprimir.mjs
 
 # ============================================
 # SCRIPTS E TESTES LOCAIS TEMPORÁRIOS
@@ -59,6 +59,8 @@ tests/
 # AGENTES & ARQUIVOS INTERNOS
 # ============================================
 .agents/
+.opencode/
+opencode.json
 docs/
 scripts/
 ORIGINAL_REQUEST.md

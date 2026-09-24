@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAutenticacao } from './useAutenticacao';
+import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '');
+const API_URL = API_BASE;
 const INTERVALO_ATUALIZACAO = 15_000;
 const TEMPO_LIMITE = 10_000;
 const estadoInicial = (usuarioId) => ({
-  usuarioId, notificacoes: [], naoLidas: 0, carregando: !!usuarioId,
+  usuarioId, notificacoes: [], naoLidas: 0, carregando: !!(usuarioId && IS_API_AVAILABLE),
   atualizando: false, salvando: false, erro: '', sessaoEncerrada: false,
 });
 
@@ -69,7 +70,7 @@ export function useNotificacoes() {
     const sessao = { usuarioId, ativa: !!usuarioId, expirada: false, leitura: null, escrita: null };
     sessaoRef.current = sessao;
     setEstado(estadoInicial(usuarioId));
-    if (!usuarioId) return;
+    if (!usuarioId || !IS_API_AVAILABLE) return;
 
     atualizar();
     const aoRetornar = () => {

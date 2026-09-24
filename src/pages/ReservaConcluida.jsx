@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Container, Button, Card } from 'react-bootstrap';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 
@@ -21,7 +22,8 @@ function ReservaConcluida() {
   const [erro, setErro] = useState(false);
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/reservas/${id}`, { credentials: 'include' })
+    const url = API_BASE ? `${API_BASE}/api/reservas/${id}` : `http://localhost:3000/api/reservas/${id}`;
+    fetch(url, { credentials: 'include' })
       .then(resposta => {
         if (!resposta.ok) {
           throw new Error('Reserva não encontrada no Banco de Dados');

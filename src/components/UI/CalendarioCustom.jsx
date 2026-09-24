@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { verificarSeFeriado } from '../../utils/feriados';
+import { API_BASE, IS_API_AVAILABLE } from '../../utils/api';
 
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 
@@ -9,10 +10,19 @@ function CalendarioCustom({ valor, onChange, minDate }) {
   const [reservas, setReservas] = useState([]);
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/reservas/datas-ocupadas')
-      .then(res => res.json())
-      .then(data => setReservas(data))
-      .catch(err => console.error('Erro ao carregar datas ocupadas:', err));
+    if (IS_API_AVAILABLE) {
+      fetch(`${API_BASE}/api/reservas/datas-ocupadas`)
+        .then(res => res.json())
+        .then(data => setReservas(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Erro ao carregar datas ocupadas:', err));
+    } else {
+      try {
+        const locais = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
+        setReservas(Array.isArray(locais) ? locais : []);
+      } catch {
+        setReservas([]);
+      }
+    }
   }, []);
 
   const tileClassName = ({ date, view }) => {

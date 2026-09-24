@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
+import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 
 export const AuthContext = createContext(null);
 
@@ -9,7 +10,11 @@ export function ContextoAutenticacao({ children }) {
 
   // Quando o app carregar, verificar se existe um cookie de sessão válido no Back-end
   useEffect(() => {
-    fetch('http://localhost:3000/api/usuarios/sessao', { credentials: 'include' })
+    if (!IS_API_AVAILABLE) {
+      setCarregando(false);
+      return;
+    }
+    fetch(`${API_BASE}/api/usuarios/sessao`, { credentials: 'include' })
       .then(res => {
         if (!res.ok) throw new Error('Não autenticado');
         return res.json();
@@ -26,8 +31,11 @@ export function ContextoAutenticacao({ children }) {
   }, []);
 
   const login = useCallback(async (email, senha) => {
+    if (!IS_API_AVAILABLE) {
+      return { sucesso: false, mensagem: 'Servidor indisponível no ambiente de demonstração.' };
+    }
     try {
-      const res = await fetch('http://localhost:3000/api/usuarios/login', {
+      const res = await fetch(`${API_BASE}/api/usuarios/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, senha }),
@@ -49,8 +57,11 @@ export function ContextoAutenticacao({ children }) {
   }, []);
 
   const registrar = useCallback(async (dados) => {
+    if (!IS_API_AVAILABLE) {
+      return { sucesso: false, mensagem: 'Servidor indisponível no ambiente de demonstração.' };
+    }
     try {
-      const resCadastro = await fetch('http://localhost:3000/api/usuarios/cadastro', {
+      const resCadastro = await fetch(`${API_BASE}/api/usuarios/cadastro`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(dados)
@@ -71,13 +82,15 @@ export function ContextoAutenticacao({ children }) {
   }, [login]);
 
   const logout = useCallback(async () => {
-    try {
-      await fetch('http://localhost:3000/api/usuarios/logout', { 
-        method: 'POST',
-        credentials: 'include'
-      });
-    } catch (e) {
-      console.error('Erro ao fazer logout:', e);
+    if (IS_API_AVAILABLE) {
+      try {
+        await fetch(`${API_BASE}/api/usuarios/logout`, { 
+          method: 'POST',
+          credentials: 'include'
+        });
+      } catch (e) {
+        console.error('Erro ao fazer logout:', e);
+      }
     }
     setUsuario(null);
   }, []);
