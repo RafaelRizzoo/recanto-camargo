@@ -1,0 +1,280 @@
+/* ================================================================
+   TermosPrivacidade.css - Estilos para Termos de Uso e Privacidade
+   Identidade: Recanto Camargo (#223a5e, #ff9211, #fff7ed)
+   ================================================================ */
+
+.politica-pagina-shell {
+  background-color: #f8fafd;
+  min-height: 100vh;
+  padding-bottom: 4rem;
+}
+
+/* ── Hero / Cabeçalho ───────────────────────────────────────── */
+.politica-hero {
+  background: linear-gradient(135deg, #1d3150 0%, #223a5e 60%, #3b6399 100%);
+  color: #ffffff;
+  padding: 7.5rem 1rem 4rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.politica-hero::after {
+  content: "";
+  position: absolute;
+  bottom: -20px;
+  right: -20px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgba(255, 146, 17, 0.18) 0%, rgba(255, 146, 17, 0) 70%);
+  pointer-events: none;
+}
+
+.politica-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 146, 17, 0.2);
+  border: 1px solid rgba(255, 146, 17, 0.45);
+  color: #ffb85c;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.9rem;
+  border-radius: 50px;
+  margin-bottom: 1rem;
+}
+
+.politica-hero-titulo {
+  font-size: 2.35rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 0.75rem;
+  color: #ffffff;
+}
+
+.politica-hero-sub {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.85);
+  max-width: 680px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.politica-hero-meta {
+  margin-top: 1.25rem;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.65);
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+/* ── Container de Conteúdo ──────────────────────────────────── */
+.politica-conteudo-wrapper {
+  margin-top: -2rem;
+  position: relative;
+  z-index: 10;
+}
+
+.politica-card-principal {
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(34, 58, 94, 0.08);
+  border: 1px solid #e8eef5;
+  padding: 2.5rem;
+}
+
+/* ── Navegação Rápida (Sumário) ────────────────────────────── */
+.politica-sumario-box {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 14px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.politica-sumario-titulo {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #9a3412;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.politica-sumario-lista {
+  list-style: none;
+  padding-left: 0;
+  margin-bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.5rem 1.25rem;
+}
+
+.politica-sumario-lista a {
+  color: #3b6399;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: color 0.18s ease;
+}
+
+.politica-sumario-lista a:hover {
+  color: #ff9211;
+  text-decoration: underline;
+}
+
+/* ── Seções de Conteúdo ────────────────────────────────────── */
+.politica-secao {
+  margin-bottom: 2.75rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.politica-secao:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.politica-secao-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
+}
+
+.politica-secao-icone {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: rgba(34, 58, 94, 0.08);
+  color: #223a5e;
+  display: grid;
+  place-items: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.politica-secao-titulo {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #223a5e;
+  margin-bottom: 0;
+}
+
+.politica-secao p,
+.politica-secao li {
+  color: #475569;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.politica-secao ul {
+  padding-left: 1.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.politica-secao li {
+  margin-bottom: 0.5rem;
+}
+
+/* ── Destaques e Alertas ───────────────────────────────────── */
+.politica-box-destaque {
+  background: #f8fafc;
+  border-left: 4px solid #ff9211;
+  border-radius: 0 12px 12px 0;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  font-size: 0.92rem;
+  color: #334155;
+}
+
+.politica-box-aviso {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1.25rem 0;
+  color: #78350f;
+  font-size: 0.92rem;
+}
+
+/* ── Tabela Informativa ────────────────────────────────────── */
+.politica-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.25rem 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.politica-tabela th {
+  background: #f1f5f9;
+  color: #223a5e;
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.politica-tabela td {
+  padding: 0.85rem 1rem;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+/* ── Rodapé do Documento / Ações ───────────────────────────── */
+.politica-rodape-acoes {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.btn-voltar-politica {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  border-radius: 50px;
+  background: #223a5e;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.btn-voltar-politica:hover {
+  background: #ff9211;
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .politica-hero {
+    padding: 3.5rem 1rem 2.5rem;
+  }
+  .politica-hero-titulo {
+    font-size: 1.8rem;
+  }
+  .politica-card-principal {
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+}

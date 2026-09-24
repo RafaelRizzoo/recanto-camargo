@@ -145,10 +145,10 @@ exports.listarReservas = async (req, res) => {
                     nota: avaliacaoNota,
                     comentario: avaliacaoComentario,
                     data: avaliacaoData,
-                    respostaNota,
+                    respostaNota: null,
                     respostaComentario,
                     respostaData
-                })
+                }, false)
             };
         });
 
@@ -158,3 +158,38 @@ exports.listarReservas = async (req, res) => {
         res.status(500).json({ error: 'Erro interno' });
     }
 };
+
+exports.obterReputacao = async (req, res) => {
+    try {
+        const hospedeId = req.usuario.id;
+        const [reputacao] = await db.query(
+            `SELECT 
+                AVG(Ava_NotaPropietario) AS notaMedia,
+                COUNT(Ava_NotaPropietario) AS totalAvaliadas
+             FROM ava_avaliacao
+             WHERE Usu_Hos_Id = ? AND Ava_NotaPropietario IS NOT NULL`,
+            [hospedeId]
+        );
+
+        const total = Number(reputacao[0]?.totalAvaliadas || 0);
+        let nota = 5.0;
+        let badge = 'Hóspede Exemplar';
+
+        if (total > 0 && reputacao[0]?.notaMedia !== null) {
+            nota = Number(Number(reputacao[0].notaMedia).toFixed(1));
+            if (nota >= 4.8) badge = 'Hóspede Exemplar';
+            else if (nota >= 4.0) badge = 'Hóspede Confiável';
+            else badge = 'Hóspede';
+        }
+
+        res.json({
+            nota: nota.toFixed(1),
+            badge,
+            totalAvaliadas: total
+        });
+    } catch (error) {
+        console.error('Erro ao calcular reputação do hóspede:', error);
+        res.status(500).json({ error: 'Erro interno ao calcular reputação.' });
+    }
+};
+

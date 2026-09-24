@@ -10,4 +10,18 @@ router.get('/reservas', verificarToken, verificarProprietario, proprietarioContr
 router.get('/avaliacoes/pendentes', verificarToken, verificarProprietario, proprietarioController.listarAvaliacoesPendentes);
 router.patch('/avaliacoes/:id/responder', verificarToken, verificarProprietario, proprietarioController.responderAvaliacao);
 
+// Métricas da Dashboard
+router.get('/metricas', verificarToken, verificarProprietario, proprietarioController.obterMetricasDashboard);
+
+// Gestão de Bloqueios de Datas
+router.get('/bloqueios', verificarToken, verificarProprietario, proprietarioController.listarBloqueios);
+router.post('/bloqueios', verificarToken, verificarProprietario, proprietarioController.criarBloqueio);
+router.delete('/bloqueios/:id', verificarToken, verificarProprietario, proprietarioController.removerBloqueio);
+
+// Gestão de Cupons
+router.get('/cupons', verificarToken, verificarProprietario, proprietarioController.listarCuponsProprietario);
+router.post('/cupons', verificarToken, verificarProprietario, proprietarioController.criarCupom);
+router.patch('/cupons/:id/status', verificarToken, verificarProprietario, proprietarioController.atualizarStatusCupom);
+
 module.exports = router;
+

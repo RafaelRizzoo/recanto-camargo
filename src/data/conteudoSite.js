@@ -212,4 +212,6 @@ export const linksFooter = [
   { id: "fotos", label: "Fotos da Casa", to: "/Fotos" },
   { id: "avaliacoes", label: "Avaliações", to: "/Avaliacoes" },
   { id: "reserva", label: "Reservar", to: "/Reserva" },
+  { id: "termos", label: "Termos de Uso", to: "/TermosDeUso" },
+  { id: "privacidade", label: "Privacidade (LGPD)", to: "/Privacidade" },
 ];

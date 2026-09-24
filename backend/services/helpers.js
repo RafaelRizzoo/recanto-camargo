@@ -125,7 +125,11 @@ function normalizarCupom(cupom) {
         tipoDesconto,
         valorDesconto,
         validoAte: cupom.Cup_DataValidade,
-        limiteUso
+        limiteUso,
+        publicoAlvo: cupom.Cup_PublicoAlvo || 'TODOS',
+        clienteId: cupom.Cup_Cliente_Usu_Id ? Number(cupom.Cup_Cliente_Usu_Id) : null,
+        minimoNoites: cupom.Cup_MinimoNoites ? Number(cupom.Cup_MinimoNoites) : 1,
+        valorMinimo: cupom.Cup_ValorMinimo ? Number(cupom.Cup_ValorMinimo) : 0
     };
 }
 
@@ -138,6 +142,10 @@ async function buscarCupomPorCodigo(executor, codigo) {
             Cup_ValorDoDesconto,
             DATE_FORMAT(Cup_DataValidade, '%Y-%m-%d') AS Cup_DataValidade,
             Cup_LimiteUso,
+            Cup_PublicoAlvo,
+            Cup_Cliente_Usu_Id,
+            Cup_MinimoNoites,
+            Cup_ValorMinimo,
             (Cup_DataValidade < CURDATE()) AS Cup_Expirado
          FROM cup_cupom
          WHERE UPPER(Cup_Codigo) = UPPER(?)
@@ -166,6 +174,10 @@ async function buscarCupomPorIdComLock(executor, cupomId) {
             Cup_ValorDoDesconto,
             DATE_FORMAT(Cup_DataValidade, '%Y-%m-%d') AS Cup_DataValidade,
             Cup_LimiteUso,
+            Cup_PublicoAlvo,
+            Cup_Cliente_Usu_Id,
+            Cup_MinimoNoites,
+            Cup_ValorMinimo,
             (Cup_DataValidade < CURDATE()) AS Cup_Expirado
          FROM cup_cupom
          WHERE Cup_Id = ?
@@ -180,7 +192,7 @@ async function buscarCupomPorIdComLock(executor, cupomId) {
     return cupons[0];
 }
 
-async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = false) {
+async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = false, reservaContexto = {}) {
     if (Number(cupomDb.Cup_Expirado) === 1) {
         throw new ErroHttp(400, 'Este cupom expirou.');
     }
@@ -196,6 +208,71 @@ async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = f
     if (!Number.isSafeInteger(totalCodigos) || totalCodigos !== 1) {
         console.error('Inconsistência de integridade: código de cupom duplicado ou inválido.');
         throw new ErroHttp(409, 'Não foi possível validar este cupom.');
+    }
+
+    // Regra 1: Público Alvo - Cliente Específico
+    if (cupom.publicoAlvo === 'CLIENTE_ESPECIFICO') {
+        if (cupom.clienteId && Number(cupom.clienteId) !== Number(hospedeId)) {
+            throw new ErroHttp(403, 'Este cupom é exclusivo e intransferível para outro destinatário.');
+        }
+    }
+
+    // Regra 2: Público Alvo - Primeira Reserva
+    if (cupom.publicoAlvo === 'PRIMEIRA_RESERVA') {
+        const [reservasAnteriores] = await executor.query(
+            `SELECT Res_Id FROM res_reserva 
+             WHERE Hos_Hospede_Usu_Id = ? 
+               AND Res_Status IN ('CONFIRMADA', 'CONCLUIDA')
+             LIMIT 1`,
+            [hospedeId]
+        );
+        if (reservasAnteriores.length > 0) {
+            throw new ErroHttp(400, 'Este cupom é válido apenas na primeira reserva do hóspede.');
+        }
+    }
+
+    if (cupom.publicoAlvo === 'CLIENTE_RETORNANTE') {
+        const [reservasRetorno] = await executor.query(
+            `SELECT 
+                SUM(CASE WHEN Res_Status = 'CONCLUIDA' THEN 1 ELSE 0 END) as totalConcluidas,
+                SUM(CASE WHEN Res_Status = 'CONCLUIDA' AND Res_DataCheckOut >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH) THEN 1 ELSE 0 END) as totalRecentes
+             FROM res_reserva
+             WHERE Hos_Hospede_Usu_Id = ?`,
+            [hospedeId]
+        );
+        
+        if (Number(reservasRetorno[0].totalConcluidas) === 0) {
+            throw new ErroHttp(400, 'Este cupom é válido apenas para clientes retornantes com reservas anteriores.');
+        }
+        if (Number(reservasRetorno[0].totalRecentes) > 0) {
+            throw new ErroHttp(400, 'Este cupom é para clientes que não reservam há mais de 6 meses.');
+        }
+    }
+
+    if (cupom.publicoAlvo === 'CLIENTE_RECORRENTE') {
+        const [reservasRecorrentes] = await executor.query(
+            `SELECT COUNT(*) as total FROM res_reserva 
+             WHERE Hos_Hospede_Usu_Id = ? 
+               AND Res_Status IN ('CONFIRMADA', 'CONCLUIDA')`,
+            [hospedeId]
+        );
+        if (Number(reservasRecorrentes[0].total) < 2) {
+            throw new ErroHttp(400, 'Este cupom é válido apenas para clientes recorrentes (2 ou mais reservas).');
+        }
+    }
+
+    // Regra 3: Mínimo de noites (se informado no contexto)
+    if (reservaContexto.noites && Number(cupom.minimoNoites) > 1) {
+        if (Number(reservaContexto.noites) < Number(cupom.minimoNoites)) {
+            throw new ErroHttp(400, `Este cupom exige uma estadia mínima de ${cupom.minimoNoites} noites.`);
+        }
+    }
+
+    // Regra 4: Valor mínimo de reserva (se informado no contexto)
+    if (reservaContexto.subtotal && Number(cupom.valorMinimo) > 0) {
+        if (Number(reservaContexto.subtotal) < Number(cupom.valorMinimo)) {
+            throw new ErroHttp(400, `Este cupom exige um valor mínimo de R$ ${Number(cupom.valorMinimo).toFixed(2)}.`);
+        }
     }
 
     const consultaUsos = bloquearUsos

@@ -33,6 +33,7 @@ const banco = {
             return [[{ Imo_ValorFixo: '150.00' }]];
         }
         if (texto.startsWith('SELECT Res_Id FROM res_reserva')) return [estado.conflito ? [{ Res_Id: 500 }] : []];
+        if (texto.startsWith('SELECT Blo_Id FROM blo_bloqueiohospede')) return [estado.bloqueio ? [{ Blo_Id: 700 }] : []];
         if (texto.startsWith('INSERT INTO res_reserva')) {
             assert.ok(estado.transacao);
             assert.match(texto, /'PENDENTE'/);

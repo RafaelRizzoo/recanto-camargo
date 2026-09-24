@@ -17,6 +17,8 @@ const Fotos                  = lazy(() => import("./pages/Fotos"));
 const DashboardAdministrador = lazy(() => import("./pages/DashboardAdministrador"));
 const DashboardCliente       = lazy(() => import("./pages/DashboardCliente"));
 const ReservaConcluida       = lazy(() => import("./pages/ReservaConcluida"));
+const TermosDeUso             = lazy(() => import("./pages/TermosDeUso"));
+const Privacidade             = lazy(() => import("./pages/Privacidade"));
 
 const ROTAS_SEM_LAYOUT = [
   '/Login',
@@ -82,6 +84,10 @@ function AppContent() {
             <Route path="/Reserva"                element={<Reserva />} />
             <Route path="/Avaliacoes"             element={<Avaliacoes />} />
             <Route path="/Fotos"                  element={<Fotos />} />
+            <Route path="/TermosDeUso"            element={<TermosDeUso />} />
+            <Route path="/termosdeuso"            element={<Navigate to="/TermosDeUso" replace />} />
+            <Route path="/Privacidade"            element={<Privacidade />} />
+            <Route path="/privacidade"            element={<Navigate to="/Privacidade" replace />} />
             <Route path="/DashboardAdministrador" element={<RotaProtegida elemento={<DashboardAdministrador />} tipoRequerido="proprietario" />} />
             <Route path="/DashboardCliente"       element={<RotaProtegida elemento={<DashboardCliente />} tipoRequerido="hospede" />} />
             <Route path="*"                       element={<Navigate to="/" replace />} />

@@ -48,10 +48,19 @@ coverage
  s c r i p t s / c o m p r i m i r . m j s  
 
 # ============================================
-# AGENTES & DOCUMENTAÇÃO LOCAL
+# SCRIPTS E TESTES LOCAIS TEMPORÁRIOS
+# ============================================
+backend/run_migration.cjs
+backend/tests/*.cjs
+backend/tests/sprint2.integration.js
+tests/
+
+# ============================================
+# AGENTES & ARQUIVOS INTERNOS
 # ============================================
 .agents/
 docs/
+scripts/
 ORIGINAL_REQUEST.md
 PROJECT.md
 TEST_INFRA.md

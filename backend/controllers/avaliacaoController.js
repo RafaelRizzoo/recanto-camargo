@@ -62,11 +62,16 @@ exports.criarAvaliacao = async (req, res) => {
             throw new ErroHttp(409, 'Esta reserva já foi avaliada.');
         }
 
+        const limpeza = req.body?.limpeza !== undefined ? normalizarNota(req.body.limpeza) : nota;
+        const comunicacao = req.body?.comunicacao !== undefined ? normalizarNota(req.body.comunicacao) : nota;
+        const localizacao = req.body?.localizacao !== undefined ? normalizarNota(req.body.localizacao) : nota;
+        const custoBeneficio = req.body?.custoBeneficio !== undefined ? normalizarNota(req.body.custoBeneficio) : nota;
+
         const [resultado] = await conexao.query(
             `INSERT INTO ava_avaliacao
-             (Imo_Id, Res_Id, Usu_Hos_Id, Ava_Nota, Ava_Comentario, Ava_Data)
-             VALUES (?, ?, ?, ?, ?, NOW())`,
-            [reserva.Imo_Id, reservaId, hospedeId, nota, comentario]
+             (Imo_Id, Res_Id, Usu_Hos_Id, Ava_Nota, Ava_Limpeza, Ava_Comunicacao, Ava_Localizacao, Ava_CustoBeneficio, Ava_Comentario, Ava_Data)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [reserva.Imo_Id, reservaId, hospedeId, nota, limpeza, comunicacao, localizacao, custoBeneficio, comentario]
         );
 
         await conexao.query(
@@ -84,6 +89,10 @@ exports.criarAvaliacao = async (req, res) => {
             `SELECT
                 Ava_Id AS id,
                 Ava_Nota AS nota,
+                Ava_Limpeza AS limpeza,
+                Ava_Comunicacao AS comunicacao,
+                Ava_Localizacao AS localizacao,
+                Ava_CustoBeneficio AS custoBeneficio,
                 Ava_Comentario AS comentario,
                 DATE_FORMAT(Ava_Data, '%Y-%m-%d') AS data,
                 Ava_NotaPropietario AS respostaNota,
@@ -163,8 +172,13 @@ exports.listarPublicas = async (req, res) => {
             `SELECT
                 a.Ava_Id AS id,
                 a.Ava_Nota AS nota,
+                a.Ava_Limpeza AS limpeza,
+                a.Ava_Comunicacao AS comunicacao,
+                a.Ava_Localizacao AS localizacao,
+                a.Ava_CustoBeneficio AS custoBeneficio,
                 a.Ava_Comentario AS comentario,
                 DATE_FORMAT(a.Ava_Data, '%Y-%m-%d') AS data,
+                u.Usu_Nome AS hospedeNome,
                 NULL AS respostaNota,
                 a.Ava_ComentarioPropietario AS respostaComentario,
                 DATE_FORMAT(a.Ava_DataPropietario, '%Y-%m-%d') AS respostaData
@@ -173,12 +187,32 @@ exports.listarPublicas = async (req, res) => {
                 ON r.Res_Id = a.Res_Id
                 AND r.Imo_Id = a.Imo_Id
                 AND r.Hos_Hospede_Usu_Id = a.Usu_Hos_Id
+             INNER JOIN usu_usuario u ON u.Usu_Id = a.Usu_Hos_Id
              WHERE a.Imo_Id = ? AND r.Res_Status = ?
              ORDER BY a.Ava_Data DESC, a.Ava_Id DESC`,
             [imovelId, 'CONCLUIDA']
         );
 
-        res.json(avaliacoes.map(avaliacao => normalizarAvaliacao(avaliacao, false)));
+        const formatadas = avaliacoes.map(a => ({
+            id: Number(a.id),
+            nota: Number(a.nota),
+            limpeza: Number(a.limpeza || a.nota),
+            comunicacao: Number(a.comunicacao || a.nota),
+            localizacao: Number(a.localizacao || a.nota),
+            custoBeneficio: Number(a.custoBeneficio || a.nota),
+            comentario: a.comentario || '',
+            data: a.data,
+            hospede: {
+                nome: a.hospedeNome || 'Hóspede verificado',
+                verificado: true
+            },
+            respostaProprietario: a.respostaComentario ? {
+                comentario: a.respostaComentario,
+                data: a.respostaData
+            } : null
+        }));
+
+        res.json(formatadas);
     } catch (error) {
         if (error instanceof ErroHttp) {
             return res.status(error.status).json({ error: error.message });

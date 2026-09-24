@@ -27,7 +27,18 @@ exports.checarDisponibilidade = async (req, res) => {
         const [reservasConflitantes] = await db.query(queryConflito, valoresConflito);
 
         if (reservasConflitantes.length > 0) {
-            return res.json({ disponivel: false });
+            return res.json({ disponivel: false, motivo: 'Data já reservada.' });
+        }
+
+        // Verifica bloqueios manuais do proprietário
+        const [bloqueios] = await db.query(
+            `SELECT Blo_Id FROM blo_bloqueiohospede
+             WHERE Imo_Id = ? AND Blo_Data >= ? AND Blo_Data < ?`,
+            [imoId, checkin, checkout]
+        );
+
+        if (bloqueios.length > 0) {
+            return res.json({ disponivel: false, motivo: 'Data bloqueada para manutenção pelo proprietário.' });
         }
         
         return res.json({ disponivel: true });
@@ -50,7 +61,23 @@ exports.datasOcupadas = async (req, res) => {
             AND Res_DataCheckOut >= CURDATE()
         `;
         const [datas] = await db.query(query, [imoId]);
-        res.json(datas);
+
+        const [bloqueios] = await db.query(
+            `SELECT DATE_FORMAT(Blo_Data, '%Y-%m-%d') as data
+             FROM blo_bloqueiohospede
+             WHERE Imo_Id = ? AND Blo_Data >= CURDATE()
+             ORDER BY Blo_Data ASC`,
+            [imoId]
+        );
+
+        const bloqueiosFormatados = bloqueios.map(b => {
+            const dt = new Date(b.data + 'T12:00:00Z');
+            dt.setUTCDate(dt.getUTCDate() + 1);
+            const checkoutBloqueio = dt.toISOString().slice(0, 10);
+            return { checkin: b.data, checkout: checkoutBloqueio, tipo: 'MANUTENCAO' };
+        });
+
+        res.json([...datas, ...bloqueiosFormatados]);
     } catch (error) {
         console.error('Erro ao buscar datas ocupadas:', error);
         res.status(500).json({ error: 'Erro interno ao buscar datas ocupadas.' });
@@ -130,6 +157,19 @@ exports.criarReserva = async (req, res) => {
             return res.status(409).json({ error: 'As datas selecionadas já foram reservadas por outro hóspede.' });
         }
 
+        // Verifica bloqueios manuais do proprietário
+        const [bloqueiosConflitantes] = await conexao.query(
+            `SELECT Blo_Id FROM blo_bloqueiohospede
+             WHERE Imo_Id = ? AND Blo_Data >= ? AND Blo_Data < ?`,
+            [imoId, checkin, checkout]
+        );
+
+        if (bloqueiosConflitantes.length > 0) {
+            await conexao.rollback();
+            conexao.release();
+            return res.status(409).json({ error: 'As datas selecionadas estão bloqueadas para manutenção pelo proprietário.' });
+        }
+
         const msPorDia = 1000 * 60 * 60 * 24;
         const diffTime = Math.abs(dataCheckout - dataCheckin);
         const quantidadeNoites = Math.ceil(diffTime / msPorDia);
@@ -138,7 +178,10 @@ exports.criarReserva = async (req, res) => {
 
         if (cupomIdSeguro !== null) {
             const cupomDb = await buscarCupomPorIdComLock(conexao, cupomIdSeguro);
-            const cupom = await validarRegrasCupom(conexao, cupomDb, hospedeId, true);
+            const cupom = await validarRegrasCupom(conexao, cupomDb, hospedeId, true, {
+                noites: quantidadeNoites,
+                subtotal: valorFinalSeguro
+            });
 
             const subtotalCentavos = Math.round(valorFinalSeguro * 100);
             if (!Number.isSafeInteger(subtotalCentavos) || subtotalCentavos < 0) {

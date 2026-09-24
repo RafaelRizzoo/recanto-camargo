@@ -1137,3 +1137,11 @@
     flex: 1 1 100%;
   }
 }
+
+/* ── Estrelas animadas modal avaliar ────────────────────────── */
+.estrela-animada {
+  transition: transform 0.15s ease;
+}
+.estrela-animada:hover {
+  transform: scale(1.15);
+}

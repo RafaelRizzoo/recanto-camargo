@@ -276,25 +276,25 @@ ModalCancelar.propTypes = {
 
 // ─── Modal Avaliação ──────────────────────────────────────────────────────────
 function ModalAvaliar({ reserva, aoFechar, aoEnviar, enviando, erro }) {
-  const [nota, setNota] = useState(5);
+  const [limpeza, setLimpeza] = useState(5);
+  const [comunicacao, setComunicacao] = useState(5);
+  const [localizacao, setLocalizacao] = useState(5);
+  const [custoBeneficio, setCustoBeneficio] = useState(5);
   const [comentario, setComentario] = useState('');
 
   useEffect(() => {
-    setNota(5);
+    setLimpeza(5);
+    setComunicacao(5);
+    setLocalizacao(5);
+    setCustoBeneficio(5);
     setComentario('');
   }, [reserva?.id]);
 
   if (!reserva) return null;
 
-  const descricaoNota = nota <= 1.5
-    ? 'Muito ruim'
-    : nota <= 2.5
-      ? 'Ruim'
-      : nota <= 3.5
-        ? 'Regular'
-        : nota <= 4.5
-          ? 'Bom'
-          : 'Excelente!';
+  // Média ponderada com arredondamento seguro para intervalo de meio ponto
+  const mediaExata = (limpeza + comunicacao + localizacao + custoBeneficio) / 4;
+  const notaGeral = Math.round(mediaExata * 2) / 2;
 
   return (
     <Modal
@@ -303,10 +303,11 @@ function ModalAvaliar({ reserva, aoFechar, aoEnviar, enviando, erro }) {
       backdrop={enviando ? 'static' : true}
       keyboard={!enviando}
       centered
+      size="lg"
       className="cli-modal cli-modal-avaliar"
     >
       <Modal.Header closeButton={!enviando} className="cli-modal-header">
-        <Modal.Title>Avaliar Estadia</Modal.Title>
+        <Modal.Title>Avaliar Estadia no Recanto Camargo</Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
         <div className="text-center mb-4">
@@ -316,34 +317,107 @@ function ModalAvaliar({ reserva, aoFechar, aoEnviar, enviando, erro }) {
           <div className="fw-bold text-azul">{reserva.imovel}</div>
           <div className="text-muted small">{fmtData(reserva.checkin)} → {fmtData(reserva.checkout)}</div>
         </div>
-        <div className="text-center mb-4">
-          <p className="fw-semibold mb-2" style={{ color: '#223a5e' }}>Como foi sua estadia?</p>
-          <div className="d-flex justify-content-center mb-2">
-            <Estrelas nota={nota} tamanho="2rem" />
+
+        {/* Nota Média Geral */}
+        <div className="text-center mb-4 p-3 rounded-4" style={{ background: '#f8fafd', border: '1px solid #e2e8f0' }}>
+          <p className="fw-bold mb-1" style={{ color: '#223a5e' }}>Avaliação Geral do Chalé</p>
+          <div className="d-flex align-items-center justify-content-center gap-2 mb-1">
+            <span className="fs-2 fw-bold" style={{ color: '#223a5e' }}>{notaGeral.toFixed(1)}</span>
+            <Estrelas nota={notaGeral} tamanho="1.6rem" />
           </div>
-          <label htmlFor="nota-avaliacao" className="visually-hidden">Nota da estadia</label>
-          <input
-            id="nota-avaliacao"
-            type="range"
-            className="form-range cli-nota-range mx-auto"
-            min="1"
-            max="5"
-            step="0.5"
-            value={nota}
-            onChange={e => setNota(Number(e.target.value))}
-            disabled={enviando}
-            aria-valuetext={`${nota.toLocaleString('pt-BR')} de 5 — ${descricaoNota}`}
-          />
-          <div className="text-muted small mt-1" aria-live="polite">
-            <strong>{nota.toLocaleString('pt-BR')} de 5</strong> — {descricaoNota}
-            <span className="d-block">Ajuste de meio em meio ponto.</span>
-          </div>
+          <small className="text-muted">Calculada com base nos 4 critérios abaixo</small>
         </div>
+
+        {/* Os 4 Subcritérios */}
+        <p className="fw-semibold mb-3" style={{ color: '#223a5e' }}>Classifique cada critério da sua estadia:</p>
+        <Row className="g-3 mb-4">
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-stars text-warning me-1"></i>Limpeza
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{limpeza.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${limpeza >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setLimpeza(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-chat-dots-fill text-primary me-1"></i>Comunicação
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{comunicacao.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${comunicacao >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setComunicacao(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-geo-alt-fill text-danger me-1"></i>Localização
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{localizacao.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${localizacao >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setLocalizacao(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-tag-fill text-success me-1"></i>Custo-benefício
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{custoBeneficio.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${custoBeneficio >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setCustoBeneficio(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+        </Row>
+
         <label htmlFor="comentario-avaliacao" className="label-config mb-2 d-block">Seu comentário (opcional)</label>
         <textarea
           id="comentario-avaliacao"
           className="form-controle-config w-100"
-          rows={4}
+          rows={3}
           maxLength={255}
           placeholder="Conte como foi sua experiência no Recanto Camargo..."
           value={comentario}
@@ -366,7 +440,14 @@ function ModalAvaliar({ reserva, aoFechar, aoEnviar, enviando, erro }) {
         <Button
           className="btn-autenticacao btn-inline"
           style={{ minWidth: '160px' }}
-          onClick={() => aoEnviar(reserva.id, nota, comentario)}
+          onClick={() => aoEnviar(reserva.id, {
+            nota: notaGeral,
+            limpeza,
+            comunicacao,
+            localizacao,
+            custoBeneficio,
+            comentario
+          })}
           disabled={enviando}
         >
           {enviando
@@ -462,7 +543,7 @@ CardReserva.propTypes = {
 };
 
 // ─── Aba: Visão Geral ─────────────────────────────────────────────────────────
-function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
+function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao }) {
   const hoje = new Date();
   const proxima = useMemo(() =>
     reservas
@@ -478,7 +559,21 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
     <>
       <p className="dash-section-label">Resumo da Conta</p>
       <Row className="g-3 mb-4">
-        <Col xs={12} md={6} xl={4}>
+        <Col xs={12} sm={6} xl={4}>
+          <div className="cli-card-resumo">
+            <div className="cli-card-resumo-icone" style={{ background: '#fff7ed', color: '#ff9211' }}>
+              <i className="bi bi-patch-check-fill fs-4"></i>
+            </div>
+            <div className="cli-card-resumo-valor d-flex align-items-center gap-1">
+              <span style={{ color: '#ff9211' }}>★</span> {reputacao?.nota || '5,0'}
+            </div>
+            <div className="cli-card-resumo-titulo">{reputacao?.badge || 'Hóspede Exemplar'}</div>
+            <div className="cli-card-resumo-sub">
+              {reputacao?.totalAvaliadas ? `${reputacao.totalAvaliadas} estadia(s) avaliada(s)` : 'Perfil verificado e exemplar'}
+            </div>
+          </div>
+        </Col>
+        <Col xs={12} sm={6} xl={4}>
           <div className={`cli-card-resumo ${proxima ? 'destaque' : 'vazio'}`}>
             <div className="cli-card-resumo-icone" style={{ background: '#f0f7ff', color: '#3b6399' }}>
               <i className="bi bi-calendar-heart fs-4"></i>
@@ -490,7 +585,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             </div>
           </div>
         </Col>
-        <Col xs={6} md={6} xl={4}>
+        <Col xs={6} sm={6} xl={4}>
           <div className="cli-card-resumo">
             <div className="cli-card-resumo-icone" style={{ background: '#d1fae5', color: '#065f46' }}>
               <i className="bi bi-house-check fs-4"></i>
@@ -500,7 +595,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             <div className="cli-card-resumo-sub">{reservas.filter(r => r.status === 'concluida').length} concluída(s)</div>
           </div>
         </Col>
-        <Col xs={6} md={6} xl={4}>
+        <Col xs={6} sm={6} xl={6}>
           <div className="cli-card-resumo">
             <div className="cli-card-resumo-icone" style={{ background: '#fef3c7', color: '#92400e' }}>
               <i className="bi bi-star-fill fs-4"></i>
@@ -512,7 +607,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             </div>
           </div>
         </Col>
-        <Col xs={6} md={6} xl={3}>
+        <Col xs={12} sm={6} xl={6}>
           <div className="cli-card-resumo">
             <div className="cli-card-resumo-icone" style={{ background: '#fce7f3', color: '#9d174d' }}>
               <i className="bi bi-tag-fill fs-4"></i>
@@ -843,6 +938,7 @@ function DashboardCliente() {
   const [cuponsCarregando, setCuponsCarregando] = useState(true);
   const [erroCupons,     setErroCupons]    = useState('');
   const [feedback,      setFeedback]      = useState({ tipo: '', msg: '' });
+  const [reputacao,     setReputacao]     = useState({ nota: '5.0', badge: 'Hóspede Exemplar', totalAvaliadas: 0 });
 
   // Modais
   const [modalDetalhe,  setModalDetalhe]  = useState(null);
@@ -911,8 +1007,25 @@ function DashboardCliente() {
       }
     }
 
+    async function carregarReputacao() {
+      try {
+        const resp = await fetch('http://localhost:3000/api/hospede/me/reputacao', {
+          credentials: 'include',
+        });
+        if (resp.ok) {
+          const dados = await resp.json();
+          if (dados && dados.nota) {
+            setReputacao(dados);
+          }
+        }
+      } catch (erro) {
+        console.error('Erro ao carregar reputação do hóspede:', erro);
+      }
+    }
+
     carregarReservas();
     carregarCupons();
+    carregarReputacao();
   }, []);
 
   const salvarReservas = (novas) => {
@@ -963,11 +1076,28 @@ function DashboardCliente() {
   }, [avaliacaoEnviando]);
 
   // Enviar avaliação real; a resposta confirmada pelo servidor atualiza a tela.
-  const enviarAvaliacao = useCallback(async (id, nota, comentario) => {
+  const enviarAvaliacao = useCallback(async (id, dadosAvaliacao) => {
     if (avaliacaoEnviando) return;
 
-    const notaNumero = Number(nota);
-    const comentarioLimpo = comentario.trim();
+    let notaNumero = 5;
+    let limpezaNum = 5;
+    let comunicacaoNum = 5;
+    let localizacaoNum = 5;
+    let custoBeneficioNum = 5;
+    let comentarioLimpo = '';
+
+    if (typeof dadosAvaliacao === 'object' && dadosAvaliacao !== null) {
+      notaNumero = Number(dadosAvaliacao.nota || 5);
+      limpezaNum = Number(dadosAvaliacao.limpeza || 5);
+      comunicacaoNum = Number(dadosAvaliacao.comunicacao || 5);
+      localizacaoNum = Number(dadosAvaliacao.localizacao || 5);
+      custoBeneficioNum = Number(dadosAvaliacao.custoBeneficio || 5);
+      comentarioLimpo = String(dadosAvaliacao.comentario || '').trim();
+    } else {
+      notaNumero = Number(dadosAvaliacao);
+      comentarioLimpo = String(arguments[2] || '').trim();
+    }
+
     if (!Number.isFinite(notaNumero) || notaNumero < 1 || notaNumero > 5 || !Number.isInteger(notaNumero * 2)) {
       setErroAvaliacao('Escolha uma nota entre 1 e 5, em intervalos de meio ponto.');
       return;
@@ -985,7 +1115,15 @@ function DashboardCliente() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ reservaId: id, nota: notaNumero, comentario: comentarioLimpo }),
+        body: JSON.stringify({
+          reservaId: id,
+          nota: notaNumero,
+          limpeza: limpezaNum,
+          comunicacao: comunicacaoNum,
+          localizacao: localizacaoNum,
+          custoBeneficio: custoBeneficioNum,
+          comentario: comentarioLimpo
+        }),
       });
       const dados = await resposta.json().catch(() => null);
 
@@ -1034,6 +1172,7 @@ function DashboardCliente() {
             cupons={cupons}
             onVerReserva={setModalDetalhe}
             onIrAba={irAba}
+            reputacao={reputacao}
           />
         );
       case 'reservas':
@@ -1138,7 +1277,17 @@ function DashboardCliente() {
               <h4 className="topbar-cli-titulo mb-0">
                 {abas.find(a => a.id === abaAtiva)?.label}
               </h4>
-              <span className="topbar-cli-sub">Olá, {usuario?.nome?.split(' ')[0]}! 👋</span>
+              <div className="d-flex align-items-center gap-2 mt-1">
+                <span className="topbar-cli-sub">Olá, {usuario?.nome?.split(' ')[0]}! 👋</span>
+                <span
+                  className="badge px-2 py-1 rounded-pill d-inline-flex align-items-center"
+                  style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #ffedd5', fontSize: '0.78rem', fontWeight: 600 }}
+                  title={`${reputacao?.totalAvaliadas || 0} estadia(s) avaliada(s) pelo anfitrião`}
+                >
+                  <i className="bi bi-star-fill text-warning me-1"></i>
+                  {reputacao?.nota || '5.0'} · {reputacao?.badge || 'Hóspede Exemplar'}
+                </span>
+              </div>
             </div>
           </div>
           <Notificacoes />

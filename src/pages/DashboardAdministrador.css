@@ -876,3 +876,465 @@
     text-align: center;
   }
 }
+.btn-bloquear-datas-admin {
+  background-color: #ff9211;
+  border-color: #ff9211;
+  color: #ffffff;
+}
+.btn-bloquear-datas-admin:hover,
+.btn-bloquear-datas-admin:focus {
+  background-color: #ee7f01;
+  border-color: #ee7f01;
+  color: #ffffff;
+}
+
+/* ─── Painel do Administrador: Estilos Modernizados ──────────── */
+
+/* ── KPI Cards Modernos ─────────────────────────────────────── */
+.card-kpi-moderno {
+  background: #ffffff;
+  border-radius: 18px !important;
+  border: 1px solid #e8eef5 !important;
+  box-shadow: 0 4px 18px rgba(34, 58, 94, 0.05) !important;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.card-kpi-moderno:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(34, 58, 94, 0.1) !important;
+}
+
+.titulo-kpi-moderno {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.icone-kpi-moderno {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+}
+
+.valor-kpi-moderno {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #223a5e;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sub-kpi-moderno {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.barra-progresso-kpi {
+  width: 100%;
+  height: 7px;
+  background: #f1f5f9;
+  border-radius: 50px;
+  overflow: hidden;
+}
+
+.barra-progresso-kpi-fill {
+  height: 100%;
+  border-radius: 50px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-badge-variacao {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.kpi-badge-variacao.positiva {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.kpi-badge-variacao.negativa {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+/* ── Gráfico SVG Moderno de Faturamento ─────────────────────── */
+.card-grafico-svg {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e8eef5;
+  box-shadow: 0 4px 18px rgba(34, 58, 94, 0.05);
+}
+
+.badge-total-6m {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  padding: 0.35rem 0.85rem;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.grafico-svg-container {
+  min-height: 210px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.grafico-tooltip-flutuante {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: #223a5e;
+  color: #ffffff;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  animation: fadeInTooltip 0.15s ease-in-out;
+}
+
+.grafico-tooltip-flutuante::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #223a5e transparent transparent transparent;
+}
+
+@keyframes fadeInTooltip {
+  from { opacity: 0; transform: translate(-50%, -90%); }
+  to { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+/* ── Card de Próximos Check-ins & WhatsApp ──────────────────── */
+.card-checkins-admin {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e8eef5;
+  box-shadow: 0 4px 18px rgba(34, 58, 94, 0.05);
+}
+
+.item-checkin-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+
+.item-checkin-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.avatar-checkin {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #223a5e 0%, #3b6399 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.15rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(34, 58, 94, 0.2);
+}
+
+.btn-whatsapp-checkin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #25d366;
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 50px;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 10px rgba(37, 211, 102, 0.25);
+  border: none;
+}
+
+.btn-whatsapp-checkin:hover {
+  background: #1ebd5a;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(37, 211, 102, 0.35);
+}
+
+/* ── Calendário Duplo & Hachura de Manutenção ────────────────── */
+.calendario-duplo-wrapper {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 1.75rem;
+  box-shadow: 0 2px 14px rgba(34, 58, 94, 0.06);
+  border: 1px solid #e8eef5;
+}
+
+.calendario-duplo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.75rem;
+}
+
+@media (max-width: 991px) {
+  .calendario-duplo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calendario-mes-coluna {
+  display: flex;
+  flex-direction: column;
+}
+
+.calendario-mes-titulo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #223a5e;
+  text-transform: capitalize;
+  text-align: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+/* Hachura listrada amarela/âmbar para dias bloqueados */
+.calendario-admin-custom .dia-bloqueado-manutencao {
+  background: repeating-linear-gradient(
+    -45deg,
+    #fef3c7,
+    #fef3c7 6px,
+    #fde68a 6px,
+    #fde68a 12px
+  ) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  border: 1px solid #fcd34d !important;
+  border-radius: 8px !important;
+  position: relative;
+}
+
+.dot-bloqueado {
+  background: repeating-linear-gradient(
+    -45deg,
+    #f59e0b,
+    #f59e0b 3px,
+    #fde68a 3px,
+    #fde68a 6px
+  );
+  border: 1px solid #f59e0b;
+}
+
+.lista-bloqueios-wrapper {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.item-bloqueio-card {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 12px;
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  transition: all 0.18s ease;
+}
+
+.item-bloqueio-card:hover {
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+/* ── Aba Cupons & Cards Modernos ────────────────────────────── */
+.cupons-grid-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.card-cupom-moderno {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.4rem;
+  position: relative;
+  box-shadow: 0 3px 14px rgba(34, 58, 94, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-cupom-moderno:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(34, 58, 94, 0.1);
+}
+
+.card-cupom-moderno.inativo {
+  opacity: 0.65;
+  background: #f8fafc;
+  filter: grayscale(0.2);
+}
+
+.cupom-valor-destaque {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #ff9211;
+  line-height: 1.1;
+}
+
+.cupom-codigo-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  margin: 1rem 0;
+}
+
+.cupom-codigo-texto {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #223a5e;
+  letter-spacing: 0.08em;
+}
+
+.btn-copiar-cupom {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copiar-cupom:hover {
+  background: #223a5e;
+  color: #ffffff;
+  border-color: #223a5e;
+}
+
+/* Badges de Público-Alvo */
+.badge-publico-todos {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-primeira {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-retornante {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-recorrente {
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde68a;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-especifico {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.switch-cupom-input {
+  cursor: pointer;
+  width: 2.5rem !important;
+  height: 1.3rem !important;
+}
+
+.switch-cupom-input:checked {
+  background-color: #223a5e !important;
+  border-color: #223a5e !important;
+}
+
+/* ── Modal Responder Avaliação: Confidencialidade e Estrelas ── */
+.alerta-nota-confidencial {
+  background: #f0f7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+
+.btn-estrela-picker {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease;
+}
+
+.btn-estrela-picker:hover {
+  transform: scale(1.18);
+}
+
