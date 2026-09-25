@@ -29,11 +29,15 @@ exports.listarMeus = async (req, res) => {
                     FROM res_reserva usada
                     WHERE usada.Cup_Id = c.Cup_Id
                       AND usada.Hos_Hospede_Usu_Id = ?
+                      AND usada.Res_Status NOT IN ('CANCELADA', 'RECUSADA')
                 ) AS Cup_Usado
              FROM cup_cupom c
              WHERE c.Cup_DataValidade >= CURDATE()
                AND c.Cup_LimiteUso > (
-                   SELECT COUNT(*) FROM res_reserva r WHERE r.Cup_Id = c.Cup_Id
+                   SELECT COUNT(*) 
+                   FROM res_reserva r 
+                   WHERE r.Cup_Id = c.Cup_Id
+                     AND r.Res_Status NOT IN ('CANCELADA', 'RECUSADA')
                )
                AND c.Cup_ValorDoDesconto > ?
                AND (

@@ -12,6 +12,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.env.keys
 
 # ============================================
 # LOGS
@@ -32,6 +33,9 @@ lerna-debug.log*
 .idea
 .DS_Store
 Thumbs.db
+desktop.ini
+*.tmp
+*.temp
 *.suo
 *.ntvs*
 *.njsproj

@@ -25,7 +25,7 @@ function tempoRelativo(iso) {
   return `há ${Math.floor(diff / 86400)}d`;
 }
 
-function Notificacoes({ aoNovaNotificacao }) {
+function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
   const [aberto, setAberto] = useState(false);
   const [posicao, setPosicao] = useState(null);
   const ref = useRef(null);
@@ -37,6 +37,14 @@ function Notificacoes({ aoNovaNotificacao }) {
     marcarLida, marcarTodasLidas, atualizar,
   } = useNotificacoes();
   const ultimaNotificacaoId = notificacoes[0]?.id ?? null;
+
+  const tratarCliqueItem = (n) => {
+    if (!n.lida && !salvando) {
+      marcarLida(n.id);
+    }
+    setAberto(false);
+    aoClicarNotificacao?.(n);
+  };
 
   useEffect(() => {
     if (ultimaNotificacaoId === ultimaNotificacaoRef.current) return;
@@ -135,15 +143,15 @@ function Notificacoes({ aoNovaNotificacao }) {
                   return (
                     <div key={n.id} role="listitem">
                       <div className={`notif-item ${!n.lida ? 'nao-lida' : ''}`}
-                        onClick={() => !n.lida && !salvando && marcarLida(n.id)}
-                        role={!n.lida ? 'button' : undefined}
-                        aria-disabled={!n.lida ? salvando : undefined}
-                        aria-label={!n.lida ? `${n.titulo}. Marcar como lida` : undefined}
-                        tabIndex={!n.lida ? 0 : undefined}
+                        onClick={() => tratarCliqueItem(n)}
+                        role="button"
+                        aria-disabled={salvando}
+                        aria-label={`${n.titulo}. Clique para abrir`}
+                        tabIndex={0}
                         onKeyDown={evento => {
-                          if ((evento.key === 'Enter' || evento.key === ' ') && !n.lida) {
+                          if (evento.key === 'Enter' || evento.key === ' ') {
                             evento.preventDefault();
-                            if (!salvando) marcarLida(n.id);
+                            tratarCliqueItem(n);
                           }
                         }}>
                         <div className="notif-icone" style={{ background: cfg.bg, color: cfg.cor }}>
@@ -176,6 +184,7 @@ function Notificacoes({ aoNovaNotificacao }) {
 
 Notificacoes.propTypes = {
   aoNovaNotificacao: PropTypes.func,
+  aoClicarNotificacao: PropTypes.func,
 };
 
 export default Notificacoes;

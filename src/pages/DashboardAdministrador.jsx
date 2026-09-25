@@ -498,10 +498,15 @@ function ModalReserva({ reserva, aoFechar, aoDecidir }) {
               </div>
             </Col>
           )}
-          {r.motivoRecusa && (
+          {(r.motivoRecusa || r.motivo) && (r.status === 'recusada' || r.status === 'cancelada') && (
             <Col xs={12}>
-              <p className="label-secao-modal">Motivo da Recusa</p>
-              <div className="obs-modal" style={{ background: '#fff1f2', border: '1px solid #fecaca', color: '#9a3412' }}>{reserva.motivoRecusa}</div>
+              <p className="label-secao-modal">
+                {r.status === 'cancelada' ? 'Motivo do Cancelamento' : 'Motivo da Recusa'}
+              </p>
+              <div className="obs-modal" style={{ background: '#fff1f2', border: '1px solid #fecaca', color: '#9a3412', borderRadius: '10px', padding: '0.85rem 1rem' }}>
+                <i className="bi bi-info-circle me-2"></i>
+                {r.motivoRecusa || r.motivo}
+              </div>
             </Col>
           )}
         </Row>
@@ -547,7 +552,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
   if (!avaliacao) return null;
 
   const comentarioLimpo = comentario.trim();
-  const formularioValido = comentarioLimpo.length >= 1 && comentarioLimpo.length <= 255;
+  const formularioValido = comentarioLimpo.length <= 255;
 
   const fechar = () => {
     if (!enviando) aoFechar();
@@ -663,7 +668,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
           {/* Campo de Resposta Pública */}
           <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
             <label htmlFor="comentario-proprietario" className="label-secao-modal mb-0">
-              Resposta Pública ao Hóspede <span className="text-danger">*</span>
+              Resposta Pública ao Hóspede
             </label>
             <span className={`avaliacao-contador${comentario.length >= 240 ? ' limite' : ''}`}>
               {comentario.length}/255
@@ -678,7 +683,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
             value={comentario}
             onChange={evento => setComentario(evento.target.value)}
             disabled={enviando}
-            required
+            
             style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid #cbd5e1', resize: 'vertical' }}
           />
 
@@ -737,13 +742,14 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
 
     // Conflito com outros bloqueios
     const bloqueioConflitante = bloqueiosExistentes.find(b => {
+      if (b.data) return b.data >= dataInicio && b.data < dataFim;
       return b.dataInicio < dataFim && b.dataFim > dataInicio;
     });
 
     if (bloqueioConflitante) {
       return {
         tipo: 'bloqueio',
-        mensagem: `Conflito com Bloqueio existente (${fmtData(bloqueioConflitante.dataInicio)} a ${fmtData(bloqueioConflitante.dataFim)}): ${bloqueioConflitante.motivo}`,
+        mensagem: `Conflito com Bloqueio existente (${fmtData(bloqueioConflitante.data || bloqueioConflitante.dataInicio)}): ${bloqueioConflitante.motivo}`,
       };
     }
 
@@ -868,11 +874,17 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
 
   // Mapeamento de bloqueios para hachura listrada amarela/âmbar
   const mapaBloqueios = useMemo(() => bloqueios.reduce((acc, b) => {
-    const ini = new Date(b.dataInicio + 'T00:00:00');
-    const fim = new Date(b.dataFim + 'T00:00:00');
-    for (let d = new Date(ini); d < fim; d = new Date(d.getTime() + 86400000)) {
-      const k = d.toISOString().slice(0, 10);
-      acc[k] = b;
+    // Nova arquitetura: blocos atômicos dia a dia
+    if (b.data) {
+      acc[String(b.data).slice(0, 10)] = b;
+    } 
+    // Fallback caso ainda exista algum dado na estrutura velha (range)
+    else if (b.dataInicio && b.dataFim) {
+      const ini = new Date(b.dataInicio + 'T00:00:00');
+      const fim = new Date(b.dataFim + 'T00:00:00');
+      for (let d = new Date(ini); d < fim; d = new Date(d.getTime() + 86400000)) {
+        acc[d.toISOString().slice(0, 10)] = b;
+      }
     }
     return acc;
   }, {}), [bloqueios]);
@@ -944,7 +956,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
       <div className="legenda-calendario mb-3 p-2 bg-light rounded-3 d-flex align-items-center gap-3 flex-wrap">
         <span className="legenda-item"><span className="dot dot-aprovada" /> Reserva Confirmada</span>
         <span className="legenda-item"><span className="dot dot-pendente" /> Reserva Pendente</span>
-        <span className="legenda-item"><span className="dot dot-bloqueado" /> Bloqueado / Manutenção (Hachura)</span>
+        <span className="legenda-item"><span className="dot dot-bloqueado" /> Bloqueio Manual (Hachura)</span>
       </div>
 
       {/* Grid de 2 Meses Lado a Lado */}
@@ -982,7 +994,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h6 className="fw-bold mb-0" style={{ color: '#223a5e' }}>
             <i className="bi bi-cone-striped me-2 text-warning" />
-            Bloqueios Ativos para Manutenção ({bloqueios.length})
+            Datas Bloqueadas (Manuais/Externas) ({bloqueios.length})
           </h6>
         </div>
 
@@ -1000,7 +1012,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
                     <div className="fw-bold" style={{ color: '#78350f' }}>{b.motivo}</div>
                     <div className="text-muted small">
                       <i className="bi bi-calendar-event me-1" />
-                      {fmtData(b.dataInicio)} até {fmtData(b.dataFim)} ({noites(b.dataInicio, b.dataFim)} noites bloqueadas)
+                      {fmtData(b.data || b.dataInicio)} (1 dia bloqueado)
                     </div>
                   </div>
                 </div>
@@ -1058,13 +1070,13 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
     try {
       await aoSalvar({
         codigo: codigo.trim().toUpperCase(),
-        tipo,
-        valor: Number(valor),
-        publico,
-        clienteEspecifico: publico === 'CLIENTE_ESPECIFICO' ? clienteEspecifico.trim() : null,
+        tipoDesconto: tipo,
+        valorDesconto: Number(valor),
+        publicoAlvo: publico,
+        clienteId: publico === 'CLIENTE_ESPECIFICO' ? clienteEspecifico.trim() : null,
         minimoNoites: Number(minimoNoites) || 1,
         valorMinimo: Number(valorMinimo) || 0,
-        validade,
+        validoAte: validade,
         ativo: true,
       });
       aoFechar();
@@ -1254,28 +1266,35 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
       ) : (
         <div className="cupons-grid-admin">
           {cupons.map(c => {
-            const publicoCfg = PUBLICO_CFG[c.publico] || PUBLICO_CFG.TODOS;
+            const publicoCfg = PUBLICO_CFG[c.publicoAlvo] || PUBLICO_CFG.TODOS;
             return (
-              <div key={c.id} className={`card-cupom-moderno ${c.ativo ? '' : 'inativo'}`}>
+              <div key={c.id} className={`card-cupom-moderno ${c.expirado ? 'inativo opacity-75' : (!c.ativo ? 'inativo' : '')}`}>
                 <div>
                   <div className="d-flex align-items-center justify-content-between mb-2">
                     <span className={publicoCfg.classeBadge}>
                       <i className={`bi ${publicoCfg.icone} me-1`} />
                       {publicoCfg.label}
                     </span>
-                    <span className="badge bg-light text-muted border small">
-                      {c.tipo === 'PERCENTUAL' ? 'Desconto %' : 'Desconto R$'}
-                    </span>
+                    <div className="d-flex gap-1 align-items-center">
+                      {c.expirado && (
+                        <span className="badge bg-danger-subtle text-danger border border-danger-subtle small">
+                          Vencido
+                        </span>
+                      )}
+                      <span className="badge bg-light text-muted border small">
+                        {c.tipoDesconto === 'PERCENTUAL' ? 'Desconto %' : 'Desconto R$'}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="cupom-valor-destaque mb-1">
-                    {c.tipo === 'PERCENTUAL' ? `${c.valor}% OFF` : `${fmtMoeda(c.valor)} OFF`}
+                    {c.tipoDesconto === 'PERCENTUAL' ? `${c.valorDesconto}% OFF` : `${fmtMoeda(c.valorDesconto)} OFF`}
                   </div>
 
-                  {c.clienteEspecifico && (
+                  {c.clienteId && (
                     <div className="text-muted small mb-2">
                       <i className="bi bi-person me-1" />
-                      Para: <strong>{c.clienteEspecifico}</strong>
+                      Para: <strong>{c.clienteId}</strong>
                     </div>
                   )}
 
@@ -1306,25 +1325,33 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                       </span>
                     )}
                     <span>
-                      <i className="bi bi-calendar3 me-1 text-warning" />
-                      Válido até: <strong>{fmtData(c.validade)}</strong>
+                      <i className={`bi bi-calendar3 me-1 ${c.expirado ? 'text-danger' : 'text-warning'}`} />
+                      Válido até: <strong className={c.expirado ? 'text-danger' : ''}>{fmtData(c.validoAte)} {c.expirado && '(Expirado)'}</strong>
                     </span>
                   </div>
                 </div>
 
                 <div className="d-flex align-items-center justify-content-between pt-3 border-top mt-3">
-                  <span className={`fw-semibold small ${c.ativo ? 'text-success' : 'text-muted'}`}>
-                    <i className={`bi bi-circle-fill me-1 ${c.ativo ? 'text-success' : 'text-secondary'}`} style={{ fontSize: '0.45rem' }} />
-                    {c.ativo ? 'Cupom Ativo' : 'Cupom Pausado'}
-                  </span>
-                  <div className="form-check form-switch m-0">
+                  {c.expirado ? (
+                    <span className="fw-semibold small text-danger">
+                      <i className="bi bi-x-circle-fill me-1" style={{ fontSize: '0.55rem' }} />
+                      Cupom Expirado
+                    </span>
+                  ) : (
+                    <span className={`fw-semibold small ${c.ativo ? 'text-success' : 'text-muted'}`}>
+                      <i className={`bi bi-circle-fill me-1 ${c.ativo ? 'text-success' : 'text-secondary'}`} style={{ fontSize: '0.45rem' }} />
+                      {c.ativo ? 'Cupom Ativo' : 'Cupom Pausado'}
+                    </span>
+                  )}
+                  <div className="form-check form-switch m-0" title={c.expirado ? 'Cupom expirado pela data de validade' : ''}>
                     <input
                       className="form-check-input switch-cupom-input"
                       type="checkbox"
                       role="switch"
-                      checked={c.ativo}
+                      checked={c.ativo && !c.expirado}
+                      disabled={c.expirado}
                       onChange={() => aoAlternarStatus(c.id, c.ativo)}
-                      aria-label={`Ativar ou pausar cupom ${c.codigo}`}
+                      aria-label={c.expirado ? `Cupom ${c.codigo} expirado` : `Ativar ou pausar cupom ${c.codigo}`}
                     />
                   </div>
                 </div>
@@ -1595,6 +1622,32 @@ function DashboardAdministrador() {
   const [filtro, setFiltro] = useState('todas');
   const [feedback, setFeedback] = useState({ tipo: '', msg: '' });
 
+  const tratarCliqueNotificacao = useCallback((notificacao) => {
+    if (!notificacao) return;
+    const texto = `${notificacao.titulo || ''} ${notificacao.mensagem || ''}`.toLowerCase();
+    const matchReserva = texto.match(/#(\d+)/);
+    const reservaId = matchReserva ? matchReserva[1] : null;
+
+    if (texto.includes('avaliação') || texto.includes('avaliacao') || texto.includes('avaliou')) {
+      setAbaAtiva('avaliacoes');
+    } else if (texto.includes('cupom') || texto.includes('cupons')) {
+      setAbaAtiva('cupons');
+    } else if (texto.includes('bloqueio') || texto.includes('calendário') || texto.includes('calendario')) {
+      setAbaAtiva('calendario');
+    } else if (texto.includes('reserva')) {
+      setAbaAtiva('reservas');
+      if (texto.includes('aguarda') || texto.includes('aprovação') || texto.includes('aprovacao') || texto.includes('nova reserva') || texto.includes('pendente')) {
+        setFiltro('pendente');
+      }
+      if (reservaId) {
+        const rEncontrada = reservas.find(res => String(res.id) === String(reservaId));
+        if (rEncontrada) {
+          setSelecionada(rEncontrada);
+        }
+      }
+    }
+  }, [reservas]);
+
   // Avaliações
   const [avaliacoesPendentes, setAvaliacoesPendentes] = useState([]);
   const [carregandoAvaliacoes, setCarregandoAvaliacoes] = useState(true);
@@ -1779,48 +1832,48 @@ function DashboardAdministrador() {
         body: JSON.stringify(novo),
       });
       if (res.ok) {
-        const salvo = await res.json().catch(() => ({}));
-        setBloqueios(prev => [...prev, salvo.bloqueio || { ...novo, id: Date.now() }]);
+        await buscarBloqueios();
+        fb('sucesso', 'Datas bloqueadas para manutenção com sucesso.');
       } else {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Erro ao registrar bloqueio no servidor.');
       }
-    } catch {
-      // Fallback em desenvolvimento
-      setBloqueios(prev => [...prev, { ...novo, id: Date.now() }]);
+    } catch (erro) {
+      throw erro; // Repassa para o Modal não fechar sozinho
     }
-    fb('sucesso', 'Datas bloqueadas para manutenção com sucesso.');
   };
 
   // Remover Bloqueio
   const removerBloqueio = async (id) => {
     try {
-      await fetch(`${API_BASE}/api/proprietario/bloqueios/${id}`, {
+      const res = await fetch(`${API_BASE}/api/proprietario/bloqueios/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
-    } catch {
-      // Ignora erro de rede em desenvolvimento
+      if (!res.ok) throw new Error('Erro ao remover bloqueio.');
+      setBloqueios(prev => prev.filter(b => b.id !== id));
+      fb('sucesso', 'Bloqueio de datas removido com sucesso.');
+    } catch (erro) {
+      fb('erro', erro.message);
     }
-    setBloqueios(prev => prev.filter(b => b.id !== id));
-    fb('sucesso', 'Bloqueio de datas removido com sucesso.');
   };
 
   // Alternar Status do Cupom (Ativar / Desativar)
   const alternarStatusCupom = async (id, statusAtual) => {
     const novoStatus = !statusAtual;
     try {
-      await fetch(`${API_BASE}/api/proprietario/cupons/${id}/status`, {
+      const res = await fetch(`${API_BASE}/api/proprietario/cupons/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ ativo: novoStatus }),
       });
-    } catch {
-      // Continua com atualização otimista local
+      if (!res.ok) throw new Error('Falha ao atualizar status do cupom no servidor.');
+      setCupons(prev => prev.map(c => c.id === id ? { ...c, ativo: novoStatus } : c));
+      fb('sucesso', `Cupom ${novoStatus ? 'ativado' : 'pausado'} com sucesso.`);
+    } catch (erro) {
+      fb('erro', erro.message);
     }
-    setCupons(prev => prev.map(c => c.id === id ? { ...c, ativo: novoStatus } : c));
-    fb('sucesso', `Cupom ${novoStatus ? 'ativado' : 'pausado'} com sucesso.`);
   };
 
   // Criar Novo Cupom
@@ -1833,17 +1886,17 @@ function DashboardAdministrador() {
         body: JSON.stringify(novo),
       });
       if (res.ok) {
-        const salvo = await res.json().catch(() => ({}));
-        setCupons(prev => [salvo.cupom || { ...novo, id: Date.now() }, ...prev]);
+        // Recarrega do servidor para garantir que o ID real e todos os campos batam
+        await buscarCupons();
+        fb('sucesso', `Cupom criado com sucesso!`);
       } else {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro ao registrar cupom.');
+        throw new Error(err.error || 'Erro ao registrar cupom no banco de dados.');
       }
-    } catch {
-      // Fallback em desenvolvimento
-      setCupons(prev => [{ ...novo, id: Date.now() }, ...prev]);
+    } catch (err) {
+      // Re-throw para o modal mostrar a mensagem de erro vermelha
+      throw err;
     }
-    fb('sucesso', `Cupom ${novo.codigo} criado com sucesso!`);
   };
 
   // Decidir Reserva
@@ -2165,7 +2218,7 @@ function DashboardAdministrador() {
             </div>
           </div>
           <div className="topbar-direita">
-            <Notificacoes aoNovaNotificacao={buscarReservas} />
+            <Notificacoes aoNovaNotificacao={buscarReservas} aoClicarNotificacao={tratarCliqueNotificacao} />
             <div className="topbar-avatar" title={usuario?.nome}>
               {usuario?.nome?.charAt(0) || 'R'}
             </div>

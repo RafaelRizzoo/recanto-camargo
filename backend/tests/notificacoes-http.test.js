@@ -34,6 +34,7 @@ const banco = {
         }
         if (texto.startsWith('SELECT Res_Id FROM res_reserva')) return [estado.conflito ? [{ Res_Id: 500 }] : []];
         if (texto.startsWith('SELECT Blo_Id FROM blo_bloqueiohospede')) return [estado.bloqueio ? [{ Blo_Id: 700 }] : []];
+        if (texto.startsWith('SELECT Bld_Id FROM bld_bloqueiodata')) return [[]];
         if (texto.startsWith('INSERT INTO res_reserva')) {
             assert.ok(estado.transacao);
             assert.match(texto, /'PENDENTE'/);
@@ -170,7 +171,7 @@ test('reserva nasce pendente com preço do servidor e duas notificações na mes
     assert.equal(resposta.status, 201);
     assert.equal(resposta.body.reservaId, 123);
     assert.deepEqual(estado.gravados.map(r => r.tipo), ['reserva', 'notificacao', 'notificacao']);
-    assert.equal(estado.gravados[0].parametros[6], 300);
+    assert.equal(estado.gravados[0].parametros[6], 380);
     assert.deepEqual(estado.gravados.slice(1).map(r => r.parametros[0]), [41, 99]);
     assert.deepEqual(estado.emails.map(e => e[0]), ['guest@example.com', 'owner@example.com']);
     assert.equal(JSON.stringify(estado.emails).includes('Observação privada'), false);

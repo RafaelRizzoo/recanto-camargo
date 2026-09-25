@@ -279,10 +279,12 @@ async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = f
         ? `SELECT Hos_Hospede_Usu_Id
            FROM res_reserva
            WHERE Cup_Id = ?
+             AND Res_Status NOT IN ('CANCELADA', 'RECUSADA')
            FOR UPDATE`
         : `SELECT Hos_Hospede_Usu_Id
            FROM res_reserva
-           WHERE Cup_Id = ?`;
+           WHERE Cup_Id = ?
+             AND Res_Status NOT IN ('CANCELADA', 'RECUSADA')`;
     const [usos] = await executor.query(consultaUsos, [cupom.id]);
 
     if (usos.some(uso => Number(uso.Hos_Hospede_Usu_Id) === Number(hospedeId))) {
