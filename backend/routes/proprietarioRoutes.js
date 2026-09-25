@@ -9,6 +9,8 @@ router.patch('/reservas/:id/concluir', verificarToken, verificarProprietario, pr
 router.get('/reservas', verificarToken, verificarProprietario, proprietarioController.listarReservas);
 router.get('/avaliacoes/pendentes', verificarToken, verificarProprietario, proprietarioController.listarAvaliacoesPendentes);
 router.patch('/avaliacoes/:id/responder', verificarToken, verificarProprietario, proprietarioController.responderAvaliacao);
+router.patch('/imovel/valor', verificarToken, verificarProprietario, proprietarioController.atualizarValorDiaria);
+router.get('/imovel/historico-valores', verificarToken, verificarProprietario, proprietarioController.listarHistoricoValores);
 
 // Métricas da Dashboard
 router.get('/metricas', verificarToken, verificarProprietario, proprietarioController.obterMetricasDashboard);

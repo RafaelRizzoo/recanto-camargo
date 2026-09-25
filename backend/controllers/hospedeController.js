@@ -140,6 +140,7 @@ exports.listarReservas = async (req, res) => {
                 criadaEm: reserva.criadaEm.toISOString().split('T')[0],
                 status: statusMap[reserva.status] || 'pendente',
                 formaPagamento: 'PIX',
+                motivoRecusa: reserva.motivo,
                 avaliacao: avaliacaoId === null ? null : normalizarAvaliacao({
                     id: avaliacaoId,
                     nota: avaliacaoNota,

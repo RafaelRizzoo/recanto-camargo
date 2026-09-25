@@ -1234,6 +1234,8 @@ textarea.form-controle-config {
   border-radius: 8px;
   transition: all 0.2s ease;
   color: #333;
+  position: relative !important;
+  overflow: hidden !important;
 }
 
 .custom-calendar-home .react-calendar__tile:disabled {
@@ -1262,8 +1264,14 @@ textarea.form-controle-config {
 }
 
 .custom-calendar-home .react-calendar__tile--hasActive {
-  background: rgba(243, 115, 33, 0.1) !important;
+  background: rgba(243, 115, 33, 0.15) !important;
   color: #f37321 !important;
+}
+
+/* Quando selecionado (ativo ou no intervalo), garante que nenhum risco interfira na visibilidade */
+.custom-calendar-home .react-calendar__tile--active::after,
+.custom-calendar-home .react-calendar__tile--hasActive::after {
+  display: none !important;
 }
 
 /* Domingo Laranja */
@@ -1277,15 +1285,13 @@ textarea.form-controle-config {
   font-weight: 700;
 }
 
-/* Reservado linha no meio */
-.custom-calendar-home .react-calendar__tile--reservado {
+/* Reservado linha no meio (100% indisponível) */
+.custom-calendar-home .react-calendar__tile--reservado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive) {
   background: #f8f9fa !important;
   color: #adb5bd !important;
-  position: relative;
-  overflow: hidden;
 }
 
-.custom-calendar-home .react-calendar__tile--reservado::after {
+.custom-calendar-home .react-calendar__tile--reservado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive)::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -1294,6 +1300,42 @@ textarea.form-controle-config {
   height: 2px;
   background-color: #dc3545;
   transform: translateY(-50%) rotate(-15deg);
+  opacity: 0.6;
+}
+
+/* Check-in de outro hóspede (tarde ocupada, manhã livre para checkout) */
+.custom-calendar-home .dia-checkin-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive) {
+  background: linear-gradient(to right, transparent 50%, #f8f9fa 50%) !important;
+}
+
+.custom-calendar-home .dia-checkin-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: 8%;
+  height: 2px;
+  background-color: #dc3545;
+  transform: translateY(-50%) rotate(-15deg);
+  transform-origin: left center;
+  opacity: 0.6;
+}
+
+/* Check-out de outro hóspede (manhã ocupada, tarde livre para checkin) */
+.custom-calendar-home .dia-checkout-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive) {
+  background: linear-gradient(to right, #f8f9fa 50%, transparent 50%) !important;
+}
+
+.custom-calendar-home .dia-checkout-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 8%;
+  right: 50%;
+  height: 2px;
+  background-color: #dc3545;
+  transform: translateY(-50%) rotate(-15deg);
+  transform-origin: right center;
   opacity: 0.6;
 }
 
@@ -1328,6 +1370,8 @@ textarea.form-controle-config {
 .legenda-cor.reservado {
   background: transparent;
   position: relative;
+  border: 1px solid #ced4da;
+  overflow: hidden;
 }
 
 .legenda-cor.reservado::after {
@@ -1336,6 +1380,42 @@ textarea.form-controle-config {
   top: 50%;
   left: -2px;
   right: -2px;
+  height: 2px;
+  background-color: #dc3545;
+  transform: translateY(-50%) rotate(-15deg);
+}
+
+.legenda-cor.checkout-ocupado {
+  background: linear-gradient(to right, #f8f9fa 50%, transparent 50%);
+  border: 1px solid #ced4da;
+  position: relative;
+  overflow: hidden;
+}
+
+.legenda-cor.checkout-ocupado::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 50%;
+  height: 2px;
+  background-color: #dc3545;
+  transform: translateY(-50%) rotate(-15deg);
+}
+
+.legenda-cor.checkin-ocupado {
+  background: linear-gradient(to right, transparent 50%, #f8f9fa 50%);
+  border: 1px solid #ced4da;
+  position: relative;
+  overflow: hidden;
+}
+
+.legenda-cor.checkin-ocupado::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: 0;
   height: 2px;
   background-color: #dc3545;
   transform: translateY(-50%) rotate(-15deg);

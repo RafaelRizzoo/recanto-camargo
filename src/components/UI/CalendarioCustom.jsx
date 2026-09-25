@@ -25,14 +25,43 @@ function CalendarioCustom({ valor, onChange, minDate }) {
     }
   }, []);
 
+  const handleCalendarChange = (range) => {
+    if (Array.isArray(range) && range[0] && range[1]) {
+      const startIso = new Date(range[0].getTime() - range[0].getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      const endIso = new Date(range[1].getTime() - range[1].getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      
+      const conflito = reservas.some(r => {
+        if (r.status === 'cancelada') return false;
+        return startIso < r.checkout && endIso > r.checkin;
+      });
+
+      if (conflito) {
+        alert('O período selecionado cruza com datas já reservadas. Por favor, ajuste sua seleção.');
+        return;
+      }
+    }
+    onChange?.(range);
+  };
+
   const tileClassName = ({ date, view }) => {
     if (view !== 'month') return null;
     let classes = [];
     
     const dIso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    const isBooked = reservas.some(r => r.status !== 'cancelada' && dIso >= r.checkin && dIso < r.checkout);
     
+    // Dia inteiramente ocupado (no meio de uma reserva ou com troca no mesmo dia)
+    const ocupadoMeio = reservas.some(r => r.status !== 'cancelada' && dIso > r.checkin && dIso < r.checkout);
+    const temCheckin = reservas.some(r => r.status !== 'cancelada' && dIso === r.checkin);
+    const temCheckout = reservas.some(r => r.status !== 'cancelada' && dIso === r.checkout);
+    
+    const isBooked = ocupadoMeio || (temCheckin && temCheckout);
+    const isCheckin = !isBooked && temCheckin;
+    const isCheckout = !isBooked && temCheckout;
+
     if (isBooked) classes.push('react-calendar__tile--reservado');
+    else if (isCheckin) classes.push('dia-checkin-ocupado');
+    else if (isCheckout) classes.push('dia-checkout-ocupado');
+
     if (verificarSeFeriado(date)) classes.push('dia-feriado');
     if (date.getDay() === 0 || date.getDay() === 6) classes.push('dia-fim-semana');
     
@@ -42,14 +71,19 @@ function CalendarioCustom({ valor, onChange, minDate }) {
   const tileDisabled = ({ date, view }) => {
     if (view !== 'month') return false;
     const dIso = new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-    return reservas.some(r => r.status !== 'cancelada' && dIso >= r.checkin && dIso < r.checkout);
+    
+    const ocupadoMeio = reservas.some(r => r.status !== 'cancelada' && dIso > r.checkin && dIso < r.checkout);
+    const temCheckin = reservas.some(r => r.status !== 'cancelada' && dIso === r.checkin);
+    const temCheckout = reservas.some(r => r.status !== 'cancelada' && dIso === r.checkout);
+    
+    return ocupadoMeio || (temCheckin && temCheckout);
   };
 
   return (
     <>
       <Calendar
         className="custom-calendar-home"
-        onChange={onChange}
+        onChange={handleCalendarChange}
         value={valor}
         selectRange={true}
         minDate={minDate || new Date()}
@@ -61,6 +95,8 @@ function CalendarioCustom({ valor, onChange, minDate }) {
       <div className="calendario-legenda mt-2 d-flex flex-wrap gap-2">
         <div className="legenda-item"><div className="legenda-cor selecionado"></div> Selecionado</div>
         <div className="legenda-item"><div className="legenda-cor reservado"></div> Indisponível</div>
+        <div className="legenda-item"><div className="legenda-cor checkout-ocupado"></div> Saída</div>
+        <div className="legenda-item"><div className="legenda-cor checkin-ocupado"></div> Entrada</div>
         <div className="legenda-item"><div className="legenda-cor feriado"></div> Feriado</div>
       </div>
     </>

@@ -32,8 +32,8 @@ exports.checarDisponibilidade = async (req, res) => {
 
         // Verifica bloqueios manuais do proprietário
         const [bloqueios] = await db.query(
-            `SELECT Blo_Id FROM blo_bloqueiohospede
-             WHERE Imo_Id = ? AND Blo_Data >= ? AND Blo_Data < ?`,
+            `SELECT Bld_Id FROM bld_bloqueiodata
+             WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' AND Bld_Data >= ? AND Bld_Data < ?`,
             [imoId, checkin, checkout]
         );
 
@@ -63,10 +63,10 @@ exports.datasOcupadas = async (req, res) => {
         const [datas] = await db.query(query, [imoId]);
 
         const [bloqueios] = await db.query(
-            `SELECT DATE_FORMAT(Blo_Data, '%Y-%m-%d') as data
-             FROM blo_bloqueiohospede
-             WHERE Imo_Id = ? AND Blo_Data >= CURDATE()
-             ORDER BY Blo_Data ASC`,
+            `SELECT DATE_FORMAT(Bld_Data, '%Y-%m-%d') as data
+             FROM bld_bloqueiodata
+             WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' AND Bld_Data >= CURDATE()
+             ORDER BY Bld_Data ASC`,
             [imoId]
         );
 
@@ -159,8 +159,8 @@ exports.criarReserva = async (req, res) => {
 
         // Verifica bloqueios manuais do proprietário
         const [bloqueiosConflitantes] = await conexao.query(
-            `SELECT Blo_Id FROM blo_bloqueiohospede
-             WHERE Imo_Id = ? AND Blo_Data >= ? AND Blo_Data < ?`,
+            `SELECT Bld_Id FROM bld_bloqueiodata
+             WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' AND Bld_Data >= ? AND Bld_Data < ?`,
             [imoId, checkin, checkout]
         );
 
@@ -173,7 +173,9 @@ exports.criarReserva = async (req, res) => {
         const msPorDia = 1000 * 60 * 60 * 24;
         const diffTime = Math.abs(dataCheckout - dataCheckin);
         const quantidadeNoites = Math.ceil(diffTime / msPorDia);
-        let valorFinalSeguro = quantidadeNoites * precoDiariaDb;
+        
+        const TAXA_LIMPEZA = 80;
+        let valorFinalSeguro = (quantidadeNoites * precoDiariaDb) + TAXA_LIMPEZA;
         let cupomAplicadoId = null;
 
         if (cupomIdSeguro !== null) {

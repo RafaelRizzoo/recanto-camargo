@@ -251,12 +251,16 @@ exports.listarReservas = async (req, res) => {
             SELECT 
                 r.Res_Id as id,
                 u.Usu_Nome as hospede,
+                u.Usu_Email as email,
+                u.Usu_Telefone as telefone,
                 r.Res_QuantidadeDeHospedes as quantidadeHospedes,
                 r.Res_DataCheckIn as checkin,
                 r.Res_DataCheckOut as checkout,
                 r.Res_ValorTotal as total,
                 r.Res_Status as status,
                 r.Res_DataReserva as criadaEm,
+                r.Res_ObsHospede as observacoes,
+                r.Res_ObsPropietario as obsProprietario,
                 (SELECT His_Motivo FROM his_historicoreservastatus hhs WHERE hhs.Res_Id = r.Res_Id ORDER BY hhs.His_DataAlteracao DESC LIMIT 1) as motivo
             FROM res_reserva r
             JOIN imo_imovel i ON r.Imo_Id = i.Imo_Id
@@ -279,12 +283,16 @@ exports.listarReservas = async (req, res) => {
             ...r,
             id: r.id.toString(),
             hospede: r.hospede,
+            email: r.email,
+            telefone: r.telefone,
             hospedes: r.quantidadeHospedes,
             checkin: r.checkin.toISOString().split('T')[0],
             checkout: r.checkout.toISOString().split('T')[0],
             criadaEm: r.criadaEm.toISOString().split('T')[0],
             total: Number(r.total),
-            status: statusMap[r.status] || 'pendente'
+            status: statusMap[r.status] || 'pendente',
+            observacoes: r.observacoes || null,
+            motivoRecusa: r.motivo || null
         }));
 
         res.json(reservasFormatadas);
@@ -365,7 +373,7 @@ exports.responderAvaliacao = async (req, res) => {
     try {
         const avaliacaoId = normalizarIdPositivo(req.params.id, 'Identificador da avaliação');
         const nota = normalizarNota(req.body?.nota);
-        const comentario = normalizarComentario(req.body?.comentario, true);
+        const comentario = normalizarComentario(req.body?.comentario, false);
         const proprietarioId = req.usuario.id;
 
         conexao = await db.getConnection();
@@ -497,7 +505,7 @@ exports.criarBloqueio = async (req, res) => {
             : textoMotivo.slice(0, 145);
 
         conexao = await db.getConnection();
-        await garantirProprietario(conexao, proprietarioId);
+        await garantirProprietario(db, proprietarioId);
 
         const imoId = 1;
 
@@ -539,10 +547,10 @@ exports.criarBloqueio = async (req, res) => {
 
         for (const dia of dias) {
             await conexao.query(
-                `INSERT INTO blo_bloqueiohospede (Imo_Id, Usu_Id, Blo_Data, Blo_Motivo)
-                 VALUES (?, ?, ?, ?)
-                 ON DUPLICATE KEY UPDATE Blo_Motivo = VALUES(Blo_Motivo)`,
-                [imoId, proprietarioId, dia, motivoCompleto]
+                `INSERT INTO bld_bloqueiodata (Imo_Id, Bld_Data, Bld_Motivo)
+                 VALUES (?, ?, ?)
+                 ON DUPLICATE KEY UPDATE Bld_Status = 'ATIVO', Bld_Motivo = VALUES(Bld_Motivo)`,
+                [imoId, dia, motivoCompleto]
             );
         }
 
@@ -572,12 +580,10 @@ exports.listarBloqueios = async (req, res) => {
         const imoId = 1;
         const [bloqueios] = await db.query(
             `SELECT
-                Blo_Id AS id,
-                DATE_FORMAT(Blo_Data, '%Y-%m-%d') AS data,
-                Blo_Motivo AS motivo
-             FROM blo_bloqueiohospede
-             WHERE Imo_Id = ?
-             ORDER BY Blo_Data ASC`,
+                Bld_Id AS id,
+                DATE_FORMAT(Bld_Data, '%Y-%m-%d') AS data,
+                Bld_Motivo AS motivo
+             FROM bld_bloqueiodata WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' ORDER BY Bld_Data ASC`,
             [imoId]
         );
 
@@ -598,7 +604,7 @@ exports.removerBloqueio = async (req, res) => {
 
         const bloqueioId = normalizarIdPositivo(req.params.id, 'Identificador do bloqueio');
         const [resultado] = await db.query(
-            'DELETE FROM blo_bloqueiohospede WHERE Blo_Id = ?',
+            "UPDATE bld_bloqueiodata SET Bld_Status = \'CANCELADO\' WHERE Bld_Id = ?",
             [bloqueioId]
         );
 
@@ -639,8 +645,9 @@ exports.listarCuponsProprietario = async (req, res) => {
                 c.Cup_ValorMinimo AS valorMinimo,
                 u.Usu_Nome AS clienteNome,
                 u.Usu_Email AS clienteEmail,
-                (SELECT COUNT(*) FROM res_reserva r WHERE r.Cup_Id = c.Cup_Id) AS totalUsos,
-                (c.Cup_DataValidade < CURDATE()) AS expirado
+                (SELECT COUNT(*) FROM res_reserva r WHERE r.Cup_Id = c.Cup_Id AND r.Res_Status NOT IN ('CANCELADA', 'RECUSADA')) AS totalUsos,
+                (c.Cup_DataValidade < CURDATE()) AS expirado,
+                c.Cup_Ativo AS ativo
              FROM cup_cupom c
              LEFT JOIN usu_usuario u ON u.Usu_Id = c.Cup_Cliente_Usu_Id
              ORDER BY c.Cup_Id DESC`
@@ -660,7 +667,8 @@ exports.listarCuponsProprietario = async (req, res) => {
             minimoNoites: Number(c.minimoNoites || 1),
             valorMinimo: Number(c.valorMinimo || 0),
             totalUsos: Number(c.totalUsos),
-            ativo: Number(c.expirado) === 0
+            expirado: Boolean(c.expirado),
+            ativo: Boolean(c.ativo)
         }));
 
         res.json(formatados);
@@ -773,10 +781,9 @@ exports.atualizarStatusCupom = async (req, res) => {
             return res.status(400).json({ error: 'Informe o campo "ativo" (true ou false).' });
         }
 
-        const novaValidade = ativo ? '2026-12-31' : '2000-01-01';
         const [resultado] = await db.query(
-            'UPDATE cup_cupom SET Cup_DataValidade = ? WHERE Cup_Id = ?',
-            [novaValidade, cupomId]
+            'UPDATE cup_cupom SET Cup_Ativo = ? WHERE Cup_Id = ?',
+            [ativo ? 1 : 0, cupomId]
         );
 
         if (resultado.affectedRows === 0) {
@@ -912,4 +919,134 @@ exports.obterMetricasDashboard = async (req, res) => {
         res.status(500).json({ error: 'Erro interno ao calcular métricas.' });
     }
 };
+
+exports.atualizarValorDiaria = async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    let conexao;
+    let transacaoAtiva = false;
+    let conexaoDestruida = false;
+
+    try {
+        const { novoValor } = req.body;
+        const valorNumerico = Number(novoValor);
+
+        if (!Number.isFinite(valorNumerico) || valorNumerico <= 0 || valorNumerico > 999999.99) {
+            throw new ErroHttp(400, 'O valor da di+�ria deve ser um n+�mero positivo v+�lido de até� R$ 999.999,99.');
+        }
+
+        const valorFormatado = Number(valorNumerico.toFixed(2));
+
+        conexao = await db.getConnection();
+        await garantirProprietario(conexao, req.usuario.id);
+
+        await conexao.beginTransaction();
+        transacaoAtiva = true;
+
+        const [imoveis] = await conexao.query(
+            'SELECT Imo_Id, Imo_ValorFixo FROM imo_imovel WHERE Pro_Proprietario_Usu_Id = ? FOR UPDATE',
+            [req.usuario.id]
+        );
+
+        if (imoveis.length === 0) {
+            throw new ErroHttp(404, 'Nenhum im+�vel encontrado para este propriet+�rio.');
+        }
+
+        const imovel = imoveis[0];
+        const valorAntigo = Number(imovel.Imo_ValorFixo);
+
+        if (valorAntigo === valorFormatado) {
+            throw new ErroHttp(400, 'O novo valor da di+�ria deve ser diferente do valor atual.');
+        }
+
+        // 1. Atualiza o valor fixo no im+�vel
+        await conexao.query(
+            'UPDATE imo_imovel SET Imo_ValorFixo = ? WHERE Imo_Id = ?',
+            [valorFormatado, imovel.Imo_Id]
+        );
+
+        // 2. Registra na tabela de auditoria hit_historicovalores
+        await conexao.query(
+            `INSERT INTO hit_historicovalores 
+             (Imo_Id, Dat_Id, Hit_ValorAntigo, Hit_ValorNovo, Hit_DataAlteracao)
+             VALUES (?, NULL, ?, ?, NOW())`,
+            [imovel.Imo_Id, valorAntigo, valorFormatado]
+        );
+
+        await conexao.commit();
+        transacaoAtiva = false;
+
+        res.json({
+            message: 'Valor da di+�ria atualizado com sucesso e registrado na auditoria.',
+            imovelId: imovel.Imo_Id,
+            valorAntigo,
+            valorNovo: valorFormatado
+        });
+    } catch (error) {
+        if (transacaoAtiva && conexao) {
+            try {
+                await conexao.rollback();
+            } catch (rollbackError) {
+                console.error('Erro ao desfazer atualiza+�+�o de valor:', rollbackError);
+                conexao.destroy();
+                conexaoDestruida = true;
+            }
+        }
+
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Erro ao atualizar valor da di+�ria:', error);
+        res.status(500).json({ error: 'N+�o foi poss+�vel atualizar o valor da di+�ria.' });
+    } finally {
+        if (conexao && !conexaoDestruida) conexao.release();
+    }
+};
+
+exports.listarHistoricoValores = async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    let conexao;
+
+    try {
+        conexao = await db.getConnection();
+        await garantirProprietario(conexao, req.usuario.id);
+
+        const [imoveis] = await conexao.query(
+            'SELECT Imo_Id FROM imo_imovel WHERE Pro_Proprietario_Usu_Id = ? LIMIT 1',
+            [req.usuario.id]
+        );
+
+        if (imoveis.length === 0) {
+            throw new ErroHttp(404, 'Nenhum im+�vel encontrado para este propriet+�rio.');
+        }
+
+        const [historico] = await conexao.query(
+            `SELECT Hit_id AS id,
+                    Hit_ValorAntigo AS valorAntigo,
+                    Hit_ValorNovo AS valorNovo,
+                    DATE_FORMAT(Hit_DataAlteracao, '%Y-%m-%d %H:%i:%s') AS dataAlteracao
+             FROM hit_historicovalores
+             WHERE Imo_Id = ?
+             ORDER BY Hit_DataAlteracao DESC, Hit_id DESC`,
+            [imoveis[0].Imo_Id]
+        );
+
+        res.json(historico.map(item => ({
+            id: item.id,
+            valorAntigo: Number(item.valorAntigo),
+            valorNovo: Number(item.valorNovo),
+            dataAlteracao: item.dataAlteracao
+        })));
+    } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+
+        console.error('Erro ao buscar hist+�rico de valores:', error);
+        res.status(500).json({ error: 'N+�o foi poss+�vel carregar o hist+�rico de valores.' });
+    } finally {
+        if (conexao) conexao.release();
+    }
+};
+
 

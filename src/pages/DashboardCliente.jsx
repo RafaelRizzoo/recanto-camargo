@@ -206,12 +206,12 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
           <div className="cli-obs-box">{reserva.observacoes || reserva.observacao}</div>
         </Col>
       )}
-      {reserva.status === 'recusada' && reserva.motivoRecusa && (
+      {reserva.status === 'recusada' && (reserva.motivoRecusa || reserva.motivo) && (
         <Col xs={12}>
           <p className="cli-label-secao">Motivo da Recusa</p>
           <div className="cli-motivo-recusa">
             <i className="bi bi-info-circle me-2"></i>
-            {reserva.motivoRecusa}
+            {reserva.motivoRecusa || reserva.motivo}
           </div>
         </Col>
       )}
@@ -504,10 +504,10 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
         <span><i className="bi bi-people me-1"></i>{reserva.hospedes} pessoa{reserva.hospedes > 1 ? 's' : ''}</span>
       </div>
 
-      {reserva.status === 'recusada' && reserva.motivoRecusa && (
+      {reserva.status === 'recusada' && (reserva.motivoRecusa || reserva.motivo) && (
         <div className="cli-motivo-recusa">
           <i className="bi bi-info-circle me-2"></i>
-          <strong>Motivo da recusa:</strong> {reserva.motivoRecusa}
+          <strong>Motivo da recusa:</strong> {reserva.motivoRecusa || reserva.motivo}
         </div>
       )}
 
@@ -941,6 +941,27 @@ function DashboardCliente() {
   const [feedback,      setFeedback]      = useState({ tipo: '', msg: '' });
   const [reputacao,     setReputacao]     = useState({ nota: '5.0', badge: 'Hóspede Exemplar', totalAvaliadas: 0 });
 
+  const tratarCliqueNotificacao = useCallback((notificacao) => {
+    if (!notificacao) return;
+    const texto = `${notificacao.titulo || ''} ${notificacao.mensagem || ''}`.toLowerCase();
+    const matchReserva = texto.match(/#(\d+)/);
+    const reservaId = matchReserva ? matchReserva[1] : null;
+
+    if (texto.includes('avaliação') || texto.includes('avaliacao') || texto.includes('avaliar') || texto.includes('avaliou')) {
+      setAbaAtiva('avaliacoes');
+    } else if (texto.includes('cupom') || texto.includes('cupons')) {
+      setAbaAtiva('cupons');
+    } else if (texto.includes('reserva')) {
+      setAbaAtiva('reservas');
+      if (reservaId) {
+        const rEncontrada = reservas.find(res => String(res.id) === String(reservaId));
+        if (rEncontrada) {
+          setModalDetalhe(rEncontrada);
+        }
+      }
+    }
+  }, [reservas]);
+
   // Modais
   const [modalDetalhe,  setModalDetalhe]  = useState(null);
   const [modalCancelar, setModalCancelar] = useState(null);
@@ -1305,7 +1326,7 @@ function DashboardCliente() {
               </div>
             </div>
           </div>
-          <Notificacoes />
+          <Notificacoes aoClicarNotificacao={tratarCliqueNotificacao} />
         </div>
 
         {feedback.msg && (
