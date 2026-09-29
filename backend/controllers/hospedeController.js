@@ -114,6 +114,7 @@ exports.listarReservas = async (req, res) => {
         
         const statusMap = {
             'PENDENTE': 'pendente',
+            'PAGAMENTO_PENDENTE': 'pagamento pendente',
             'CONFIRMADA': 'aprovada',
             'CANCELADA': 'cancelada',
             'RECUSADA': 'recusada',

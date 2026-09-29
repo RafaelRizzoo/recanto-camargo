@@ -95,6 +95,10 @@ export function ContextoAutenticacao({ children }) {
     setUsuario(null);
   }, []);
 
+  const atualizarUsuario = useCallback((novosDados) => {
+    setUsuario(antigo => (antigo ? { ...antigo, ...novosDados } : null));
+  }, []);
+
   if (carregando) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh', background: 'var(--azul-escuro)' }}>
@@ -106,7 +110,7 @@ export function ContextoAutenticacao({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, autenticado: !!usuario, tipo: usuario?.tipo, login, registrar, logout }}>
+    <AuthContext.Provider value={{ usuario, autenticado: !!usuario, tipo: usuario?.tipo, login, registrar, logout, atualizarUsuario }}>
       {children}
     </AuthContext.Provider>
   );

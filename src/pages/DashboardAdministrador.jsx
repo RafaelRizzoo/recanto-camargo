@@ -30,6 +30,7 @@ const noites   = (ci, co) => {
 
 const STATUS_CFG = {
   pendente:  { label: 'Pendente',   bg: '#fff3cd', cor: '#856404' },
+  'pagamento pendente': { label: 'Pagamento Pendente', bg: '#fef3c7', cor: '#b45309' },
   aprovada:  { label: 'Confirmada', bg: '#d1e7dd', cor: '#0f5132' },
   recusada:  { label: 'Recusada',   bg: '#f8d7da', cor: '#842029' },
   cancelada: { label: 'Cancelada',  bg: '#f8d7da', cor: '#842029' },
@@ -1381,7 +1382,7 @@ function TabelaReservas({ reservas, onVer, filtro, setFiltro, reservasGerais }) 
       <div className="tabela-header-admin">
         <h5 className="mb-0 fw-bold" style={{ color: '#223a5e' }}>Gerenciar Reservas</h5>
         <div className="filtros-status-admin">
-          {['todas', 'pendente', 'aprovada', 'concluida', 'recusada', 'cancelada'].map(f => (
+          {['todas', 'pendente', 'pagamento pendente', 'aprovada', 'concluida', 'recusada', 'cancelada'].map(f => (
             <button
               key={f}
               type="button"

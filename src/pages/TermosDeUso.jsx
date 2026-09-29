@@ -1,8 +1,25 @@
+import { useEffect } from 'react';
 import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import './TermosPrivacidade.css';
 
 function TermosDeUso() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    const root = document.getElementById('root');
+    if (root) root.scrollTop = 0;
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, []);
+
+  const rolarPara = (id) => (e) => {
+    e.preventDefault();
+    const elem = document.getElementById(id);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="politica-pagina-shell">
       {/* ── Hero Banner ── */}
@@ -34,14 +51,14 @@ function TermosDeUso() {
                 <i className="bi bi-list-check" aria-hidden="true" /> Sumário das Cláusulas
               </div>
               <ul className="politica-sumario-lista">
-                <li><a href="#objeto"><i className="bi bi-chevron-right" /> 1. Objeto da Locação</a></li>
-                <li><a href="#horarios"><i className="bi bi-chevron-right" /> 2. Check-in e Check-out</a></li>
-                <li><a href="#regras"><i className="bi bi-chevron-right" /> 3. Regras da Casa & Silêncio</a></li>
-                <li><a href="#cancelamento"><i className="bi bi-chevron-right" /> 4. Política de Cancelamento</a></li>
-                <li><a href="#patrimonio"><i className="bi bi-chevron-right" /> 5. Preservação & Danos</a></li>
-                <li><a href="#pets"><i className="bi bi-chevron-right" /> 6. Política Pet-Friendly</a></li>
-                <li><a href="#seguranca"><i className="bi bi-chevron-right" /> 7. Garagem & Segurança</a></li>
-                <li><a href="#foro"><i className="bi bi-chevron-right" /> 8. Foro de Eleição</a></li>
+                <li><a href="#objeto" onClick={rolarPara('objeto')}><i className="bi bi-chevron-right" /> 1. Objeto da Locação</a></li>
+                <li><a href="#horarios" onClick={rolarPara('horarios')}><i className="bi bi-chevron-right" /> 2. Check-in e Check-out</a></li>
+                <li><a href="#regras" onClick={rolarPara('regras')}><i className="bi bi-chevron-right" /> 3. Regras da Casa & Silêncio</a></li>
+                <li><a href="#cancelamento" onClick={rolarPara('cancelamento')}><i className="bi bi-chevron-right" /> 4. Política de Cancelamento</a></li>
+                <li><a href="#patrimonio" onClick={rolarPara('patrimonio')}><i className="bi bi-chevron-right" /> 5. Preservação & Danos</a></li>
+                <li><a href="#pets" onClick={rolarPara('pets')}><i className="bi bi-chevron-right" /> 6. Política Pet-Friendly</a></li>
+                <li><a href="#seguranca" onClick={rolarPara('seguranca')}><i className="bi bi-chevron-right" /> 7. Garagem & Segurança</a></li>
+                <li><a href="#foro" onClick={rolarPara('foro')}><i className="bi bi-chevron-right" /> 8. Foro de Eleição</a></li>
               </ul>
             </nav>
 

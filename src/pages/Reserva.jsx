@@ -10,7 +10,6 @@ import { API_BASE } from '../utils/api';
 
 const DIARIA = 270;
 const TAXA_LIMPEZA = 80;
-const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 const WHATSAPP_NUMERO = '5512996297452';
 const MAPS_URL = 'https://www.google.com/maps?q=Recanto+Camargo+Aparecida+SP';
 
@@ -28,22 +27,6 @@ function formatarData(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
-}
-
-function verificarConflito(checkin, checkout) {
-  try {
-    const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
-    const entrada = new Date(checkin);
-    const saida = new Date(checkout);
-    return reservas.some(r => {
-      if (r.status === 'cancelada') return false;
-      const rEntrada = new Date(r.checkin);
-      const rSaida = new Date(r.checkout);
-      return entrada < rSaida && saida > rEntrada;
-    });
-  } catch {
-    return false;
-  }
 }
 
 function Estrelas({ total = 5 }) {
@@ -234,10 +217,6 @@ function Reserva() {
     }
     if (Object.keys(errosNovos).length > 0) {
       setErros(errosNovos);
-      return;
-    }
-    if (verificarConflito(datas.checkin, datas.checkout)) {
-      setErros({ conflito: 'Este período já está reservado. Escolha outras datas.' });
       return;
     }
 

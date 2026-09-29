@@ -76,3 +76,10 @@ TEST_INFRA.md
 # ============================================
 backend_backup/
 **/backend_backup/
+
+# ============================================
+# SCRIPTS DE BANCO DE DADOS & MIGRAÇÕES LOCAIS
+# ============================================
+backend/migrations/20260928_*.sql
+*.sql
+!backend/migrations/20260904_001_not_notificacao.sql

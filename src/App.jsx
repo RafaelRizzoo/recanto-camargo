@@ -49,16 +49,18 @@ function RotaProtegida({ elemento, tipoRequerido }) {
 }
 
 function ScrollToTop() {
-  const { key } = useLocation();
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if ('scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
     }
-    const el = document.scrollingElement || document.documentElement;
-    el.scrollTop = 0;
     window.scrollTo(0, 0);
-  }, [key]);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const rootEl = document.getElementById('root');
+    if (rootEl) rootEl.scrollTop = 0;
+  }, [pathname]);
 
   return null;
 }

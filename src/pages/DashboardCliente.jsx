@@ -89,6 +89,7 @@ const podeCancelar = (ci) => diasAteCheckin(ci) > 7;
 
 const STATUS_CFG = {
   pendente:  { label: 'Pendente',   bg: '#fff3cd', cor: '#856404', icone: 'bi-hourglass-split' },
+  'pagamento pendente': { label: 'Pagamento Pendente', bg: '#fef3c7', cor: '#b45309', icone: 'bi-credit-card-2-front' },
   aprovada:  { label: 'Aprovada',   bg: '#d1fae5', cor: '#0f5132', icone: 'bi-check-circle'    },
   cancelada: { label: 'Cancelada',  bg: '#f8d7da', cor: '#842029', icone: 'bi-x-circle'        },
   concluida: { label: 'Concluída',  bg: '#e0e7ff', cor: '#3730a3', icone: 'bi-award'           },
@@ -472,7 +473,7 @@ ModalAvaliar.propTypes = {
 function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
   const n    = calcNoites(reserva.checkin, reserva.checkout);
   const dias = diasAteCheckin(reserva.checkin);
-  const podeCanc = podeCancelar(reserva.checkin) && (reserva.status === 'aprovada' || reserva.status === 'pendente');
+  const podeCanc = podeCancelar(reserva.checkin) && (reserva.status === 'aprovada' || reserva.status === 'pendente' || reserva.status === 'pagamento pendente');
 
   return (
     <div className="cli-card-reserva">
@@ -548,7 +549,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao }) {
   const hoje = new Date();
   const proxima = useMemo(() =>
     reservas
-      .filter(r => (r.status === 'aprovada' || r.status === 'pendente') && new Date(r.checkin + 'T00:00:00') >= hoje)
+      .filter(r => (r.status === 'aprovada' || r.status === 'pendente' || r.status === 'pagamento pendente') && new Date(r.checkin + 'T00:00:00') >= hoje)
       .sort((a, b) => new Date(a.checkin) - new Date(b.checkin))[0]
   , [reservas]);
 
@@ -703,6 +704,7 @@ function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar }) {
   const FILTROS = [
     { id: 'todas', label: 'Todas' },
     { id: 'pendente', label: 'Pendentes' },
+    { id: 'pagamento pendente', label: 'Pagamento Pendente' },
     { id: 'aprovada', label: 'Confirmadas'},
     { id: 'cancelada', label: 'Canceladas' },
     { id: 'recusada', label: 'Recusadas' },
