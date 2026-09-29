@@ -1,8 +1,25 @@
+import { useEffect } from 'react';
 import { Container } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import './TermosPrivacidade.css';
 
 function Privacidade() {
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    const root = document.getElementById('root');
+    if (root) root.scrollTop = 0;
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+  }, []);
+
+  const rolarPara = (id) => (e) => {
+    e.preventDefault();
+    const elem = document.getElementById(id);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="politica-pagina-shell">
       {/* ── Hero Banner ── */}
@@ -34,14 +51,14 @@ function Privacidade() {
                 <i className="bi bi-list-check" aria-hidden="true" /> Seções da Política de Privacidade
               </div>
               <ul className="politica-sumario-lista">
-                <li><a href="#controlador"><i className="bi bi-chevron-right" /> 1. Controlador de Dados</a></li>
-                <li><a href="#dados"><i className="bi bi-chevron-right" /> 2. Dados Pessoais Coletados</a></li>
-                <li><a href="#finalidades"><i className="bi bi-chevron-right" /> 3. Finalidades e Bases Legais</a></li>
-                <li><a href="#compartilhamento"><i className="bi bi-chevron-right" /> 4. Compartilhamento de Dados</a></li>
-                <li><a href="#seguranca"><i className="bi bi-chevron-right" /> 5. Segurança da Informação</a></li>
-                <li><a href="#direitos"><i className="bi bi-chevron-right" /> 6. Direitos do Titular (LGPD)</a></li>
-                <li><a href="#retencao"><i className="bi bi-chevron-right" /> 7. Tempo de Retenção</a></li>
-                <li><a href="#dpo"><i className="bi bi-chevron-right" /> 8. Canal do Encarregado (DPO)</a></li>
+                <li><a href="#controlador" onClick={rolarPara('controlador')}><i className="bi bi-chevron-right" /> 1. Controlador de Dados</a></li>
+                <li><a href="#dados" onClick={rolarPara('dados')}><i className="bi bi-chevron-right" /> 2. Dados Pessoais Coletados</a></li>
+                <li><a href="#finalidades" onClick={rolarPara('finalidades')}><i className="bi bi-chevron-right" /> 3. Finalidades e Bases Legais</a></li>
+                <li><a href="#compartilhamento" onClick={rolarPara('compartilhamento')}><i className="bi bi-chevron-right" /> 4. Compartilhamento de Dados</a></li>
+                <li><a href="#seguranca" onClick={rolarPara('seguranca')}><i className="bi bi-chevron-right" /> 5. Segurança da Informação</a></li>
+                <li><a href="#direitos" onClick={rolarPara('direitos')}><i className="bi bi-chevron-right" /> 6. Direitos do Titular (LGPD)</a></li>
+                <li><a href="#retencao" onClick={rolarPara('retencao')}><i className="bi bi-chevron-right" /> 7. Tempo de Retenção</a></li>
+                <li><a href="#dpo" onClick={rolarPara('dpo')}><i className="bi bi-chevron-right" /> 8. Canal do Encarregado (DPO)</a></li>
               </ul>
             </nav>
 

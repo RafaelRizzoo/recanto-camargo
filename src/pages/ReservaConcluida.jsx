@@ -3,8 +3,6 @@ import { Container, Button, Card } from 'react-bootstrap';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 
-const CHAVE_RESERVAS = 'recanto_camargo_reservas';
-
 function formatarData(dataISO) {
   if (!dataISO) return '';
   const [ano, mes, dia] = dataISO.split('-');

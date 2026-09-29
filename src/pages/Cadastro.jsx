@@ -33,12 +33,38 @@ function Cadastro() {
     setErro('');
 
     if (dados.senha !== dados.confirmacaoSenha) {
+      setDados(prev => ({ ...prev, senha: '', confirmacaoSenha: '' }));
       setErro('As senhas não coincidem!');
       return;
     }
 
-    if (dados.senha.length < 6) {
-      setErro('A senha deve ter pelo menos 6 caracteres.');
+    if (dados.senha.length < 8) {
+      setDados(prev => ({ ...prev, senha: '', confirmacaoSenha: '' }));
+      setErro('A senha deve ter no mínimo 8 caracteres.');
+      return;
+    }
+
+    if (!/[A-Z]/.test(dados.senha)) {
+      setDados(prev => ({ ...prev, senha: '', confirmacaoSenha: '' }));
+      setErro('A senha deve conter pelo menos uma letra maiúscula.');
+      return;
+    }
+
+    if (!/[a-z]/.test(dados.senha)) {
+      setDados(prev => ({ ...prev, senha: '', confirmacaoSenha: '' }));
+      setErro('A senha deve conter pelo menos uma letra minúscula.');
+      return;
+    }
+
+    if (!/\d/.test(dados.senha)) {
+      setDados(prev => ({ ...prev, senha: '', confirmacaoSenha: '' }));
+      setErro('A senha deve conter pelo menos um número.');
+      return;
+    }
+
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(dados.senha)) {
+      setDados(prev => ({ ...prev, senha: '', confirmacaoSenha: '' }));
+      setErro('A senha deve conter pelo menos um caractere especial (!@#$%...).');
       return;
     }
 
@@ -59,6 +85,7 @@ function Cadastro() {
     if (resultado.sucesso) {
       navigate('/');
     } else {
+      setDados(prev => ({ ...prev, senha: '', confirmacaoSenha: '' }));
       setErro(resultado.mensagem);
     }
   };
@@ -111,17 +138,22 @@ function Cadastro() {
 
         <EntradaSenha
           nome="senha"
-          placeholder="Insira sua senha"
+          placeholder="Crie uma senha forte (mín. 8 caracteres)"
           valor={dados.senha}
           onChange={handleChange}
+          autoComplete="new-password"
           required
         />
+        <small className="text-white-50 d-block mb-3" style={{ fontSize: '0.8rem', marginTop: '-0.5rem' }}>
+          Mínimo 8 caracteres com maiúscula, minúscula, número e símbolo especial (!@#$%).
+        </small>
 
         <EntradaSenha
           nome="confirmacaoSenha"
           placeholder="Repita sua senha"
           valor={dados.confirmacaoSenha}
           onChange={handleChange}
+          autoComplete="new-password"
           required
         />
 

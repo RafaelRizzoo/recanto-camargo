@@ -19,7 +19,7 @@ exports.checarDisponibilidade = async (req, res) => {
         const queryConflito = `
             SELECT Res_Id FROM res_reserva 
             WHERE Imo_Id = ? 
-            AND Res_Status IN ('CONFIRMADA', 'PENDENTE')
+            AND Res_Status IN ('CONFIRMADA', 'PENDENTE', 'PAGAMENTO_PENDENTE')
             AND (Res_DataCheckIn < ?) 
             AND (Res_DataCheckOut > ?)
         `;
@@ -57,7 +57,7 @@ exports.datasOcupadas = async (req, res) => {
                 DATE_FORMAT(Res_DataCheckOut, '%Y-%m-%d') as checkout 
             FROM res_reserva 
             WHERE Imo_Id = ? 
-            AND Res_Status IN ('CONFIRMADA', 'PENDENTE')
+            AND Res_Status IN ('CONFIRMADA', 'PENDENTE', 'PAGAMENTO_PENDENTE')
             AND Res_DataCheckOut >= CURDATE()
         `;
         const [datas] = await db.query(query, [imoId]);
@@ -144,7 +144,7 @@ exports.criarReserva = async (req, res) => {
         const queryConflito = `
             SELECT Res_Id FROM res_reserva 
             WHERE Imo_Id = ? 
-            AND Res_Status IN ('CONFIRMADA', 'PENDENTE')
+            AND Res_Status IN ('CONFIRMADA', 'PENDENTE', 'PAGAMENTO_PENDENTE')
             AND (Res_DataCheckIn < ?) 
             AND (Res_DataCheckOut > ?)
         `;

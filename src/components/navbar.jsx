@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import Botao from "./UI/Botao";
 import MenuUsuario from "./UI/MenuUsuario";
 import { useAutenticacao } from "../hooks/useAutenticacao";
@@ -69,28 +69,28 @@ function IconeX() {
   );
 }
 
-function BarraDesktop({ autenticado, scrollado }) {
+function BarraDesktop({ autenticado, scrollado, onCliqueLink }) {
   return (
     <nav className={`navbar-moderna navbar-topo${scrollado ? " is-scrolled" : ""}`} aria-label="Navegação principal">
       <div className="navbar-shell">
-        <NavLink to="/" className="navbar-brand-moderna">
+        <NavLink to="/" className="navbar-brand-moderna" onClick={() => onCliqueLink('/')}>
           <img src={logoPng} alt="Recanto Camargo" className="navbar-logo" />
           <span className="brand-text">RECANTO CAMARGO</span>
         </NavLink>
 
         <div className="navbar-conteudo">
           <div className="navbar-links-list">
-            <NavLink to="/" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}>
+            <NavLink to="/" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={() => onCliqueLink('/')}>
               <span className="nav-icon"><IconeHome /></span>
               <span>Início</span>
             </NavLink>
             
-            <NavLink to="/Fotos" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}>
+            <NavLink to="/Fotos" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={() => onCliqueLink('/Fotos')}>
               <span className="nav-icon"><IconeFoto /></span>
               <span>Fotos e Vídeos</span>
             </NavLink>
             
-            <NavLink to="/Avaliacoes" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`}>
+            <NavLink to="/Avaliacoes" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={() => onCliqueLink('/Avaliacoes')}>
               <span className="nav-icon"><IconeEstrela /></span>
               <span>Avaliações</span>
             </NavLink>
@@ -110,7 +110,7 @@ function BarraDesktop({ autenticado, scrollado }) {
           </div>
 
           <div className="d-flex align-items-center">
-            <NavLink to="/Reserva" className="navbar-reserva-link">
+            <NavLink to="/Reserva" className="navbar-reserva-link" onClick={() => onCliqueLink('/Reserva')}>
               <Botao tipo="button" variante="warning" efeitoOnda={false} className="btn-inline navbar-botao-reserva">
                 <span className="nav-icon"><IconeReserva /></span>
                 <span>Reservar</span>
@@ -125,12 +125,12 @@ function BarraDesktop({ autenticado, scrollado }) {
   );
 }
 
-function BarraMobile({ aberto, onToggle, onNavigate, autenticado, scrollado, oculta }) {
+function BarraMobile({ aberto, onToggle, onNavigate, autenticado, scrollado, oculta, onCliqueLink }) {
   return (
     <nav className={`navbar-moderna navbar-mobile${scrollado ? " is-scrolled" : ""}${oculta ? " navbar-oculta" : ""}`} aria-label="Navegação principal">
       <div className="navbar-shell">
         <div className="navbar-header">
-          <NavLink to="/" className="navbar-brand-moderna">
+          <NavLink to="/" className="navbar-brand-moderna" onClick={() => { onCliqueLink && onCliqueLink('/'); onNavigate && onNavigate(); }}>
             <img src={logoPng} alt="Recanto Camargo" className="navbar-logo" />
             <span className="brand-text">RECANTO CAMARGO</span>
           </NavLink>
@@ -148,17 +148,17 @@ function BarraMobile({ aberto, onToggle, onNavigate, autenticado, scrollado, ocu
 
         <div className={`navbar-conteudo-mobile ${aberto ? "is-open" : ""}`}>
           <div className="navbar-links-list">
-            <NavLink to="/" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={onNavigate}>
+            <NavLink to="/" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={() => { onCliqueLink && onCliqueLink('/'); onNavigate && onNavigate(); }}>
               <span className="nav-icon"><IconeHome /></span>
               <span>Início</span>
             </NavLink>
             
-            <NavLink to="/Fotos" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={onNavigate}>
+            <NavLink to="/Fotos" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={() => { onCliqueLink && onCliqueLink('/Fotos'); onNavigate && onNavigate(); }}>
               <span className="nav-icon"><IconeFoto /></span>
               <span>Fotos e Vídeos</span>
             </NavLink>
             
-            <NavLink to="/Avaliacoes" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={onNavigate}>
+            <NavLink to="/Avaliacoes" className={({ isActive }) => `nav-link-moderna ${isActive ? "active" : ""}`} onClick={() => { onCliqueLink && onCliqueLink('/Avaliacoes'); onNavigate && onNavigate(); }}>
               <span className="nav-icon"><IconeEstrela /></span>
               <span>Avaliações</span>
             </NavLink>
@@ -177,7 +177,7 @@ function BarraMobile({ aberto, onToggle, onNavigate, autenticado, scrollado, ocu
             )}
           </div>
 
-          <NavLink to="/Reserva" className="navbar-reserva-link" onClick={onNavigate}>
+          <NavLink to="/Reserva" className="navbar-reserva-link" onClick={() => { onCliqueLink && onCliqueLink('/Reserva'); onNavigate && onNavigate(); }}>
             <Botao tipo="button" variante="warning" efeitoOnda={false} className="btn-inline navbar-botao-reserva">
               <span className="nav-icon"><IconeReserva /></span>
               <span>Reservar</span>
@@ -205,6 +205,22 @@ function Menu() {
   const [navbarOculta, setNavbarOculta] = useState(false);
   const scrollAnteriorRef = useRef(0);
   const { autenticado } = useAutenticacao();
+  const location = useLocation();
+
+  const rolarSeMesmaPagina = (destino) => {
+    const atual = (location.pathname || '').toLowerCase();
+    const dest = (destino || '').toLowerCase();
+
+    const ehMesmaPagina =
+      atual === dest ||
+      (dest === '/' && (atual === '/' || atual === '' || window.location.hash === '#/' || window.location.hash === ''));
+
+    if (ehMesmaPagina) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const rootEl = document.getElementById('root');
+      if (rootEl) rootEl.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     const atualizarLayout = () => {
@@ -235,7 +251,7 @@ function Menu() {
   }, []);
 
   if (ehDesktop) {
-    return <BarraDesktop autenticado={autenticado} scrollado={scrollado} />;
+    return <BarraDesktop autenticado={autenticado} scrollado={scrollado} onCliqueLink={rolarSeMesmaPagina} />;
   }
 
   return (
@@ -246,6 +262,7 @@ function Menu() {
       autenticado={autenticado}
       scrollado={scrollado}
       oculta={navbarOculta}
+      onCliqueLink={rolarSeMesmaPagina}
     />
   );
 }

@@ -273,6 +273,7 @@ exports.listarReservas = async (req, res) => {
 
         const statusMap = {
             'PENDENTE': 'pendente',
+            'PAGAMENTO_PENDENTE': 'pagamento pendente',
             'CONFIRMADA': 'aprovada',
             'CANCELADA': 'cancelada',
             'RECUSADA': 'recusada',
@@ -517,7 +518,7 @@ exports.criarBloqueio = async (req, res) => {
                     DATE_FORMAT(Res_DataCheckOut, '%d/%m/%Y') AS checkout
              FROM res_reserva
              WHERE Imo_Id = ?
-               AND Res_Status IN ('CONFIRMADA', 'PENDENTE')
+               AND Res_Status IN ('CONFIRMADA', 'PENDENTE', 'PAGAMENTO_PENDENTE')
                AND Res_DataCheckIn < ?
                AND Res_DataCheckOut > ?`,
             [imoId, fim + ' 23:59:59', dataInicio + ' 00:00:00']
@@ -863,7 +864,7 @@ exports.obterMetricasDashboard = async (req, res) => {
              FROM res_reserva r
              JOIN usu_usuario u ON u.Usu_Id = r.Hos_Hospede_Usu_Id
              WHERE r.Imo_Id = ?
-               AND r.Res_Status IN ('CONFIRMADA', 'PENDENTE')
+               AND r.Res_Status IN ('CONFIRMADA', 'PENDENTE', 'PAGAMENTO_PENDENTE')
                AND r.Res_DataCheckIn >= CURDATE()
              ORDER BY r.Res_DataCheckIn ASC
              LIMIT 5`,

@@ -13,24 +13,7 @@ import {
 import { verificarSeFeriado } from "../utils/feriados";
 import { API_BASE, IS_API_AVAILABLE } from "../utils/api";
 
-const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 const WHATSAPP_NUMERO = '5512996297452';
-
-function verificarConflito(checkin, checkout) {
-  try {
-    const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
-    const entrada = new Date(checkin);
-    const saida = new Date(checkout);
-    return reservas.some(r => {
-      if (r.status === 'cancelada') return false;
-      const rEntrada = new Date(r.checkin);
-      const rSaida = new Date(r.checkout);
-      return entrada < rSaida && saida > rEntrada;
-    });
-  } catch {
-    return false;
-  }
-}
 
 function Home() {
   const navigate = useNavigate();
