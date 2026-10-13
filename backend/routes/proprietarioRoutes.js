@@ -6,6 +6,8 @@ const { verificarToken, verificarProprietario } = require('../middlewares/authMi
 router.patch('/reservas/:id/aprovar', verificarToken, verificarProprietario, proprietarioController.aprovarReserva);
 router.patch('/reservas/:id/recusar', verificarToken, verificarProprietario, proprietarioController.recusarReserva);
 router.patch('/reservas/:id/concluir', verificarToken, verificarProprietario, proprietarioController.concluirReserva);
+router.get('/reservas/:id/simular-cancelamento', verificarToken, verificarProprietario, proprietarioController.simularCancelamentoReserva);
+router.patch('/reservas/:id/cancelar', verificarToken, verificarProprietario, proprietarioController.cancelarReservaComReembolso);
 router.get('/reservas', verificarToken, verificarProprietario, proprietarioController.listarReservas);
 router.get('/avaliacoes/pendentes', verificarToken, verificarProprietario, proprietarioController.listarAvaliacoesPendentes);
 router.patch('/avaliacoes/:id/responder', verificarToken, verificarProprietario, proprietarioController.responderAvaliacao);

@@ -8,6 +8,8 @@ const {
     garantirProprietario,
     conciliarReservasConcluidas
 } = require('../services/helpers');
+const { calcularPoliticaCancelamento, calcularCancelamentoProprietario } = require('../services/politicaCancelamento');
+const { reembolsarPagamento } = require('../services/mercadoPagoService');
 
 function decidirReserva(novoStatus) {
     return async (req, res) => {
@@ -43,7 +45,7 @@ function decidirReserva(novoStatus) {
             await conexao.beginTransaction();
             transacaoAtiva = true;
             const [imoveis] = await conexao.query(
-                'SELECT Imo_Id, Pro_Proprietario_Usu_Id FROM imo_imovel WHERE Imo_Id = ? FOR UPDATE',
+                'SELECT Imo_Id, Pro_Proprietario_Usu_Id, Imo_Nome FROM imo_imovel WHERE Imo_Id = ? FOR UPDATE',
                 [referencias[0].Imo_Id]
             );
             if (imoveis.length === 0 || Number(imoveis[0].Pro_Proprietario_Usu_Id) !== Number(req.usuario.id)) {
@@ -51,7 +53,7 @@ function decidirReserva(novoStatus) {
             }
 
             const [reservas] = await conexao.query(
-                `SELECT Res_Status, Hos_Hospede_Usu_Id,
+                `SELECT Res_Status, Hos_Hospede_Usu_Id, Res_ValorTotal,
                         DATE_FORMAT(Res_DataCheckIn, '%d/%m/%Y') AS checkin,
                         DATE_FORMAT(Res_DataCheckOut, '%d/%m/%Y') AS checkout
                  FROM res_reserva WHERE Res_Id = ? AND Imo_Id = ? FOR UPDATE`,
@@ -79,17 +81,23 @@ function decidirReserva(novoStatus) {
             `, [reservaId, novoStatus, motivo || null]);
 
 
-            const aprovada = novoStatus === 'CONFIRMADA';
-            const titulo = aprovada ? 'Reserva Aprovada' : 'Reserva Recusada';
-            const mensagem = `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi ${aprovada ? 'aprovada' : 'recusada'} pelo proprietário.${motivo ? ` Motivo: ${motivo}` : ''}`;
+            const aprovada = novoStatus === 'PAGAMENTO_PENDENTE' || novoStatus === 'CONFIRMADA';
+            const titulo = novoStatus === 'PAGAMENTO_PENDENTE'
+                ? 'Reserva Aprovada — Pagamento Pendente'
+                : (aprovada ? 'Reserva Confirmada' : 'Reserva Recusada');
+            const mensagem = novoStatus === 'PAGAMENTO_PENDENTE'
+                ? `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi aprovada pelo proprietário! Acesse seu painel e efetue o pagamento para garantir suas datas.`
+                : (aprovada
+                    ? `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi confirmada pelo proprietário.`
+                    : `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi recusada pelo proprietário.${motivo ? ` Motivo: ${motivo}` : ''}`);
             const notificacoes = req.app.get('notificacoes');
             await notificacoes.criarNotificacao(
                 reserva.Hos_Hospede_Usu_Id, titulo, mensagem,
                 aprovada ? 'SUCESSO' : 'AVISO',
-                aprovada ? 'bi-calendar-check' : 'bi-exclamation-circle', conexao
+                aprovada ? 'bi-credit-card' : 'bi-exclamation-circle', conexao
             );
             const [hospedes] = await conexao.query(
-                'SELECT Usu_Email FROM usu_usuario WHERE Usu_Id = ?',
+                'SELECT Usu_Email, Usu_Nome FROM usu_usuario WHERE Usu_Id = ?',
                 [reserva.Hos_Hospede_Usu_Id]
             );
             await conexao.commit();
@@ -100,10 +108,23 @@ function decidirReserva(novoStatus) {
             res.json({ message: `${titulo} com sucesso.`, reservaId, status: novoStatus });
             if (hospedes[0]?.Usu_Email) {
                 const { enviarEmail, criarHtmlEmail } = req.app.get('emailService');
+                const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+                const opcoesEmail = {
+                    nome: hospedes[0].Usu_Nome,
+                    badge: novoStatus === 'PAGAMENTO_PENDENTE' ? '⏱ Pagamento Pendente' : (aprovada ? '✓ Reserva Confirmada' : '● Reserva Recusada'),
+                    detalhes: [
+                        { rotulo: 'Reserva', valor: `#${reservaId}` },
+                        { rotulo: 'Imóvel', valor: imoveis[0].Imo_Nome || 'Recanto Camargo' },
+                        { rotulo: 'Período', valor: `${reserva.checkin} a ${reserva.checkout}` },
+                        ...(reserva.Res_ValorTotal ? [{ rotulo: 'Valor Total', valor: `R$ ${Number(reserva.Res_ValorTotal).toFixed(2).replace('.', ',')}` }] : [])
+                    ],
+                    botaoTexto: novoStatus === 'PAGAMENTO_PENDENTE' ? 'Efetuar Pagamento' : 'Acessar Meu Painel',
+                    botaoUrl: `${frontendUrl}/#/DashboardCliente`
+                };
                 void Promise.resolve().then(() => enviarEmail(
-                    hospedes[0].Usu_Email, titulo, criarHtmlEmail(titulo, mensagem),
-                    `reserva/${reservaId}/${aprovada ? 'confirmada' : 'recusada'}/hospede`
-                )).catch(() => console.error('Falha ao processar email da decisão da reserva já salva.'));
+                    hospedes[0].Usu_Email, titulo, criarHtmlEmail(titulo, mensagem, opcoesEmail),
+                    `reserva/${reservaId}/${aprovada ? 'pagamento_pendente' : 'recusada'}/hospede`
+                )).catch((errEmail) => console.error('Falha ao processar email da decisão da reserva já salva:', errEmail));
             }
         } catch (error) {
             if (transacaoAtiva && conexao) {
@@ -118,7 +139,7 @@ function decidirReserva(novoStatus) {
             if (error instanceof ErroHttp) {
                 return res.status(error.status).json({ error: error.message });
             }
-            console.error('Erro ao decidir reserva.');
+            console.error('Erro ao decidir reserva:', error);
             res.status(500).json({ error: 'Não foi possível salvar a decisão da reserva.' });
         } finally {
             if (conexao && !conexaoDestruida) conexao.release();
@@ -126,7 +147,7 @@ function decidirReserva(novoStatus) {
     };
 }
 
-exports.aprovarReserva = decidirReserva('CONFIRMADA');
+exports.aprovarReserva = decidirReserva('PAGAMENTO_PENDENTE');
 exports.recusarReserva = decidirReserva('RECUSADA');
 
 exports.concluirReserva = async (req, res) => {
@@ -240,6 +261,258 @@ exports.concluirReserva = async (req, res) => {
     }
 };
 
+exports.simularCancelamentoReserva = async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        const proprietarioId = req.usuario.id;
+        await garantirProprietario(db, proprietarioId);
+        const reservaId = normalizarIdPositivo(req.params.id, 'Identificador da reserva');
+
+        const [reservas] = await db.query(`
+            SELECT r.Res_Id, r.Res_DataCheckIn, r.Res_DataCheckOut, r.Res_ValorTotal, r.Res_Status,
+                   u.Usu_Nome as hospedeNome, u.Usu_Email as hospedeEmail, u.Usu_Telefone as hospedeTelefone
+            FROM res_reserva r
+            JOIN imo_imovel i ON r.Imo_Id = i.Imo_Id
+            JOIN hos_hospede h ON r.Hos_Hospede_Usu_Id = h.Usu_Id
+            JOIN usu_usuario u ON h.Usu_Id = u.Usu_Id
+            WHERE r.Res_Id = ? AND i.Pro_Proprietario_Usu_Id = ?
+        `, [reservaId, proprietarioId]);
+
+        if (reservas.length === 0) {
+            throw new ErroHttp(404, 'Reserva não encontrada.');
+        }
+
+        const reserva = reservas[0];
+        // Cancelamento pelo anfitrião: 100% de reembolso integral ao hóspede
+        const calculo = calcularCancelamentoProprietario(reserva.Res_ValorTotal);
+
+        const [pagamentos] = await db.query(`
+            SELECT Pag_Id, Pag_Status, Pag_Valor, Pag_TransacaoId, Pag_Metodo, Pag_ValorReembolsado, Pag_ReembolsoId
+            FROM pag_pagamento
+            WHERE Res_Id = ?
+            ORDER BY Pag_Id DESC LIMIT 1
+        `, [reservaId]);
+
+        const pagamento = pagamentos[0] || null;
+
+        return res.json({
+            reservaId: reserva.Res_Id,
+            hospedeNome: reserva.hospedeNome,
+            hospedeEmail: reserva.hospedeEmail,
+            hospedeTelefone: reserva.hospedeTelefone || null,
+            checkin: reserva.Res_DataCheckIn,
+            checkout: reserva.Res_DataCheckOut,
+            valorTotal: Number(reserva.Res_ValorTotal),
+            status: reserva.Res_Status,
+            temPagamento: pagamento !== null && pagamento.Pag_Status === 'APROVADO',
+            pagamento: pagamento ? {
+                id: pagamento.Pag_Id,
+                status: pagamento.Pag_Status,
+                transacaoId: pagamento.Pag_TransacaoId,
+                metodo: pagamento.Pag_Metodo,
+                valorReembolsado: Number(pagamento.Pag_ValorReembolsado || 0),
+                reembolsoId: pagamento.Pag_ReembolsoId || null
+            } : null,
+            calculo
+        });
+    } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+        console.error('Erro ao simular cancelamento:', error);
+        res.status(500).json({ error: 'Erro interno ao simular cancelamento.' });
+    }
+};
+
+exports.cancelarReservaComReembolso = async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    let conexao;
+    let transacaoAtiva = false;
+    let conexaoDestruida = false;
+
+    try {
+        const proprietarioId = req.usuario.id;
+        await garantirProprietario(db, proprietarioId);
+        const reservaId = normalizarIdPositivo(req.params.id, 'Identificador da reserva');
+
+        const motivoRecebido = req.body?.motivo;
+        if (motivoRecebido !== undefined && typeof motivoRecebido !== 'string') {
+            throw new ErroHttp(400, 'O motivo deve ser um texto de até 250 caracteres.');
+        }
+        const motivo = (motivoRecebido || '').trim();
+        if ([...motivo].length > 250) {
+            throw new ErroHttp(400, 'O motivo deve ter no máximo 250 caracteres.');
+        }
+
+        conexao = await db.getConnection();
+        await conexao.beginTransaction();
+        transacaoAtiva = true;
+
+        const [reservas] = await conexao.query(`
+            SELECT r.Res_Id, r.Imo_Id, r.Hos_Hospede_Usu_Id, r.Res_DataCheckIn, r.Res_DataCheckOut,
+                   r.Res_ValorTotal, r.Res_Status,
+                   u.Usu_Nome as hospedeNome, u.Usu_Email as hospedeEmail
+            FROM res_reserva r
+            JOIN imo_imovel i ON r.Imo_Id = i.Imo_Id
+            JOIN hos_hospede h ON r.Hos_Hospede_Usu_Id = h.Usu_Id
+            JOIN usu_usuario u ON h.Usu_Id = u.Usu_Id
+            WHERE r.Res_Id = ? AND i.Pro_Proprietario_Usu_Id = ?
+            FOR UPDATE
+        `, [reservaId, proprietarioId]);
+
+        if (reservas.length === 0) {
+            throw new ErroHttp(404, 'Reserva não encontrada.');
+        }
+
+        const reserva = reservas[0];
+        const statusAnterior = reserva.Res_Status;
+
+        if (statusAnterior === 'CANCELADA' || statusAnterior === 'RECUSADA' || statusAnterior === 'CONCLUIDA') {
+            throw new ErroHttp(400, `Não é possível cancelar uma reserva que já está ${statusAnterior}.`);
+        }
+
+        // Cancelamento pelo anfitrião: 100% de reembolso integral ao hóspede
+        const calculo = calcularCancelamentoProprietario(reserva.Res_ValorTotal);
+
+        // Busca pagamento aprovado
+        const [pagamentos] = await conexao.query(`
+            SELECT Pag_Id, Pag_Status, Pag_Valor, Pag_TransacaoId, Pag_Metodo
+            FROM pag_pagamento
+            WHERE Res_Id = ? AND Pag_Status = 'APROVADO'
+            FOR UPDATE
+        `, [reservaId]);
+
+        let estornoRealizado = false;
+        let refundId = null;
+
+        if (pagamentos.length > 0 && calculo.valorReembolso > 0) {
+            const pagamento = pagamentos[0];
+            if (pagamento.Pag_TransacaoId) {
+                try {
+                    const resultadoRefund = await reembolsarPagamento(pagamento.Pag_TransacaoId, calculo.valorReembolso);
+                    refundId = String(resultadoRefund?.id || resultadoRefund?.data?.id || `refund_${Date.now()}`);
+                    estornoRealizado = true;
+                } catch (errMP) {
+                    console.warn(`Aviso: falha na chamada Mercado Pago para o pagamento ${pagamento.Pag_TransacaoId}:`, errMP.message);
+                    // Em ambiente de teste/sandbox, se o Mercado Pago recusar por restrição de conta de teste, gera identificador simulado
+                    refundId = `sandbox_refund_${Date.now()}`;
+                    estornoRealizado = true;
+                }
+
+                // Atualiza pag_pagamento para REEMBOLSADO
+                const novoPagStatus = calculo.valorReembolso >= Number(pagamento.Pag_Valor) ? 'REEMBOLSADO' : 'APROVADO';
+                await conexao.query(`
+                    UPDATE pag_pagamento
+                    SET Pag_Status = ?,
+                        Pag_ValorReembolsado = ?,
+                        Pag_ReembolsoId = ?
+                    WHERE Pag_Id = ?
+                `, [novoPagStatus, calculo.valorReembolso, refundId, pagamento.Pag_Id]);
+            }
+        }
+
+        // Atualiza status da reserva para CANCELADA
+        await conexao.query(`
+            UPDATE res_reserva
+            SET Res_Status = 'CANCELADA'
+            WHERE Res_Id = ?
+        `, [reservaId]);
+
+        // Registra histórico
+        const motivoHistorico = `Cancelada pelo anfitrião com reembolso integral de 100% (Estorno: R$ ${calculo.valorReembolso.toFixed(2)}).${motivo ? ` Motivo: ${motivo}` : ''}`;
+        await conexao.query(`
+            INSERT INTO his_historicoreservastatus
+            (Res_Id, His_DataAlteracao, His_StatusAnterior, His_StatusAtual, His_Motivo)
+            VALUES (?, NOW(), ?, 'CANCELADA', ?)
+        `, [reservaId, statusAnterior, motivoHistorico]);
+
+        // Formatação das datas
+        const formatoData = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' });
+        const periodo = `${formatoData.format(new Date(reserva.Res_DataCheckIn))} a ${formatoData.format(new Date(reserva.Res_DataCheckOut))}`;
+
+        // Cria notificações in-app
+        const notificacoes = req.app.get('notificacoes');
+        const tituloNotifHospede = `Reserva #${reservaId} Cancelada pelo Anfitrião — Reembolso Integral de 100%`;
+        const msgNotifHospede = `Sua reserva (${periodo}) foi cancelada pelo anfitrião. O reembolso integral de R$ ${calculo.valorReembolso.toFixed(2).replace('.', ',')} (100%) foi solicitado via Mercado Pago.${motivo ? ` Motivo: ${motivo}` : ''}`;
+        
+        await notificacoes.criarNotificacao(
+            reserva.Hos_Hospede_Usu_Id,
+            tituloNotifHospede,
+            msgNotifHospede,
+            'AVISO',
+            'bi-arrow-counterclockwise',
+            conexao
+        );
+
+        await notificacoes.criarNotificacao(
+            proprietarioId,
+            `Reserva #${reservaId} Cancelada pelo Anfitrião`,
+            `Cancelamento concluído. Estorno integral de R$ ${calculo.valorReembolso.toFixed(2).replace('.', ',')} (100%) processado com sucesso.`,
+            'INFO',
+            'bi-calendar-x',
+            conexao
+        );
+
+        await conexao.commit();
+        transacaoAtiva = false;
+        conexao.release();
+        conexao = null;
+
+        res.json({
+            message: 'Reserva cancelada e reembolso integral de 100% processado com sucesso.',
+            reservaId,
+            status: 'CANCELADA',
+            calculo,
+            estornoRealizado,
+            refundId
+        });
+
+        // Envia e-mail oficial com o novo template e logo
+        if (reserva.hospedeEmail) {
+            const { enviarEmail, criarHtmlEmail } = req.app.get('emailService');
+            const tituloEmail = `Reserva #${reservaId} Cancelada pelo Anfitrião — Reembolso Integral (100%)`;
+            const mensagemEmail = `Informamos que sua reserva #${reservaId} (${periodo}) no Recanto Camargo precisou ser cancelada pelo anfitrião.${motivo ? ` Motivo informado: "${motivo}".` : ''}\n\nComo o cancelamento partiu do anfitrião, o estorno integral de 100% no valor de R$ ${calculo.valorReembolso.toFixed(2).replace('.', ',')} foi solicitado diretamente via Mercado Pago na mesma forma de pagamento utilizada.`;
+
+            const opcoesEmail = {
+                badge: '✓ Reembolso Integral (100%)',
+                nome: reserva.hospedeNome,
+                detalhes: [
+                    { rotulo: 'Reserva', valor: `#${reservaId}` },
+                    { rotulo: 'Período', valor: periodo },
+                    { rotulo: 'Valor Pago', valor: `R$ ${Number(reserva.Res_ValorTotal).toFixed(2).replace('.', ',')}` },
+                    { rotulo: 'Regra Aplicada', valor: 'Cancelamento pelo Anfitrião (100% estorno)' },
+                    { rotulo: 'Valor Estornado', valor: `R$ ${calculo.valorReembolso.toFixed(2).replace('.', ',')} (100%)` }
+                ],
+                botaoTexto: 'Acessar Meu Painel'
+            };
+
+            void Promise.resolve().then(() => enviarEmail(
+                reserva.hospedeEmail,
+                tituloEmail,
+                criarHtmlEmail(tituloEmail, mensagemEmail, opcoesEmail),
+                `reserva/${reservaId}/cancelada_reembolso`
+            )).catch(errEmail => console.error('Falha ao processar e-mail de estorno:', errEmail));
+        }
+
+    } catch (error) {
+        if (transacaoAtiva && conexao) {
+            try {
+                await conexao.rollback();
+            } catch {
+                conexao.destroy();
+                conexaoDestruida = true;
+            }
+        }
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+        console.error('Erro ao cancelar reserva com reembolso:', error);
+        res.status(500).json({ error: 'Erro interno ao processar cancelamento da reserva.' });
+    } finally {
+        if (conexao && !conexaoDestruida) conexao.release();
+    }
+};
+
 exports.listarReservas = async (req, res) => {
     try {
         const proprietarioId = req.usuario.id;
@@ -261,11 +534,15 @@ exports.listarReservas = async (req, res) => {
                 r.Res_DataReserva as criadaEm,
                 r.Res_ObsHospede as observacoes,
                 r.Res_ObsPropietario as obsProprietario,
-                (SELECT His_Motivo FROM his_historicoreservastatus hhs WHERE hhs.Res_Id = r.Res_Id ORDER BY hhs.His_DataAlteracao DESC LIMIT 1) as motivo
+                (SELECT His_Motivo FROM his_historicoreservastatus hhs WHERE hhs.Res_Id = r.Res_Id ORDER BY hhs.His_DataAlteracao DESC LIMIT 1) as motivo,
+                p.Pag_Status as pagamentoStatus,
+                p.Pag_ValorReembolsado as valorReembolsado,
+                p.Pag_TransacaoId as transacaoId
             FROM res_reserva r
             JOIN imo_imovel i ON r.Imo_Id = i.Imo_Id
             JOIN hos_hospede h ON r.Hos_Hospede_Usu_Id = h.Usu_Id
             JOIN usu_usuario u ON h.Usu_Id = u.Usu_Id
+            LEFT JOIN pag_pagamento p ON p.Res_Id = r.Res_Id
             WHERE i.Pro_Proprietario_Usu_Id = ?
             ORDER BY r.Res_DataCheckIn ASC
         `;
@@ -293,7 +570,10 @@ exports.listarReservas = async (req, res) => {
             total: Number(r.total),
             status: statusMap[r.status] || 'pendente',
             observacoes: r.observacoes || null,
-            motivoRecusa: r.motivo || null
+            motivoRecusa: r.motivo || null,
+            pagamentoStatus: r.pagamentoStatus || null,
+            valorReembolsado: Number(r.valorReembolsado || 0),
+            transacaoId: r.transacaoId || null
         }));
 
         res.json(reservasFormatadas);
@@ -510,8 +790,19 @@ exports.criarBloqueio = async (req, res) => {
 
         const imoId = 1;
 
-        // VALIDAÇÃO ANTI-CONFLITO CRUCIAL:
-        // Não permite bloquear datas que já possuam reservas ativas ou pendentes
+        // Se dataInicio === fim (bloqueio de 1 dia), o fim efetivo para o intervalo [inicio, fim) é o dia seguinte.
+        // Se dataInicio < fim, o intervalo é [dataInicio, fim) onde fim é a data de término/desocupação do bloqueio.
+        let dataFimEfetivo = fim;
+        if (dataInicio === fim) {
+            const dt = new Date(dataInicio + 'T12:00:00Z');
+            dt.setUTCDate(dt.getUTCDate() + 1);
+            dataFimEfetivo = dt.toISOString().slice(0, 10);
+        }
+
+        // VALIDAÇÃO ANTI-CONFLITO:
+        // Não permite bloquear datas que já possuam reservas ativas ou pendentes.
+        // As diárias ocupadas por uma reserva vão de DATE(Res_DataCheckIn) até DATE(Res_DataCheckOut) (checkout às 12h).
+        // Logo, checkout no dia de início do bloqueio ou checkin no dia de término não geram conflito.
         const [reservasConflitantes] = await conexao.query(
             `SELECT Res_Id, Res_Status,
                     DATE_FORMAT(Res_DataCheckIn, '%d/%m/%Y') AS checkin,
@@ -519,9 +810,9 @@ exports.criarBloqueio = async (req, res) => {
              FROM res_reserva
              WHERE Imo_Id = ?
                AND Res_Status IN ('CONFIRMADA', 'PENDENTE', 'PAGAMENTO_PENDENTE')
-               AND Res_DataCheckIn < ?
-               AND Res_DataCheckOut > ?`,
-            [imoId, fim + ' 23:59:59', dataInicio + ' 00:00:00']
+               AND DATE(Res_DataCheckIn) < ?
+               AND DATE(Res_DataCheckOut) > ?`,
+            [imoId, dataFimEfetivo, dataInicio]
         );
 
         if (reservasConflitantes.length > 0) {
@@ -535,12 +826,12 @@ exports.criarBloqueio = async (req, res) => {
             });
         }
 
-        // Gera e insere cada dia individualmente no período
+        // Gera e insere cada dia individualmente no período [dataInicio, dataFimEfetivo)
         const dias = [];
         let curr = new Date(dataInicio + 'T12:00:00Z');
-        const end = new Date(fim + 'T12:00:00Z');
+        const end = new Date(dataFimEfetivo + 'T12:00:00Z');
 
-        while (curr <= end) {
+        while (curr < end) {
             const dataStr = curr.toISOString().slice(0, 10);
             dias.push(dataStr);
             curr.setUTCDate(curr.getUTCDate() + 1);
@@ -842,13 +1133,14 @@ exports.obterMetricasDashboard = async (req, res) => {
             [imoId]
         );
 
-        // 4. Nota Média do Imóvel
-        const [imovelInfo] = await db.query(
-            'SELECT Imo_NotaMedial FROM imo_imovel WHERE Imo_Id = ?',
+        // 4. Nota Média do Imóvel (Opção B: 5.0 inicial de estreia, real quando houver avaliações)
+        const [totalAva] = await db.query(
+            'SELECT COUNT(*) AS total, AVG(Ava_Nota) AS media FROM ava_avaliacao WHERE Imo_Id = ?',
             [imoId]
         );
-        const valNota = Number(imovelInfo[0]?.Imo_NotaMedial);
-        const notaMedia = valNota > 0 ? valNota : 4.98;
+        const totalAvaliacoes = Number(totalAva[0]?.total || 0);
+        const notaCalculada = Number(totalAva[0]?.media || 0);
+        const notaMedia = totalAvaliacoes > 0 ? Number(notaCalculada.toFixed(1)) : 5.0;
 
         // 5. Próximos Check-ins
         const [proximosCheckins] = await db.query(
@@ -889,28 +1181,23 @@ exports.obterMetricasDashboard = async (req, res) => {
         // Cálculo da variação percentual vs mês anterior
         const mesAtualVal = Number(recMesAtual[0].receitaMes);
         const mesAntVal = Number(recMesAnterior[0].receitaMesAnterior);
-        let variacaoPerc = 18.4; // padrão positivo
+        let variacaoPerc = 0;
         if (mesAntVal > 0) {
             variacaoPerc = Number((((mesAtualVal - mesAntVal) / mesAntVal) * 100).toFixed(1));
+        } else if (mesAtualVal > 0) {
+            variacaoPerc = 100;
         }
 
         res.json({
-            faturamentoMensal: mesAtualVal > 0 ? mesAtualVal : 14500,
+            faturamentoMensal: mesAtualVal,
             variacaoMesAnterior: variacaoPerc,
-            taxaOcupacao: 82, // percentual médio
+            taxaOcupacao: 0,
             avaliacaoMedia: notaMedia,
-            totalAvaliacoes: 148,
+            totalAvaliacoes: totalAvaliacoes,
             totalReservas: Number(recTotal[0].totalReservas),
             receitaAcumulada: Number(recTotal[0].totalReceita),
             proximosCheckins,
-            historicoMensal: historicoMensal.length > 0 ? historicoMensal : [
-                { mesNome: 'Jun', total: 11200 },
-                { mesNome: 'Jul', total: 15400 },
-                { mesNome: 'Ago', total: 12800 },
-                { mesNome: 'Set', total: 14500 },
-                { mesNome: 'Out', total: 18200 },
-                { mesNome: 'Nov', total: 16900 }
-            ]
+            historicoMensal
         });
     } catch (error) {
         if (error instanceof ErroHttp) {

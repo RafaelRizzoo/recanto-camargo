@@ -1,5 +1,29 @@
 const TIPOS = new Set(['SUCESSO', 'ERRO', 'AVISO', 'INFO']);
-const ICONES = new Set(['bi-calendar-check', 'bi-calendar-plus', 'bi-info-circle', 'bi-exclamation-circle', 'bi-check-circle']);
+const ICONES = new Set([
+    'bi-calendar-check',
+    'bi-calendar-check-fill',
+    'bi-calendar-plus',
+    'bi-calendar-plus-fill',
+    'bi-calendar-x',
+    'bi-calendar-x-fill',
+    'bi-info-circle',
+    'bi-info-circle-fill',
+    'bi-exclamation-circle',
+    'bi-exclamation-circle-fill',
+    'bi-exclamation-triangle',
+    'bi-exclamation-triangle-fill',
+    'bi-check-circle',
+    'bi-check-circle-fill',
+    'bi-x-circle',
+    'bi-x-circle-fill',
+    'bi-credit-card',
+    'bi-credit-card-2-front',
+    'bi-arrow-counterclockwise',
+    'bi-bell',
+    'bi-bell-fill',
+    'bi-clock-history',
+    'bi-hourglass-split'
+]);
 
 function validarId(valor) {
     const numero = typeof valor === 'string' && /^[1-9]\d*$/.test(valor)

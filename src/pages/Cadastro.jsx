@@ -17,15 +17,19 @@ function Cadastro() {
     cpf: '',
     telefone: '',
     senha: '',
-    confirmacaoSenha: ''
+    confirmacaoSenha: '',
+    aceitouTermos: false
   });
   const [erro, setErro] = useState('');
   const { registrar } = useAutenticacao();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setDados(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setDados(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -68,6 +72,11 @@ function Cadastro() {
       return;
     }
 
+    if (!dados.aceitouTermos) {
+      setErro('Você precisa ler e aceitar os Termos de Uso e a Política de Privacidade para criar sua conta.');
+      return;
+    }
+
     if (!dados.cpf || dados.cpf.length < 11) {
       setErro('Digite um CPF válido.');
       return;
@@ -79,7 +88,9 @@ function Cadastro() {
       email: dados.email,
       cpf: dados.cpf,
       telefone: dados.telefone,
-      senha: dados.senha
+      senha: dados.senha,
+      aceitouTermos: dados.aceitouTermos,
+      versaoTermos: 'v1.0'
     });
 
     if (resultado.sucesso) {
@@ -96,6 +107,7 @@ function Cadastro() {
       imagemLogo={logoPng}
       titulo="Crie sua conta"
       subtitulo="Junte-se ao Recanto Camargo"
+      compacto={true}
     >
       <Form onSubmit={handleSubmit}>
         {erro && <div className="alerta-erro mb-3">{erro}</div>}
@@ -144,7 +156,7 @@ function Cadastro() {
           autoComplete="new-password"
           required
         />
-        <small className="text-white-50 d-block mb-3" style={{ fontSize: '0.8rem', marginTop: '-0.5rem' }}>
+        <small className="texto-ajuda-senha text-white-50 d-block mb-2">
           Mínimo 8 caracteres com maiúscula, minúscula, número e símbolo especial (!@#$%).
         </small>
 
@@ -157,6 +169,29 @@ function Cadastro() {
           required
         />
 
+        <div className="form-check text-start my-2 d-flex align-items-center gap-2" style={{ paddingLeft: 0 }}>
+          <input
+            type="checkbox"
+            id="aceitouTermos"
+            name="aceitouTermos"
+            className="form-check-input m-0"
+            checked={dados.aceitouTermos}
+            onChange={handleChange}
+            style={{ cursor: 'pointer', accentColor: '#ff9211', width: '18px', height: '18px', flexShrink: 0 }}
+            required
+          />
+          <label htmlFor="aceitouTermos" className="form-check-label text-white-50" style={{ fontSize: '0.8rem', lineHeight: '1.3', cursor: 'pointer' }}>
+            Li e concordo com os{' '}
+            <LinkAutenticacao para="/TermosDeUso" target="_blank" variante="secundario" style={{ textDecoration: 'underline', color: '#ffffff' }}>
+              Termos de Uso
+            </LinkAutenticacao>{' '}
+            e a{' '}
+            <LinkAutenticacao para="/Privacidade" target="_blank" variante="secundario" style={{ textDecoration: 'underline', color: '#ffffff' }}>
+              Política de Privacidade
+            </LinkAutenticacao>.
+          </label>
+        </div>
+
         <Botao larguraTotal efeitoOnda type="submit">
           Cadastrar
         </Botao>
@@ -166,6 +201,18 @@ function Cadastro() {
           <LinkAutenticacao para="/Login" variante="destaque">
             Fazer login
           </LinkAutenticacao>
+        </div>
+
+        <div className="text-center mt-2 pt-1">
+          <div className="d-flex justify-content-center align-items-center gap-2">
+            <LinkAutenticacao para="/TermosDeUso" variante="secundario" style={{ fontSize: '0.82rem', opacity: 0.85 }}>
+              Termos de Uso
+            </LinkAutenticacao>
+            <span className="text-white-50" style={{ fontSize: '0.75rem' }}>•</span>
+            <LinkAutenticacao para="/Privacidade" variante="secundario" style={{ fontSize: '0.82rem', opacity: 0.85 }}>
+              Privacidade
+            </LinkAutenticacao>
+          </div>
         </div>
 
         <div className="d-lg-none">

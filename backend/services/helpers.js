@@ -262,14 +262,14 @@ async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = f
     }
 
     // Regra 3: Mínimo de noites (se informado no contexto)
-    if (reservaContexto.noites && Number(cupom.minimoNoites) > 1) {
+    if (reservaContexto.noites !== undefined && Number(cupom.minimoNoites) > 1) {
         if (Number(reservaContexto.noites) < Number(cupom.minimoNoites)) {
             throw new ErroHttp(400, `Este cupom exige uma estadia mínima de ${cupom.minimoNoites} noites.`);
         }
     }
 
     // Regra 4: Valor mínimo de reserva (se informado no contexto)
-    if (reservaContexto.subtotal && Number(cupom.valorMinimo) > 0) {
+    if (reservaContexto.subtotal !== undefined && Number(cupom.valorMinimo) > 0) {
         if (Number(reservaContexto.subtotal) < Number(cupom.valorMinimo)) {
             throw new ErroHttp(400, `Este cupom exige um valor mínimo de R$ ${Number(cupom.valorMinimo).toFixed(2)}.`);
         }

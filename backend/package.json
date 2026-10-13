@@ -22,6 +22,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.2",
     "jsonwebtoken": "^9.0.3",
+    "mercadopago": "^3.6.1",
     "mysql2": "^3.23.3",
     "resend": "6.26.0"
   },

@@ -10,9 +10,13 @@ const CFG_TIPO = {
   info: { bg: '#dbeafe', cor: '#1e40af', icone: 'bi-info-circle-fill' },
 };
 const ICONES = new Set([
-  'bi-bell', 'bi-bell-fill', 'bi-check-circle-fill', 'bi-x-circle-fill',
-  'bi-exclamation-triangle-fill', 'bi-info-circle-fill', 'bi-calendar-check',
+  'bi-bell', 'bi-bell-fill', 'bi-check-circle', 'bi-check-circle-fill',
+  'bi-x-circle', 'bi-x-circle-fill', 'bi-exclamation-triangle',
+  'bi-exclamation-triangle-fill', 'bi-exclamation-circle', 'bi-exclamation-circle-fill',
+  'bi-info-circle', 'bi-info-circle-fill', 'bi-calendar-check',
   'bi-calendar-check-fill', 'bi-calendar-plus', 'bi-calendar-plus-fill',
+  'bi-calendar-x', 'bi-calendar-x-fill', 'bi-credit-card', 'bi-credit-card-2-front',
+  'bi-arrow-counterclockwise', 'bi-clock-history', 'bi-hourglass-split'
 ]);
 
 function tempoRelativo(iso) {

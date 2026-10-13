@@ -975,6 +975,12 @@
   border: 1px solid #fecaca;
 }
 
+.kpi-badge-variacao.neutra {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
 /* ── Gráfico SVG Moderno de Faturamento ─────────────────────── */
 .card-grafico-svg {
   background: #ffffff;
@@ -1127,7 +1133,7 @@
   border-bottom: 2px solid #f1f5f9;
 }
 
-/* Hachura listrada amarela/âmbar para dias bloqueados */
+/* Hachura listrada amarela/âmbar para dias bloqueados integrais */
 .calendario-admin-custom .dia-bloqueado-manutencao {
   background: repeating-linear-gradient(
     -45deg,
@@ -1141,6 +1147,127 @@
   border: 1px solid #fcd34d !important;
   border-radius: 8px !important;
   position: relative;
+}
+
+.calendario-admin-custom .react-calendar__tile abbr {
+  position: relative;
+  z-index: 2;
+}
+
+/* ─── Dias com Divisão de Metade (Check-out de manhã / Check-in de tarde) ─── */
+
+/* 1. Reserva Aprovada (manhã) + Bloqueio Manual (tarde) */
+.calendario-admin-custom .dia-split-reserva-bloqueio {
+  background: linear-gradient(to right, #d1fae5 50%, #fde68a 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-reserva-bloqueio::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 2. Bloqueio Manual (manhã) + Reserva Aprovada (tarde) */
+.calendario-admin-custom .dia-split-bloqueio-reserva {
+  background: linear-gradient(to right, #fde68a 50%, #d1fae5 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-bloqueio-reserva::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 3. Reserva Aprovada (manhã - check-out) + Livre (tarde) */
+.calendario-admin-custom .dia-split-reserva-livre {
+  background: linear-gradient(to right, #d1fae5 50%, transparent 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+/* 4. Livre (manhã) + Reserva Aprovada (tarde - check-in) */
+.calendario-admin-custom .dia-split-livre-reserva {
+  background: linear-gradient(to right, transparent 50%, #d1fae5 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+/* 5. Bloqueio Manual (manhã - fim) + Livre (tarde) */
+.calendario-admin-custom .dia-split-bloqueio-livre {
+  background: linear-gradient(to right, #fde68a 50%, transparent 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-bloqueio-livre::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 6. Livre (manhã) + Bloqueio Manual (tarde - início) */
+.calendario-admin-custom .dia-split-livre-bloqueio {
+  background: linear-gradient(to right, transparent 50%, #fde68a 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-livre-bloqueio::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 7. Reserva Pendente splits */
+.calendario-admin-custom .dia-split-pendente-bloqueio {
+  background: linear-gradient(to right, #fef3c7 50%, #fde68a 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-bloqueio-pendente {
+  background: linear-gradient(to right, #fde68a 50%, #fef3c7 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-pendente-livre {
+  background: linear-gradient(to right, #fef3c7 50%, transparent 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-livre-pendente {
+  background: linear-gradient(to right, transparent 50%, #fef3c7 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
 }
 
 .dot-bloqueado {

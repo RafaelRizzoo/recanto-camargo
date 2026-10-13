@@ -78,6 +78,18 @@ function Login() {
           </LinkAutenticacao>
         </div>
 
+        <div className="text-center mt-3 pt-1">
+          <div className="d-flex justify-content-center align-items-center gap-2">
+            <LinkAutenticacao para="/TermosDeUso" variante="secundario" style={{ fontSize: '0.82rem', opacity: 0.85 }}>
+              Termos de Uso
+            </LinkAutenticacao>
+            <span className="text-white-50" style={{ fontSize: '0.75rem' }}>•</span>
+            <LinkAutenticacao para="/Privacidade" variante="secundario" style={{ fontSize: '0.82rem', opacity: 0.85 }}>
+              Privacidade
+            </LinkAutenticacao>
+          </div>
+        </div>
+
         <div className="d-lg-none">
           <hr className="border-white opacity-25 my-4" />
           <div className="text-center mb-4">

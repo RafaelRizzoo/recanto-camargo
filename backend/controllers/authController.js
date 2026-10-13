@@ -32,10 +32,14 @@ exports.cadastrar = async (req, res) => {
     let conexao;
     try {
         conexao = await db.getConnection();
-        let { nome, cpf, email, telefone, senha } = req.body;
+        let { nome, cpf, email, telefone, senha, aceitouTermos } = req.body;
         
         if (!nome || !cpf || !email || !senha) {
             return res.status(400).json({ error: 'Preencha todos os dados obrigatórios.' });
+        }
+
+        if (aceitouTermos === false) {
+            return res.status(400).json({ error: 'Você precisa ler e aceitar os Termos de Uso e a Política de Privacidade.' });
         }
 
         const cpfLimpo = String(cpf).replace(/\D/g, '');
@@ -66,12 +70,19 @@ exports.cadastrar = async (req, res) => {
 
         await conexao.beginTransaction();
 
+        const ipOrigem = req.headers['x-forwarded-for'] 
+            ? String(req.headers['x-forwarded-for']).split(',')[0].trim() 
+            : (req.socket?.remoteAddress || req.ip || '127.0.0.1');
+        const versaoTermos = typeof req.body.versaoTermos === 'string' && req.body.versaoTermos.trim() 
+            ? req.body.versaoTermos.trim().slice(0, 10) 
+            : 'v1.0';
+
         const queryUsuario = `
             INSERT INTO usu_usuario 
-            (Usu_Nome, Usu_CPF, Usu_CPF_Hash, Usu_Email, Usu_Telefone, Usu_SenhaHash, Usu_Status) 
-            VALUES (?, ?, ?, ?, ?, ?, 'ATIVO')
+            (Usu_Nome, Usu_CPF, Usu_CPF_Hash, Usu_Email, Usu_Telefone, Usu_SenhaHash, Usu_Status, Usu_DataAceiteTermos, Usu_IpAceite, Usu_VersaoTermosAceitos) 
+            VALUES (?, ?, ?, ?, ?, ?, 'ATIVO', NOW(), ?, ?)
         `;
-        const valoresUsuario = [nome, cpfEncriptado, cpfHash, email, telefone || '', senhaHash];
+        const valoresUsuario = [nome, cpfEncriptado, cpfHash, email, telefone || '', senhaHash, String(ipOrigem).slice(0, 45), versaoTermos];
         const [resultadoUsuario] = await conexao.query(queryUsuario, valoresUsuario);
         
         const novoUsuarioId = resultadoUsuario.insertId;

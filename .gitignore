@@ -55,9 +55,11 @@ scripts/comprimir.mjs
 # SCRIPTS E TESTES LOCAIS TEMPORÁRIOS
 # ============================================
 backend/run_migration.cjs
+backend/gerar_schema_sprint3.js
 backend/tests/*.cjs
 backend/tests/sprint2.integration.js
-tests/
+/tests/
+!backend/tests/*.test.js
 
 # ============================================
 # AGENTES & ARQUIVOS INTERNOS
