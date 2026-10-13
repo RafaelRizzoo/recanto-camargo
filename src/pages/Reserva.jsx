@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Botao from '../components/UI/Botao';
@@ -126,11 +126,28 @@ function Reserva() {
   desconto = Math.min(valorBasePreview, Math.max(0, desconto));
   const total = noites > 0 ? Math.max(0, valorBasePreview - desconto) : 0;
 
+  // Validação dinâmica: se as datas mudarem após aplicar cupom e violarem o mínimo de noites ou valor
+  useEffect(() => {
+    if (cupomAplicado && noites > 0) {
+      if (cupomAplicado.minimoNoites > 1 && noites < cupomAplicado.minimoNoites) {
+        setErroCupom(`O cupom ${cupomAplicado.codigo} exige no mínimo ${cupomAplicado.minimoNoites} noites e foi removido.`);
+        setCupomAplicado(null);
+      } else if (cupomAplicado.valorMinimo > 0 && valorBasePreview < cupomAplicado.valorMinimo) {
+        setErroCupom(`O cupom ${cupomAplicado.codigo} exige um valor mínimo de R$ ${cupomAplicado.valorMinimo.toFixed(2)} e foi removido.`);
+        setCupomAplicado(null);
+      }
+    }
+  }, [noites, valorBasePreview, cupomAplicado]);
+
   async function aplicarCupom() {
     setErroCupom('');
     const codigo = cupomInput.trim();
     if (!codigo) {
       setErroCupom('Informe um código de cupom.');
+      return;
+    }
+    if (noites <= 0) {
+      setErroCupom('Selecione as datas de check-in e check-out antes de aplicar o cupom.');
       return;
     }
 
@@ -141,7 +158,11 @@ function Reserva() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ codigo }),
+        body: JSON.stringify({
+          codigo,
+          noites,
+          subtotal: valorBasePreview
+        }),
       });
       const dados = await resposta.json().catch(() => null);
 
@@ -158,11 +179,23 @@ function Reserva() {
         throw new Error('Resposta inválida ao validar cupom.');
       }
 
+      const minNoites = Number(dados.minimoNoites || 1);
+      const valMin = Number(dados.valorMinimo || 0);
+
+      if (minNoites > 1 && noites < minNoites) {
+        throw new Error(`Este cupom exige uma estadia mínima de ${minNoites} noites.`);
+      }
+      if (valMin > 0 && valorBasePreview < valMin) {
+        throw new Error(`Este cupom exige um valor mínimo de R$ ${valMin.toFixed(2)}.`);
+      }
+
       setCupomAplicado({
         cupomId: Number(dados.cupomId),
         codigo: dados.codigo,
         tipoDesconto: dados.tipoDesconto,
         valorDesconto,
+        minimoNoites: minNoites,
+        valorMinimo: valMin,
       });
       setCupomInput('');
     } catch (erro) {

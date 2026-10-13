@@ -242,3 +242,49 @@
     font-size: 0.9rem;
   }
 }
+
+/* ============================================
+   VARIANTE COMPACTA (TELA DE CADASTRO COM MAIS CAMPOS)
+   ============================================ */
+.container-formulario.formulario-compacto {
+  padding: 0.85rem 1.8rem;
+  max-width: 440px;
+}
+
+.container-formulario.formulario-compacto .container-logo {
+  margin-bottom: 0.15rem;
+}
+
+.container-formulario.formulario-compacto .logo {
+  max-width: 140px;
+}
+
+.container-formulario.formulario-compacto .titulo-autenticacao {
+  font-size: 1.95rem;
+  margin-top: 0;
+  margin-bottom: 0.1rem;
+}
+
+.container-formulario.formulario-compacto .subtitulo-autenticacao {
+  font-size: 0.82rem;
+  margin-bottom: 0.45rem;
+}
+
+.container-formulario.formulario-compacto .grupo-entrada,
+.container-formulario.formulario-compacto .grupo-entrada-animado {
+  margin-bottom: 0.45rem;
+}
+
+.container-formulario.formulario-compacto .form-controle-custom {
+  height: 42px;
+  font-size: 0.88rem;
+  padding: 0.5rem 2.6rem;
+}
+
+.container-formulario.formulario-compacto .texto-ajuda-senha {
+  font-size: 0.74rem !important;
+  margin-bottom: 0.45rem !important;
+  margin-top: -0.25rem !important;
+  line-height: 1.25;
+}
+

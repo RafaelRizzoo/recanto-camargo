@@ -196,11 +196,11 @@ function Avaliacoes() {
     return () => controlador.abort();
   }, [buscarAvaliacoes]);
 
-  // Cálculos de métricas consolidadas
+  // Cálculos de métricas consolidadas (Opção B: 5.0 inicial de estreia, real quando houver avaliações)
   const totalAvaliacoes = avaliacoes.length;
   const mediaGeral = totalAvaliacoes > 0
     ? (avaliacoes.reduce((acc, a) => acc + Number(a.nota || 0), 0) / totalAvaliacoes)
-    : 4.98;
+    : 5.0;
 
   const mediaLimpeza = totalAvaliacoes > 0
     ? (avaliacoes.reduce((acc, a) => acc + Number(a.limpeza || a.nota || 5), 0) / totalAvaliacoes)
@@ -208,11 +208,11 @@ function Avaliacoes() {
 
   const mediaComunicacao = totalAvaliacoes > 0
     ? (avaliacoes.reduce((acc, a) => acc + Number(a.comunicacao || a.nota || 5), 0) / totalAvaliacoes)
-    : 4.9;
+    : 5.0;
 
   const mediaLocalizacao = totalAvaliacoes > 0
     ? (avaliacoes.reduce((acc, a) => acc + Number(a.localizacao || a.nota || 5), 0) / totalAvaliacoes)
-    : 4.9;
+    : 5.0;
 
   const mediaCustoBeneficio = totalAvaliacoes > 0
     ? (avaliacoes.reduce((acc, a) => acc + Number(a.custoBeneficio || a.nota || 5), 0) / totalAvaliacoes)
@@ -226,9 +226,9 @@ function Avaliacoes() {
   });
 
   const percDist = {
-    5: totalAvaliacoes > 0 ? Math.round((distribuicao[5] / totalAvaliacoes) * 100) : 92,
-    4: totalAvaliacoes > 0 ? Math.round((distribuicao[4] / totalAvaliacoes) * 100) : 6,
-    3: totalAvaliacoes > 0 ? Math.round((distribuicao[3] / totalAvaliacoes) * 100) : 2,
+    5: totalAvaliacoes > 0 ? Math.round((distribuicao[5] / totalAvaliacoes) * 100) : 100,
+    4: totalAvaliacoes > 0 ? Math.round((distribuicao[4] / totalAvaliacoes) * 100) : 0,
+    3: totalAvaliacoes > 0 ? Math.round((distribuicao[3] / totalAvaliacoes) * 100) : 0,
     2: totalAvaliacoes > 0 ? Math.round((distribuicao[2] / totalAvaliacoes) * 100) : 0,
     1: totalAvaliacoes > 0 ? Math.round((distribuicao[1] / totalAvaliacoes) * 100) : 0,
   };
@@ -251,7 +251,9 @@ function Avaliacoes() {
               <div className="text-start">
                 <Estrelas nota={mediaGeral} tamanho="1.35rem" />
                 <div className="small text-muted font-weight-bold">
-                  {totalAvaliacoes > 0 ? `${totalAvaliacoes} estadias avaliadas` : '148 estadias avaliadas'}
+                  {totalAvaliacoes > 0
+                    ? `${totalAvaliacoes} ${totalAvaliacoes === 1 ? 'estadia avaliada' : 'estadias avaliadas'}`
+                    : 'Nota de estreia (Aguardando primeiras estadias)'}
                 </div>
               </div>
             </div>

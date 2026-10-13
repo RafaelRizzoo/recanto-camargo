@@ -15,6 +15,7 @@ const notificacaoRoutes = require('./routes/notificacaoRoutes');
 const avaliacaoRoutes = require('./routes/avaliacaoRoutes');
 const hospedeRoutes = require('./routes/hospedeRoutes');
 const proprietarioRoutes = require('./routes/proprietarioRoutes');
+const pagamentoRoutes = require('./routes/pagamentoRoutes');
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use('/api/notificacoes', notificacaoRoutes);
 app.use('/api/avaliacoes', avaliacaoRoutes);
 app.use('/api/hospede', hospedeRoutes);
 app.use('/api/proprietario', proprietarioRoutes);
+app.use('/api/pagamentos', pagamentoRoutes);
 
 // --- MIDDLEWARE DE ERRO GLOBAL ---
 app.use(errorHandler);

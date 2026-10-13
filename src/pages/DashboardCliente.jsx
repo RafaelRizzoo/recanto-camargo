@@ -82,8 +82,13 @@ const normalizarAvaliacao = (avaliacao) => {
 const calcNoites = (ci, co) =>
   Math.round((new Date(co + 'T00:00:00') - new Date(ci + 'T00:00:00')) / 86400000);
 
-const diasAteCheckin = (ci) =>
-  Math.round((new Date(ci + 'T00:00:00') - new Date()) / 86400000);
+const diasAteCheckin = (ci) => {
+  if (!ci) return 0;
+  const dataCi = new Date(ci + 'T00:00:00');
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return Math.round((dataCi - hoje) / 86400000);
+};
 
 const podeCancelar = (ci) => diasAteCheckin(ci) > 7;
 
@@ -136,7 +141,7 @@ Estrelas.propTypes = {
 };
 
 // ─── Modal Detalhe da Reserva ─────────────────────────────────────────────────
-function ModalDetalheReserva({ reserva, aoFechar }) {
+function ModalDetalheReserva({ reserva, aoFechar, aoPagar, pagando = false }) {
   if (!reserva) return null;
   const n = calcNoites(reserva.checkin, reserva.checkout);
   return (
@@ -216,17 +221,43 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
           </div>
         </Col>
       )}
+      {reserva.status === 'cancelada' && (
+        <Col xs={12}>
+          <p className="cli-label-secao">Cancelamento & Reembolso</p>
+          <div className="cli-motivo-recusa" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
+            <i className="bi bi-arrow-counterclockwise me-2"></i>
+            {Number(reserva.valorReembolsado) > 0 ? (
+              <><strong>Reembolso Processado:</strong> {fmtMoeda(reserva.valorReembolsado)} estornados diretamente à sua operadora no Mercado Pago conforme a Cláusula 4 dos Termos de Uso.</>
+            ) : (
+              reserva.motivoRecusa || reserva.motivo || 'Cancelada conforme a política de uso.'
+            )}
+          </div>
+        </Col>
+      )}
         </Row>
       </Modal.Body>
-      <Modal.Footer className="border-0 pt-0">
-        <a
-          href={`https://wa.me/5512996297452?text=Olá! Tenho uma dúvida sobre minha reserva ${reserva.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="cli-btn-whats"
-        >
-          <Ico.Whats /> Falar com o Proprietário
-        </a>
+      <Modal.Footer className="border-0 pt-0 d-flex justify-content-between flex-wrap gap-2">
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          {reserva.status === 'pagamento pendente' && aoPagar && (
+            <Button
+              variant="success"
+              style={{ borderRadius: '50px', fontWeight: 700 }}
+              disabled={pagando}
+              onClick={() => aoPagar(reserva)}
+            >
+              <i className="bi bi-credit-card-2-front me-2"></i>
+              {pagando ? 'Abrindo Pagamento...' : 'Efetuar Pagamento (Pix / Cartão)'}
+            </Button>
+          )}
+          <a
+            href={`https://wa.me/5512996297452?text=Olá! Tenho uma dúvida sobre minha reserva ${reserva.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cli-btn-whats"
+          >
+            <Ico.Whats /> Falar com o Proprietário
+          </a>
+        </div>
         <Button variant="outline-secondary" style={{ borderRadius: '50px' }} onClick={aoFechar}>Fechar</Button>
       </Modal.Footer>
     </Modal>
@@ -235,6 +266,8 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
 ModalDetalheReserva.propTypes = {
   reserva: PropTypes.object,
   aoFechar: PropTypes.func.isRequired,
+  aoPagar: PropTypes.func,
+  pagando: PropTypes.bool,
 };
 
 // ─── Modal Cancelar Reserva ───────────────────────────────────────────────────
@@ -247,9 +280,34 @@ function ModalCancelar({ reserva, aoFechar, aoConfirmar }) {
         <Modal.Title>Cancelar Reserva #{reserva.id}</Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
+        {/* Sugestão de Remarcação Amigável via WhatsApp */}
+        <div className="p-3 mb-3 rounded-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div>
+              <div className="fw-bold text-success small d-flex align-items-center">
+                <i className="bi bi-whatsapp me-2 fs-6" />
+                Prefere remarcar sua estadia para outra data?
+              </div>
+              <div className="text-muted" style={{ fontSize: '0.8rem' }}>
+                Antes de cancelar, você pode solicitar a remarcação de datas diretamente com o anfitrião sem multas!
+              </div>
+            </div>
+            <a
+              href={`https://wa.me/5512997193233?text=${encodeURIComponent(`Olá! Gostaria de verificar a possibilidade de remarcar minha reserva #${reserva.id} no Recanto Camargo.`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-sm btn-success fw-semibold px-3 py-1 d-inline-flex align-items-center"
+              style={{ borderRadius: '50px' }}
+            >
+              <i className="bi bi-whatsapp me-1" />
+              Remarcar no WhatsApp
+            </a>
+          </div>
+        </div>
+
         <div className="cli-aviso-cancelar mb-3">
           <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          Tem certeza que deseja cancelar? Conforme nossa política, cancelamentos são aceitos até 7 dias antes do check-in.
+          Tem certeza que deseja cancelar? Conforme a política dos Termos de Uso, pedidos com mais de 7 dias têm 100% de reembolso; entre 2 e 7 dias, 50% de reembolso; e com menos de 48h, não há reembolso.
         </div>
         <label className="label-config mb-2 d-block">Motivo (opcional)</label>
         <textarea
@@ -470,7 +528,7 @@ ModalAvaliar.propTypes = {
 };
 
 // ─── Card de Reserva ──────────────────────────────────────────────────────────
-function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
+function CardReserva({ reserva, onVer, onCancelar, onAvaliar, onPagar, pagando = false }) {
   const n    = calcNoites(reserva.checkin, reserva.checkout);
   const dias = diasAteCheckin(reserva.checkin);
   const podeCanc = podeCancelar(reserva.checkin) && (reserva.status === 'aprovada' || reserva.status === 'pendente' || reserva.status === 'pagamento pendente');
@@ -481,9 +539,9 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
       <div className="cli-card-img">
         <i className="bi bi-house-heart"></i>
         <BadgeStatus status={reserva.status} />
-        {reserva.status === 'aprovada' && dias > 0 && dias <= 30 && (
+        {reserva.status === 'aprovada' && dias >= 0 && dias <= 30 && (
           <div className="cli-card-contagem">
-            em {dias} dia{dias > 1 ? 's' : ''}
+            {dias === 0 ? 'Check-in Hoje!' : `em ${dias} dia${dias > 1 ? 's' : ''}`}
           </div>
         )}
       </div>
@@ -512,12 +570,31 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
         </div>
       )}
 
+      {reserva.status === 'cancelada' && (
+        <div className="cli-motivo-recusa" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
+          <i className="bi bi-arrow-counterclockwise me-2"></i>
+          <strong>Reserva Cancelada:</strong> {Number(reserva.valorReembolsado) > 0 ? `Reembolso de ${fmtMoeda(reserva.valorReembolsado)} processado via Mercado Pago.` : (reserva.motivoRecusa || reserva.motivo || 'Cancelada conforme Termos de Uso.')}
+        </div>
+      )}
+
         <div className="cli-card-rodape">
           <div>
             <div className="cli-card-valor">{fmtMoeda(reserva.total ?? reserva.valorTotal)}</div>
             <div className="cli-card-valor-diaria">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}/noite</div>
           </div>
           <div className="cli-card-acoes">
+            {reserva.status === 'pagamento pendente' && onPagar && (
+              <button
+                type="button"
+                className="cli-btn-pagar"
+                onClick={() => onPagar(reserva)}
+                disabled={pagando}
+                title="Efetuar pagamento via Mercado Pago (Pix / Cartão)"
+              >
+                <i className="bi bi-credit-card-2-front me-1"></i>
+                {pagando ? 'Abrindo...' : 'Pagar Reserva'}
+              </button>
+            )}
             <button className="cli-btn-ver" onClick={() => onVer(reserva)}>
               <i className="bi bi-eye me-1"></i>Detalhes
             </button>
@@ -542,16 +619,22 @@ CardReserva.propTypes = {
   onVer: PropTypes.func.isRequired,
   onCancelar: PropTypes.func.isRequired,
   onAvaliar: PropTypes.func.isRequired,
+  onPagar: PropTypes.func,
+  pagando: PropTypes.bool,
 };
 
-// ─── Aba: Visão Geral ─────────────────────────────────────────────────────────
-function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao }) {
-  const hoje = new Date();
+function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao, onPagar, pagandoId }) {
+  const hoje = useMemo(() => {
+    const h = new Date();
+    h.setHours(0, 0, 0, 0);
+    return h;
+  }, []);
+
   const proxima = useMemo(() =>
     reservas
       .filter(r => (r.status === 'aprovada' || r.status === 'pendente' || r.status === 'pagamento pendente') && new Date(r.checkin + 'T00:00:00') >= hoje)
       .sort((a, b) => new Date(a.checkin) - new Date(b.checkin))[0]
-  , [reservas]);
+  , [reservas, hoje]);
 
   const totalAvaliacoes  = reservas.filter(r => r.avaliacao).length;
   const cuponsDisponiveis = cupons.filter(c => c.ativo && !c.usado).length;
@@ -567,11 +650,17 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao }) {
               <i className="bi bi-patch-check-fill fs-4"></i>
             </div>
             <div className="cli-card-resumo-valor d-flex align-items-center gap-1">
-              <span style={{ color: '#ff9211' }}>★</span> {reputacao?.nota || '5,0'}
+              {reputacao?.totalAvaliadas > 0 ? (
+                <>
+                  <span style={{ color: '#ff9211' }}>★</span> {reputacao?.nota}
+                </>
+              ) : (
+                <span className="fs-5 fw-bold text-muted">Novo</span>
+              )}
             </div>
-            <div className="cli-card-resumo-titulo">{reputacao?.badge || 'Hóspede Exemplar'}</div>
+            <div className="cli-card-resumo-titulo">{reputacao?.badge || 'Novo Hóspede'}</div>
             <div className="cli-card-resumo-sub">
-              {reputacao?.totalAvaliadas ? `${reputacao.totalAvaliadas} estadia(s) avaliada(s)` : 'Perfil verificado e exemplar'}
+              {reputacao?.totalAvaliadas ? `${reputacao.totalAvaliadas} estadia(s) avaliada(s)` : 'Sem avaliações de estadias ainda'}
             </div>
           </div>
         </Col>
@@ -580,7 +669,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao }) {
             <div className="cli-card-resumo-icone" style={{ background: '#f0f7ff', color: '#3b6399' }}>
               <i className="bi bi-calendar-heart fs-4"></i>
             </div>
-            <div className="cli-card-resumo-valor">{proxima ? `${diasProxima}d` : '—'}</div>
+            <div className="cli-card-resumo-valor">{proxima ? (diasProxima === 0 ? 'Hoje' : `${diasProxima}d`) : '—'}</div>
             <div className="cli-card-resumo-titulo">Próxima Estadia</div>
             <div className="cli-card-resumo-sub">
               {proxima ? `${fmtData(proxima.checkin)} → ${fmtData(proxima.checkout)}` : 'Nenhuma agendada'}
@@ -645,10 +734,22 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao }) {
               </div>
               <div className="cli-proxima-rodape">
                 <div>
-                  <span className="cli-proxima-label">Total pago</span>
+                  <span className="cli-proxima-label">{proxima.status === 'pagamento pendente' ? 'Total a pagar' : 'Total'}</span>
                   <div className="cli-proxima-valor">{fmtMoeda(proxima.total ?? proxima.valorTotal)}</div>
                 </div>
                 <div className="d-flex gap-2 flex-wrap">
+                  {proxima.status === 'pagamento pendente' && onPagar && (
+                    <button
+                      type="button"
+                      className="cli-btn-pagar"
+                      onClick={() => onPagar(proxima)}
+                      disabled={pagandoId === proxima.id}
+                      title="Efetuar pagamento via Mercado Pago (Pix / Cartão)"
+                    >
+                      <i className="bi bi-credit-card-2-front me-1"></i>
+                      {pagandoId === proxima.id ? 'Abrindo...' : 'Pagar Reserva'}
+                    </button>
+                  )}
                   <button className="cli-btn-ver" onClick={() => onVerReserva(proxima)}>
                     <i className="bi bi-eye me-1"></i>Ver Detalhes
                   </button>
@@ -695,10 +796,13 @@ VisaoGeral.propTypes = {
   cupons: PropTypes.array.isRequired,
   onVerReserva: PropTypes.func.isRequired,
   onIrAba: PropTypes.func.isRequired,
+  reputacao: PropTypes.object,
+  onPagar: PropTypes.func,
+  pagandoId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 // ─── Aba: Minhas Reservas ─────────────────────────────────────────────────────
-function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar }) {
+function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar, onPagar, pagandoId }) {
   const [filtro, setFiltro] = useState('todas');
 
   const FILTROS = [
@@ -751,6 +855,8 @@ function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar }) {
               onVer={onVer}
               onCancelar={onCancelar}
               onAvaliar={onAvaliar}
+              onPagar={onPagar}
+              pagando={pagandoId === r.id}
             />
           ))}
         </div>
@@ -763,6 +869,8 @@ MinhasReservas.propTypes = {
   onVer: PropTypes.func.isRequired,
   onCancelar: PropTypes.func.isRequired,
   onAvaliar: PropTypes.func.isRequired,
+  onPagar: PropTypes.func,
+  pagandoId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 // ─── Aba: Cupons ──────────────────────────────────────────────────────────────
@@ -941,7 +1049,7 @@ function DashboardCliente() {
   const [cuponsCarregando, setCuponsCarregando] = useState(true);
   const [erroCupons,     setErroCupons]    = useState('');
   const [feedback,      setFeedback]      = useState({ tipo: '', msg: '' });
-  const [reputacao,     setReputacao]     = useState({ nota: '5.0', badge: 'Hóspede Exemplar', totalAvaliadas: 0 });
+  const [reputacao,     setReputacao]     = useState({ nota: 'Novo', badge: 'Novo Hóspede', totalAvaliadas: 0 });
 
   const tratarCliqueNotificacao = useCallback((notificacao) => {
     if (!notificacao) return;
@@ -970,6 +1078,7 @@ function DashboardCliente() {
   const [modalAvaliar,  setModalAvaliar]  = useState(null);
   const [avaliacaoEnviando, setAvaliacaoEnviando] = useState(false);
   const [erroAvaliacao, setErroAvaliacao] = useState('');
+  const [pagandoReservaId, setPagandoReservaId] = useState(null);
 
   // Proteção de rota
   useEffect(() => { if (tipo !== 'hospede') navigate('/'); }, [tipo, navigate]);
@@ -1064,6 +1173,12 @@ function DashboardCliente() {
     carregarReservas();
     carregarCupons();
     carregarReputacao();
+
+    const onFocus = () => {
+      carregarReservas();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   const salvarReservas = (novas) => {
@@ -1101,6 +1216,35 @@ function DashboardCliente() {
       fb('erro', 'Não foi possível cancelar a reserva. Tente novamente.');
     }
   }, [reservas]);
+
+  // Integração Mercado Pago — Gerar preferência e abrir Checkout Pro
+  const handlePagar = useCallback(async (reserva) => {
+    if (!reserva?.id) return;
+    try {
+      setPagandoReservaId(reserva.id);
+      const resp = await fetch(`${API_BASE}/api/pagamentos/criar-preferencia/${reserva.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const dados = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        throw new Error(dados?.error || 'Não foi possível gerar a preferência de pagamento.');
+      }
+      const linkPagamento = dados?.sandboxInitPoint || dados?.initPoint;
+      if (linkPagamento) {
+        window.open(linkPagamento, '_blank');
+        fb('sucesso', 'Guia do Mercado Pago aberta em uma nova aba.');
+      } else {
+        throw new Error('Link de pagamento não retornado pela operadora.');
+      }
+    } catch (err) {
+      console.error('Erro ao abrir pagamento:', err);
+      fb('erro', err.message || 'Erro ao abrir o checkout.');
+    } finally {
+      setPagandoReservaId(null);
+    }
+  }, []);
 
   const abrirModalAvaliacao = useCallback((reserva) => {
     setErroAvaliacao('');
@@ -1211,6 +1355,8 @@ function DashboardCliente() {
             onVerReserva={setModalDetalhe}
             onIrAba={irAba}
             reputacao={reputacao}
+            onPagar={handlePagar}
+            pagandoId={pagandoReservaId}
           />
         );
       case 'reservas':
@@ -1222,6 +1368,8 @@ function DashboardCliente() {
               onVer={setModalDetalhe}
               onCancelar={setModalCancelar}
               onAvaliar={abrirModalAvaliacao}
+              onPagar={handlePagar}
+              pagandoId={pagandoReservaId}
             />
           </>
         );
@@ -1322,8 +1470,17 @@ function DashboardCliente() {
                   style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #ffedd5', fontSize: '0.78rem', fontWeight: 600 }}
                   title={`${reputacao?.totalAvaliadas || 0} estadia(s) avaliada(s) pelo anfitrião`}
                 >
-                  <i className="bi bi-star-fill text-warning me-1"></i>
-                  {reputacao?.nota || '5.0'} · {reputacao?.badge || 'Hóspede Exemplar'}
+                  {reputacao?.totalAvaliadas > 0 ? (
+                    <>
+                      <i className="bi bi-star-fill text-warning me-1"></i>
+                      {reputacao?.nota} · {reputacao?.badge}
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-person-check text-success me-1"></i>
+                      Novo Hóspede
+                    </>
+                  )}
                 </span>
               </div>
             </div>
@@ -1344,7 +1501,12 @@ function DashboardCliente() {
         <div className="dashboard-cli-conteudo">{renderConteudo()}</div>
       </main>
 
-      <ModalDetalheReserva reserva={modalDetalhe}  aoFechar={() => setModalDetalhe(null)} />
+      <ModalDetalheReserva
+        reserva={modalDetalhe}
+        aoFechar={() => setModalDetalhe(null)}
+        aoPagar={handlePagar}
+        pagando={pagandoReservaId === modalDetalhe?.id}
+      />
       <ModalCancelar       reserva={modalCancelar} aoFechar={() => setModalCancelar(null)} aoConfirmar={confirmarCancelamento} />
       <ModalAvaliar
         reserva={modalAvaliar}

@@ -170,6 +170,19 @@ exports.criarReserva = async (req, res) => {
             return res.status(409).json({ error: 'As datas selecionadas estão bloqueadas para manutenção pelo proprietário.' });
         }
 
+        // Verifica se o hóspede possui restrição/bloqueio com o proprietário
+        const [hospedeBloqueado] = await conexao.query(
+            `SELECT Blo_Id FROM blo_bloqueiohospede
+             WHERE Imo_Id = ? AND Usu_Id = ?`,
+            [imoId, hospedeId]
+        );
+
+        if (hospedeBloqueado.length > 0) {
+            await conexao.rollback();
+            conexao.release();
+            return res.status(403).json({ error: 'Você possui restrição de reserva com o proprietário deste imóvel.' });
+        }
+
         const msPorDia = 1000 * 60 * 60 * 24;
         const diffTime = Math.abs(dataCheckout - dataCheckin);
         const quantidadeNoites = Math.ceil(diffTime / msPorDia);
@@ -245,10 +258,12 @@ exports.criarReserva = async (req, res) => {
         res.status(201).json({ message: 'Reserva criada com sucesso no MySQL!', reservaId: resultado.insertId });
 
         const { enviarEmail, criarHtmlEmail } = req.app.get('emailService');
-        void Promise.resolve().then(() => Promise.all([
-            enviarEmail(destinatario.hospedeEmail, tituloHospede, criarHtmlEmail(tituloHospede, mensagemHospede), `reserva/${resultado.insertId}/pendente/hospede`),
-            enviarEmail(destinatario.proprietarioEmail, tituloProprietario, criarHtmlEmail(tituloProprietario, mensagemProprietario), `reserva/${resultado.insertId}/pendente/proprietario`)
-        ])).catch(() => console.error('Falha ao processar emails da reserva já salva.'));
+        void Promise.resolve().then(async () => {
+            await Promise.all([
+                enviarEmail(destinatario.hospedeEmail, tituloHospede, criarHtmlEmail(tituloHospede, mensagemHospede), `reserva/${resultado.insertId}/pendente/hospede`),
+                enviarEmail(destinatario.proprietarioEmail, tituloProprietario, criarHtmlEmail(tituloProprietario, mensagemProprietario), `reserva/${resultado.insertId}/pendente/proprietario`)
+            ]);
+        }).catch(() => console.error('Falha ao processar emails da reserva já salva.'));
     } catch (error) {
         try {
             await conexao.rollback();

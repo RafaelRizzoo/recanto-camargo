@@ -340,7 +340,7 @@ function CardProximosCheckins({ reservas }) {
 
   const proximos = useMemo(() => {
     return reservas
-      .filter(r => (r.status === 'aprovada' || r.status === 'pendente') && r.checkin)
+      .filter(r => (r.status === 'aprovada' || r.status === 'concluida') && r.checkin)
       .map(r => {
         const dataCi = new Date(r.checkin + 'T00:00:00');
         const diffDias = Math.round((dataCi - hoje) / 86400000);
@@ -424,7 +424,7 @@ function CardProximosCheckins({ reservas }) {
 }
 
 // ─── Modal Detalhe da Reserva ────────────────────────────────────────────────
-function ModalReserva({ reserva, aoFechar, aoDecidir }) {
+function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
   const [motivo, setMotivo] = useState('');
   const [erroDecisao, setErroDecisao] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -499,6 +499,14 @@ function ModalReserva({ reserva, aoFechar, aoDecidir }) {
               </div>
             </Col>
           )}
+          {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
+            <Col xs={12}>
+              <div className="obs-modal" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: '10px', padding: '0.85rem 1rem' }}>
+                <i className="bi bi-arrow-counterclockwise me-2"></i>
+                <strong>Estorno Realizado no Mercado Pago:</strong> {fmtMoeda(r.valorReembolsado)} devolvidos diretamente ao hóspede.
+              </div>
+            </Col>
+          )}
           {(r.motivoRecusa || r.motivo) && (r.status === 'recusada' || r.status === 'cancelada') && (
             <Col xs={12}>
               <p className="label-secao-modal">
@@ -507,6 +515,14 @@ function ModalReserva({ reserva, aoFechar, aoDecidir }) {
               <div className="obs-modal" style={{ background: '#fff1f2', border: '1px solid #fecaca', color: '#9a3412', borderRadius: '10px', padding: '0.85rem 1rem' }}>
                 <i className="bi bi-info-circle me-2"></i>
                 {r.motivoRecusa || r.motivo}
+              </div>
+            </Col>
+          )}
+          {r.status === 'pagamento pendente' && (
+            <Col xs={12}>
+              <div className="obs-modal" style={{ background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e', borderRadius: '10px', padding: '0.85rem 1rem' }}>
+                <i className="bi bi-clock-history me-2"></i>
+                <strong>Aguardando Pagamento do Hóspede:</strong> Esta reserva foi pré-aprovada e aguarda o pagamento via Mercado Pago pelo hóspede. O faturamento e confirmação definitiva ocorrerão automaticamente assim que o pagamento for aprovado.
               </div>
             </Col>
           )}
@@ -525,11 +541,214 @@ function ModalReserva({ reserva, aoFechar, aoDecidir }) {
           {enviando ? 'Salvando…' : 'Aprovar reserva'}
         </Button>
       </Modal.Footer>}
-      {r.status === 'aprovada' && <Modal.Footer className="gap-2 flex-wrap">
+      {r.status === 'aprovada' && <Modal.Footer className="gap-2 flex-wrap justify-content-between">
+        <Button variant="outline-danger" disabled={enviando} onClick={() => { aoFechar(); aoAbrirCancelamento && aoAbrirCancelamento(r); }}>
+          <i className="bi bi-x-circle me-1" /> Cancelar Reserva (Estorno)
+        </Button>
         <Button variant="primary" disabled={enviando} onClick={() => decidir('concluir')}>
           {enviando ? 'Concluindo…' : <><i className="bi bi-check2-circle me-1" /> Concluir Estadia</>}
         </Button>
       </Modal.Footer>}
+    </Modal>
+  );
+}
+
+// ─── Modal Cancelar Reserva com Reembolso Automático (Mercado Pago) ───────────
+function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento }) {
+  const [simulacao, setSimulacao] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [cancelando, setCancelando] = useState(false);
+
+  useEffect(() => {
+    if (!reserva?.id) return;
+    let ativo = true;
+    setCarregando(true);
+    setErro('');
+
+    fetch(`${API_BASE}/api/proprietario/reservas/${reserva.id}/simular-cancelamento`, {
+      credentials: 'include'
+    })
+      .then(res => res.json())
+      .then(dados => {
+        if (!ativo) return;
+        if (dados.error) setErro(dados.error);
+        else setSimulacao(dados);
+      })
+      .catch(err => {
+        if (ativo) setErro(err.message || 'Erro ao calcular política de reembolso.');
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+
+    return () => { ativo = false; };
+  }, [reserva?.id]);
+
+  async function confirmar() {
+    if (cancelando) return;
+    setCancelando(true);
+    setErro('');
+    try {
+      await aoConfirmarCancelamento(reserva.id, motivo);
+      aoFechar();
+    } catch (err) {
+      setErro(err.message || 'Não foi possível processar o cancelamento.');
+    } finally {
+      setCancelando(false);
+    }
+  }
+
+  if (!reserva) return null;
+
+  return (
+    <Modal show onHide={() => !cancelando && aoFechar()} centered size="lg" className="modal-reserva-admin">
+      <Modal.Header closeButton className="modal-header-admin" style={{ background: '#7f1d1d', color: '#fff' }}>
+        <Modal.Title style={{ color: '#fff' }}>
+          <i className="bi bi-exclamation-triangle-fill me-2" />
+          Cancelar Reserva #{reserva.id}
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-4">
+        {erro && <Alert variant="danger" role="alert">{erro}</Alert>}
+
+        {carregando ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-danger" role="status" />
+            <p className="mt-3 text-muted">Consultando política e calculando reembolso no Mercado Pago...</p>
+          </div>
+        ) : simulacao ? (
+          <div>
+            <div className="p-3 mb-3 rounded-3" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+              <h6 className="fw-bold mb-1" style={{ color: '#991b1b' }}>
+                <i className="bi bi-shield-check me-2" />
+                Cancelamento pelo Anfitrião — Reembolso Integral (100%)
+              </h6>
+              <p className="small mb-0 text-muted">
+                Por se tratar de um cancelamento iniciado pelo anfitrião, o hóspede tem direito ao estorno integral de 100% do valor pago via Mercado Pago, sem qualquer retenção.
+              </p>
+            </div>
+
+            {/* Sugestão de Remarcação Amigável via WhatsApp */}
+            <div className="p-3 mb-4 rounded-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div style={{ maxWidth: '480px' }}>
+                  <h6 className="fw-bold mb-1 text-success d-flex align-items-center">
+                    <i className="bi bi-whatsapp me-2 fs-5" />
+                    Prefere propor uma remarcação de datas?
+                  </h6>
+                  <p className="small mb-0 text-muted">
+                    Antes de cancelar e estornar o valor, que tal conversar com o hóspede para verificar se ele aceita remarcar para outro final de semana?
+                  </p>
+                </div>
+                {simulacao.hospedeTelefone ? (
+                  <a
+                    href={`https://wa.me/55${simulacao.hospedeTelefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${simulacao.hospedeNome}! Aqui é o anfitrião do Recanto Camargo sobre a reserva #${reserva.id}. Gostaria de conversar com você sobre a possibilidade de remarcar a sua estadia.`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-sm btn-success fw-semibold px-3 py-2 d-inline-flex align-items-center"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <i className="bi bi-whatsapp me-2" />
+                    Falar no WhatsApp
+                  </a>
+                ) : (
+                  <span className="badge bg-secondary py-2 px-3">Telefone não informado</span>
+                )}
+              </div>
+            </div>
+
+            <Row className="g-3 mb-4">
+              <Col sm={6}>
+                <div className="p-3 rounded-2 border bg-light">
+                  <div className="small text-muted">Hóspede</div>
+                  <div className="fw-bold fs-6">{simulacao.hospedeNome}</div>
+                  <div className="small text-muted">{simulacao.hospedeEmail}</div>
+                  {simulacao.hospedeTelefone && <div className="small text-success mt-1"><i className="bi bi-telephone me-1" />{simulacao.hospedeTelefone}</div>}
+                </div>
+              </Col>
+              <Col sm={6}>
+                <div className="p-3 rounded-2 border bg-light">
+                  <div className="small text-muted">Check-in Previsto</div>
+                  <div className="fw-bold fs-6">{fmtData(simulacao.checkin)} às 14:00</div>
+                  <div className="small text-muted">Check-out: {fmtData(simulacao.checkout)} às 11:00</div>
+                </div>
+              </Col>
+            </Row>
+
+            {/* Quadro de Regra e Valores */}
+            <div className="p-4 rounded-3 mb-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <span className="fw-bold text-dark">Política Aplicada:</span>
+                <span className="badge bg-success px-3 py-2 fs-6">
+                  100% de Reembolso Integral
+                </span>
+              </div>
+              <p className="small text-muted mb-3">
+                <i className="bi bi-info-circle me-1" />
+                {simulacao.calculo.descricaoRegra}
+              </p>
+
+              <hr />
+
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="text-muted">Valor Pago na Reserva:</span>
+                <span className="fw-semibold">{fmtMoeda(simulacao.calculo.valorTotal)}</span>
+              </div>
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold text-success fs-5">
+                  <i className="bi bi-arrow-counterclockwise me-1" />
+                  Valor a Estornar (Mercado Pago):
+                </span>
+                <span className="fw-bold text-success fs-5">
+                  {fmtMoeda(simulacao.calculo.valorReembolso)}
+                </span>
+              </div>
+              <div className="d-flex justify-content-between align-items-center small text-muted">
+                <span>Retenção do proprietário:</span>
+                <span className="fw-semibold text-muted">R$ 0,00 (0%)</span>
+              </div>
+            </div>
+
+            <div className="mb-3">
+              <label htmlFor="motivo-cancelamento" className="form-label fw-semibold">
+                Motivo do cancelamento (opcional — será enviado no e-mail do hóspede)
+              </label>
+              <textarea
+                id="motivo-cancelamento"
+                className="form-control"
+                rows={3}
+                maxLength={250}
+                placeholder="Ex.: Manutenção urgente na estrutura do chalé."
+                value={motivo}
+                disabled={cancelando}
+                onChange={e => setMotivo(e.target.value)}
+              />
+            </div>
+          </div>
+        ) : null}
+      </Modal.Body>
+      <Modal.Footer className="gap-2">
+        <Button variant="secondary" disabled={cancelando} onClick={aoFechar}>
+          Voltar / Não Cancelar
+        </Button>
+        {simulacao && (
+          <Button variant="danger" disabled={cancelando} onClick={confirmar}>
+            {cancelando ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                Estornando via Mercado Pago...
+              </>
+            ) : (
+              <>
+                <i className="bi bi-x-circle me-1" />
+                Confirmar Cancelamento e Estornar {fmtMoeda(simulacao.calculo.valorReembolso)}
+              </>
+            )}
+          </Button>
+        )}
+      </Modal.Footer>
     </Modal>
   );
 }
@@ -726,12 +945,16 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
 
   // Detecção de Conflitos em Tempo Real
   const conflitoDetectado = useMemo(() => {
-    if (!dataInicio || !dataFim || dataInicio >= dataFim) return null;
+    if (!dataInicio || !dataFim || dataInicio > dataFim) return null;
+
+    const fimComp = dataInicio === dataFim
+      ? new Date(new Date(dataInicio + 'T00:00:00').getTime() + 86400000).toISOString().slice(0, 10)
+      : dataFim;
 
     // Conflito com reservas
     const reservaConflitante = reservasExistentes.find(r => {
-      if (r.status !== 'aprovada' && r.status !== 'pendente') return false;
-      return r.checkin < dataFim && r.checkout > dataInicio;
+      if (r.status !== 'aprovada' && r.status !== 'concluida' && r.status !== 'pendente' && r.status !== 'pagamento pendente') return false;
+      return r.checkin < fimComp && r.checkout > dataInicio;
     });
 
     if (reservaConflitante) {
@@ -743,8 +966,9 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
 
     // Conflito com outros bloqueios
     const bloqueioConflitante = bloqueiosExistentes.find(b => {
-      if (b.data) return b.data >= dataInicio && b.data < dataFim;
-      return b.dataInicio < dataFim && b.dataFim > dataInicio;
+      const bData = b.data ? String(b.data).slice(0, 10) : null;
+      if (bData) return bData >= dataInicio && bData < fimComp;
+      return b.dataInicio < fimComp && b.dataFim > dataInicio;
     });
 
     if (bloqueioConflitante) {
@@ -784,7 +1008,7 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
 
           <Row className="g-3 mb-3">
             <Col sm={6}>
-              <label htmlFor="bloq-inicio" className="form-label fw-semibold small text-muted">Data Início</label>
+              <label htmlFor="bloq-inicio" className="form-label fw-semibold small text-muted">Data de Entrada (Início)</label>
               <input
                 id="bloq-inicio"
                 type="date"
@@ -796,7 +1020,7 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
               />
             </Col>
             <Col sm={6}>
-              <label htmlFor="bloq-fim" className="form-label fw-semibold small text-muted">Data Fim</label>
+              <label htmlFor="bloq-fim" className="form-label fw-semibold small text-muted">Data de Saída (Fim / Desocupação)</label>
               <input
                 id="bloq-fim"
                 type="date"
@@ -823,6 +1047,17 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
             />
             <small className="text-muted d-block mt-1">Este motivo é privado e serve como log interno para sua gestão.</small>
           </div>
+
+          {dataInicio && dataFim && dataInicio <= dataFim && !conflitoDetectado && (
+            <div className="alert alert-light border py-2 px-3 small d-flex align-items-center gap-2 mb-3 text-muted">
+              <i className="bi bi-info-circle text-primary fs-6" />
+              <span>
+                {dataInicio === dataFim 
+                  ? `Bloqueio de 1 diária (${fmtData(dataInicio)}).`
+                  : `Bloqueio de ${noites(dataInicio, dataFim)} diária(s) (${fmtData(dataInicio)} a ${fmtData(dataFim)} — imóvel liberado no check-out em ${fmtData(dataFim)}).`}
+              </span>
+            </div>
+          )}
 
           {conflitoDetectado && (
             <Alert variant="warning" className="border-0 shadow-sm d-flex align-items-center gap-2 mb-0">
@@ -890,12 +1125,68 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
     return acc;
   }, {}), [bloqueios]);
 
+  const getIso = (d) => {
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().split('T')[0];
+  };
+
   const tileClassName = ({ date, view }) => {
     if (view !== 'month') return null;
-    const k = date.toISOString().slice(0, 10);
-    if (mapaBloqueios[k]) return 'dia-bloqueado-manutencao';
-    if (mapaStatus[k] === 'aprovada') return 'dia-aprovado';
-    if (mapaStatus[k] === 'pendente') return 'dia-pendente';
+    const dStr = getIso(date);
+
+    const dtAnt = new Date(date);
+    dtAnt.setDate(dtAnt.getDate() - 1);
+    const dAntStr = getIso(dtAnt);
+
+    // Verificações para MANHÃ (Check-out)
+    const resCheckout = reservas.find(r => (r.status === 'aprovada' || r.status === 'pendente') && r.checkout === dStr);
+    const resMeio = reservas.find(r => (r.status === 'aprovada' || r.status === 'pendente') && r.checkin < dStr && r.checkout > dStr);
+    const bloqAnterior = !!mapaBloqueios[dAntStr];
+    const bloqAtual = !!mapaBloqueios[dStr];
+
+    let manha = 'livre';
+    if (resCheckout) manha = resCheckout.status;
+    else if (resMeio) manha = resMeio.status;
+    else if (bloqAnterior) manha = 'bloqueado';
+
+    // Verificações para TARDE (Check-in / Pernoite)
+    let tarde = 'livre';
+    if (bloqAtual) {
+      tarde = 'bloqueado';
+    } else {
+      const resTarde = reservas.find(r => (r.status === 'aprovada' || r.status === 'pendente') && r.checkin <= dStr && r.checkout > dStr);
+      if (resTarde) tarde = resTarde.status;
+    }
+
+    // Se ambos os períodos forem iguais
+    if (manha === tarde) {
+      if (manha === 'aprovada') return 'dia-aprovado';
+      if (manha === 'pendente') return 'dia-pendente';
+      if (manha === 'bloqueado') return 'dia-bloqueado-manutencao';
+      return null;
+    }
+
+    // Casos combinados (metade e metade)
+    // 1. Reserva Aprovada e Bloqueio
+    if (manha === 'aprovada' && tarde === 'bloqueado') return 'dia-split-reserva-bloqueio';
+    if (manha === 'bloqueado' && tarde === 'aprovada') return 'dia-split-bloqueio-reserva';
+
+    // 2. Reserva Pendente e Bloqueio
+    if (manha === 'pendente' && tarde === 'bloqueado') return 'dia-split-pendente-bloqueio';
+    if (manha === 'bloqueado' && tarde === 'pendente') return 'dia-split-bloqueio-pendente';
+
+    // 3. Reserva Aprovada e Livre (Entrada / Saída)
+    if (manha === 'aprovada' && tarde === 'livre') return 'dia-split-reserva-livre';
+    if (manha === 'livre' && tarde === 'aprovada') return 'dia-split-livre-reserva';
+
+    // 4. Reserva Pendente e Livre (Entrada / Saída)
+    if (manha === 'pendente' && tarde === 'livre') return 'dia-split-pendente-livre';
+    if (manha === 'livre' && tarde === 'pendente') return 'dia-split-livre-pendente';
+
+    // 5. Bloqueio e Livre (Entrada / Saída)
+    if (manha === 'bloqueado' && tarde === 'livre') return 'dia-split-bloqueio-livre';
+    if (manha === 'livre' && tarde === 'bloqueado') return 'dia-split-livre-bloqueio';
+
     return null;
   };
 
@@ -944,11 +1235,11 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
           </div>
 
           <Button
-            className="fw-bold d-inline-flex align-items-center gap-1 btn-bloquear-datas-admin"
+            className="fw-bold d-inline-flex align-items-center gap-2 btn-bloquear-datas-admin"
             style={{ borderRadius: '50px' }}
             onClick={() => setShowModalBloqueio(true)}
           >
-            <i className="bi bi-shield-slash" /> + Bloquear Datas
+            <i className="bi bi-shield-slash" /> Bloquear Datas
           </Button>
         </div>
       </div>
@@ -958,6 +1249,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
         <span className="legenda-item"><span className="dot dot-aprovada" /> Reserva Confirmada</span>
         <span className="legenda-item"><span className="dot dot-pendente" /> Reserva Pendente</span>
         <span className="legenda-item"><span className="dot dot-bloqueado" /> Bloqueio Manual (Hachura)</span>
+        <span className="legenda-item text-muted small"><i className="bi bi-circle-half me-1" /> Metade dividida: Saída (manhã) / Entrada (tarde)</span>
       </div>
 
       {/* Grid de 2 Meses Lado a Lado */}
@@ -1251,7 +1543,7 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
           style={{ borderRadius: '50px', background: '#ff9211', borderColor: '#ff9211' }}
           onClick={() => setShowModal(true)}
         >
-          <i className="bi bi-plus-lg" /> + Criar Novo Cupom
+          <i className="bi bi-plus-lg" /> Criar Novo Cupom
         </Button>
       </div>
 
@@ -1372,7 +1664,7 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
 }
 
 // ─── Tabela de Gerenciamento de Reservas ───────────────────────────────────────
-function TabelaReservas({ reservas, onVer, filtro, setFiltro, reservasGerais }) {
+function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reservasGerais }) {
   const baseContagem = reservasGerais || reservas;
   const lista = filtro === 'todas' ? reservas : reservas.filter(r => r.status === filtro);
   const cnt   = s => s === 'todas' ? baseContagem.length : baseContagem.filter(r => r.status === s).length;
@@ -1426,12 +1718,23 @@ function TabelaReservas({ reservas, onVer, filtro, setFiltro, reservasGerais }) 
                 <td style={{ fontSize: '0.875rem' }}>{fmtData(r.checkout)}</td>
                 <td className="d-none d-md-table-cell text-center" style={{ fontSize: '0.875rem' }}>{noites(r.checkin, r.checkout)}</td>
                 <td className="fw-bold" style={{ color: '#198754', fontSize: '0.875rem' }}>{fmtMoeda(r.total || r.valorTotal)}</td>
-                <td><BadgeStatus status={r.status} /></td>
+                <td>
+                  <BadgeStatus status={r.status} />
+                  {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
+                    <div className="small fw-semibold text-success mt-1" style={{ fontSize: '0.72rem' }}>
+                      <i className="bi bi-arrow-counterclockwise me-1" />
+                      Estorno: {fmtMoeda(r.valorReembolsado)}
+                    </div>
+                  )}
+                </td>
                 <td>
                   <div className="acoes-tabela">
                     <button className="btn-acao-tabela ver" onClick={() => onVer(r)} title="Ver detalhes"><i className="bi bi-eye" /></button>
                     {r.status === 'aprovada' && (
-                      <button className="btn-acao-tabela concluir text-primary" onClick={() => onVer(r)} title="Concluir Estadia"><i className="bi bi-check2-circle" /></button>
+                      <>
+                        <button className="btn-acao-tabela text-danger" onClick={() => onCancelar && onCancelar(r)} title="Cancelar com Estorno"><i className="bi bi-x-circle" /></button>
+                        <button className="btn-acao-tabela concluir text-primary" onClick={() => onVer(r)} title="Concluir Estadia"><i className="bi bi-check2-circle" /></button>
+                      </>
                     )}
                   </div>
                 </td>
@@ -1554,14 +1857,14 @@ function PrevisaoReceita({ reservas }) {
       const ini = new Date(r.checkin + 'T00:00:00');
       return ini.getFullYear() === ano && ini.getMonth() === mes;
     });
-    const confirmada = doMes.filter(r => r.status === 'aprovada').reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
-    const potencial  = doMes.filter(r => r.status === 'pendente').reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
+    const confirmada = doMes.filter(r => r.status === 'aprovada' || r.status === 'concluida').reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
+    const potencial  = doMes.filter(r => r.status === 'pendente' || r.status === 'pagamento pendente').reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
     return { label, confirmada, potencial, total: confirmada + potencial };
   });
 
   const maxValor = Math.max(...dadosMeses.map(d => d.total), 1);
   const receitaPrevista = reservas
-    .filter(r => r.status === 'aprovada' || r.status === 'pendente')
+    .filter(r => r.status === 'aprovada' || r.status === 'concluida' || r.status === 'pendente' || r.status === 'pagamento pendente')
     .reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
 
   return (
@@ -1584,8 +1887,8 @@ function PrevisaoReceita({ reservas }) {
         <div className="grafico-header-admin">
           <h6 className="fw-bold mb-0" style={{ color: '#223a5e', fontSize: '0.9rem' }}>Receita por Mês (próx. 4 meses)</h6>
           <div className="legenda-grafico">
-            <span className="legenda-item"><span className="dot" style={{ background: '#3b6399' }} />Confirmada</span>
-            <span className="legenda-item"><span className="dot" style={{ background: '#fbbf24' }} />Potencial (pendente)</span>
+            <span className="legenda-item"><span className="dot" style={{ background: '#3b6399' }} />Confirmada (paga)</span>
+            <span className="legenda-item"><span className="dot" style={{ background: '#fbbf24' }} />Potencial (pendente/aguardando pgto)</span>
           </div>
         </div>
         <div className="grafico-barras">
@@ -1620,6 +1923,7 @@ function DashboardAdministrador() {
   const [abaAtiva, setAbaAtiva] = useState('visao-geral');
   const [reservas, setReservas] = useState([]);
   const [selecionada, setSelecionada] = useState(null);
+  const [reservaParaCancelar, setReservaParaCancelar] = useState(null);
   const [filtro, setFiltro] = useState('todas');
   const [feedback, setFeedback] = useState({ tipo: '', msg: '' });
 
@@ -1655,73 +1959,14 @@ function DashboardAdministrador() {
   const [erroAvaliacoes, setErroAvaliacoes] = useState('');
   const [avaliacaoSelecionada, setAvaliacaoSelecionada] = useState(null);
 
-  // Bloqueios de Calendário (Sprint 2)
-  const [bloqueios, setBloqueios] = useState([
-    {
-      id: 1,
-      dataInicio: '2026-10-14',
-      dataFim: '2026-10-16',
-      motivo: 'Dedetização e Manutenção Preventiva',
-    },
-    {
-      id: 2,
-      dataInicio: '2026-11-03',
-      dataFim: '2026-11-05',
-      motivo: 'Pintura da Área Gourmet e Jardim',
-    },
-  ]);
+  // Bloqueios de Calendário
+  const [bloqueios, setBloqueios] = useState([]);
 
-  // Cupons Promocionais (Sprint 2)
-  const [cupons, setCupons] = useState([
-    {
-      id: 1,
-      codigo: 'ROMARIA10',
-      tipo: 'PERCENTUAL',
-      valor: 10,
-      publico: 'TODOS',
-      clienteEspecifico: null,
-      minimoNoites: 2,
-      valorMinimo: 450,
-      validade: '2026-12-31',
-      ativo: true,
-    },
-    {
-      id: 2,
-      codigo: 'BEMVINDO20',
-      tipo: 'PERCENTUAL',
-      valor: 20,
-      publico: 'PRIMEIRA_RESERVA',
-      clienteEspecifico: null,
-      minimoNoites: 1,
-      valorMinimo: 300,
-      validade: '2026-11-30',
-      ativo: true,
-    },
-    {
-      id: 3,
-      codigo: 'VIPRECANTO',
-      tipo: 'FIXO',
-      valor: 80,
-      publico: 'VIP',
-      clienteEspecifico: null,
-      minimoNoites: 2,
-      valorMinimo: 600,
-      validade: '2026-12-15',
-      ativo: true,
-    },
-    {
-      id: 4,
-      codigo: 'ESPECIALMARIA',
-      tipo: 'PERCENTUAL',
-      valor: 15,
-      publico: 'CLIENTE_ESPECIFICO',
-      clienteEspecifico: 'maria.peregrina@email.com',
-      minimoNoites: 3,
-      valorMinimo: 500,
-      validade: '2026-10-31',
-      ativo: false,
-    },
-  ]);
+  // Cupons Promocionais
+  const [cupons, setCupons] = useState([]);
+
+  // Avaliações Públicas e Nota Média do Imóvel (Opção B)
+  const [avaliacoesPublicas, setAvaliacoesPublicas] = useState([]);
 
   useEffect(() => {
     if (tipo !== 'proprietario') navigate('/');
@@ -1915,11 +2160,33 @@ function DashboardAdministrador() {
     if (!resposta.ok) throw new Error(dados.error || 'Não foi possível salvar a decisão.');
     const statusSalvo = dados.status === 'CONFIRMADA'
       ? 'aprovada'
-      : (dados.status === 'CONCLUIDA' ? 'concluida' : 'recusada');
+      : (dados.status === 'PAGAMENTO_PENDENTE'
+        ? 'pagamento pendente'
+        : (dados.status === 'CONCLUIDA' ? 'concluida' : 'recusada'));
     setReservas(atuais => atuais.map(r => String(r.id) === String(id) ? { ...r, status: statusSalvo } : r));
     setSelecionada(null);
     fb('sucesso', dados.message || 'Decisão salva com sucesso.');
     await buscarReservas();
+  }
+
+  // Cancelar Reserva com Estorno Automático
+  async function cancelarReservaComEstorno(id, motivo) {
+    const sessao = sessaoReservasRef.current;
+    if (!sessao?.ativa) throw new Error('Faça login novamente para cancelar a reserva.');
+    const resposta = await fetch(`${API_BASE}/api/proprietario/reservas/${id}/cancelar`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (!sessao.ativa || sessaoReservasRef.current !== sessao) return;
+    if (!resposta.ok) throw new Error(dados.error || 'Não foi possível cancelar a reserva.');
+    setSelecionada(null);
+    setReservaParaCancelar(null);
+    fb('sucesso', dados.message || 'Reserva cancelada e estorno processado.');
+    await buscarReservas();
+    return dados;
   }
 
   // Buscar Avaliações Pendentes
@@ -1944,17 +2211,32 @@ function DashboardAdministrador() {
     }
   }, []);
 
+  // Buscar Avaliações Públicas e Nota Real do Imóvel (Opção B)
+  const buscarAvaliacoesPublicas = useCallback(async (signal) => {
+    try {
+      const resposta = await fetch(`${API_BASE}/api/avaliacoes/imovel/1`, { signal });
+      const dados = await resposta.json().catch(() => []);
+      if (Array.isArray(dados)) {
+        setAvaliacoesPublicas(dados);
+      }
+    } catch {
+      // Ignora falha de conexão se offline
+    }
+  }, []);
+
   useEffect(() => {
     const controlador = new AbortController();
     buscarAvaliacoesPendentes(controlador.signal);
+    buscarAvaliacoesPublicas(controlador.signal);
     return () => controlador.abort();
-  }, [buscarAvaliacoesPendentes]);
+  }, [buscarAvaliacoesPendentes, buscarAvaliacoesPublicas]);
 
   const confirmarRespostaAvaliacao = useCallback((id) => {
     setAvaliacoesPendentes(atuais => atuais.filter(item => item.id !== id));
     setAvaliacaoSelecionada(null);
+    buscarAvaliacoesPublicas();
     fb('sucesso', 'Resposta e avaliação interna do hóspede enviadas com sucesso.');
-  }, []);
+  }, [buscarAvaliacoesPublicas]);
 
   // Cálculos do Dashboard
   const hoje = new Date();
@@ -1998,6 +2280,12 @@ function DashboardAdministrador() {
   }, 0);
   const ocupacao = Math.min(100, Math.round((diasOcupados / diasNoMes) * 100));
 
+  // Opção B: Nota 5.0 inicial de estreia quando total de avaliações = 0, ou média real calculada
+  const totalAvaliacoesPublicas = avaliacoesPublicas.length;
+  const notaMediaReal = totalAvaliacoesPublicas > 0
+    ? (avaliacoesPublicas.reduce((acc, a) => acc + Number(a.nota || 0), 0) / totalAvaliacoesPublicas)
+    : 5.0;
+
   // Abas do Painel
   const abas = [
     { id: 'visao-geral', label: 'Visão Geral', icone: <Ico.Dash /> },
@@ -2030,12 +2318,14 @@ function DashboardAdministrador() {
                   titulo="Faturamento Mensal"
                   valor={fmtMoeda(faturamentoMesAtual)}
                   badge={
-                    <span className={`kpi-badge-variacao ${variacaoPerc >= 0 ? 'positiva' : 'negativa'}`}>
-                      <i className={`bi ${variacaoPerc >= 0 ? 'bi-arrow-up-right' : 'bi-arrow-down-right'} me-1`} />
-                      {variacaoPerc >= 0 ? `+${variacaoPerc.toFixed(1)}%` : `${variacaoPerc.toFixed(1)}%`}
-                    </span>
+                    (faturamentoMesAtual === 0 && faturamentoMesAnterior === 0) ? null : (
+                      <span className={`kpi-badge-variacao ${variacaoPerc > 0 ? 'positiva' : (variacaoPerc < 0 ? 'negativa' : 'neutra')}`}>
+                        <i className={`bi ${variacaoPerc > 0 ? 'bi-arrow-up-right' : (variacaoPerc < 0 ? 'bi-arrow-down-right' : 'bi-dash')} me-1`} />
+                        {variacaoPerc > 0 ? `+${variacaoPerc.toFixed(1)}%` : `${variacaoPerc.toFixed(1)}%`}
+                      </span>
+                    )
                   }
-                  sub="vs mês anterior"
+                  sub={(faturamentoMesAtual === 0 && faturamentoMesAnterior === 0) ? 'Sem faturamento no período' : 'vs mês anterior'}
                   cor="#ff9211"
                 />
               </Col>
@@ -2052,18 +2342,21 @@ function DashboardAdministrador() {
                 />
               </Col>
 
-              {/* 3. Avaliação Média 4.98 com estrelas */}
+              {/* 3. Avaliação Média (Opção B: 5.0 inicial de estreia, real quando houver avaliações) */}
               <Col xs={12} sm={6} xl={3}>
                 <CardKpiModerno
                   icone={<i className="bi bi-star-fill fs-4" />}
                   titulo="Avaliação Média"
                   valor={
                     <span className="d-flex align-items-center gap-2">
-                      4.98
-                      <EstrelasAvaliacao nota={4.98} tamanho="1.15rem" />
+                      {notaMediaReal.toFixed(1)}
+                      <EstrelasAvaliacao nota={notaMediaReal} tamanho="1.15rem" />
                     </span>
                   }
-                  sub="Excelência comprovada pelos hóspedes"
+                  sub={totalAvaliacoesPublicas === 0
+                    ? 'Nota inicial de estreia'
+                    : `${totalAvaliacoesPublicas} ${totalAvaliacoesPublicas === 1 ? 'avaliação de hóspede' : 'avaliações de hóspedes'}`
+                  }
                   cor="#f59e0b"
                 />
               </Col>
@@ -2074,7 +2367,7 @@ function DashboardAdministrador() {
                   icone={<i className="bi bi-calendar-check fs-4" />}
                   titulo="Total de Reservas"
                   valor={reservas.length}
-                  sub={`${aprovadas} ativas · ${reservas.filter(r => r.status === 'pendente').length} pendentes`}
+                  sub={`${aprovadas} confirmadas · ${reservas.filter(r => r.status === 'pendente' || r.status === 'pagamento pendente').length} pendentes`}
                   cor="#223a5e"
                 />
               </Col>
@@ -2094,6 +2387,7 @@ function DashboardAdministrador() {
               reservas={ultimasReservas}
               reservasGerais={reservas}
               onVer={setSelecionada}
+              onCancelar={setReservaParaCancelar}
               filtro={filtro}
               setFiltro={setFiltro}
             />
@@ -2107,6 +2401,7 @@ function DashboardAdministrador() {
           <TabelaReservas
             reservas={reservas}
             onVer={setSelecionada}
+            onCancelar={setReservaParaCancelar}
             filtro={filtro}
             setFiltro={setFiltro}
           />
@@ -2244,7 +2539,16 @@ function DashboardAdministrador() {
         reserva={selecionada}
         aoFechar={() => setSelecionada(null)}
         aoDecidir={decidirReserva}
+        aoAbrirCancelamento={r => setReservaParaCancelar(r)}
       />
+
+      {reservaParaCancelar && (
+        <ModalCancelarReservaAdmin
+          reserva={reservaParaCancelar}
+          aoFechar={() => setReservaParaCancelar(null)}
+          aoConfirmarCancelamento={cancelarReservaComEstorno}
+        />
+      )}
 
       <ModalResponderAvaliacao
         avaliacao={avaliacaoSelecionada}
