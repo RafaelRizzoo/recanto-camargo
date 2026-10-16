@@ -22,7 +22,17 @@ const ICONES = new Set([
     'bi-bell',
     'bi-bell-fill',
     'bi-clock-history',
-    'bi-hourglass-split'
+    'bi-hourglass-split',
+    'bi-star',
+    'bi-star-fill',
+    'bi-house-heart',
+    'bi-house-heart-fill',
+    'bi-person-check',
+    'bi-tag',
+    'bi-tag-fill',
+    'bi-gift',
+    'bi-gift-fill',
+    'bi-percent'
 ]);
 
 function validarId(valor) {

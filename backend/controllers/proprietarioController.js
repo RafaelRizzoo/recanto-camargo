@@ -81,18 +81,24 @@ function decidirReserva(novoStatus) {
             `, [reservaId, novoStatus, motivo || null]);
 
 
+            const expiraEmAprovacao = new Date(Date.now() + 24 * 60 * 60 * 1000);
+            const expiraEmFmt = expiraEmAprovacao.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) + ' às ' + expiraEmAprovacao.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+
             const aprovada = novoStatus === 'PAGAMENTO_PENDENTE' || novoStatus === 'CONFIRMADA';
             const titulo = novoStatus === 'PAGAMENTO_PENDENTE'
                 ? 'Reserva Aprovada — Pagamento Pendente'
                 : (aprovada ? 'Reserva Confirmada' : 'Reserva Recusada');
             const mensagem = novoStatus === 'PAGAMENTO_PENDENTE'
-                ? `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi aprovada pelo proprietário! Acesse seu painel e efetue o pagamento para garantir suas datas.`
+                ? `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi aprovada pelo proprietário! Você tem até ${expiraEmFmt} (24 horas) para efetuar o pagamento e garantir suas datas.`
                 : (aprovada
                     ? `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi confirmada pelo proprietário.`
                     : `Sua reserva #${reservaId}, de ${reserva.checkin} a ${reserva.checkout}, foi recusada pelo proprietário.${motivo ? ` Motivo: ${motivo}` : ''}`);
+            const msgNotificacao = novoStatus === 'PAGAMENTO_PENDENTE'
+                ? `Sua reserva #${reservaId} (${reserva.checkin} a ${reserva.checkout}) foi aprovada! Você tem até ${expiraEmFmt} (24h) para efetuar o pagamento.`
+                : mensagem;
             const notificacoes = req.app.get('notificacoes');
             await notificacoes.criarNotificacao(
-                reserva.Hos_Hospede_Usu_Id, titulo, mensagem,
+                reserva.Hos_Hospede_Usu_Id, titulo, msgNotificacao,
                 aprovada ? 'SUCESSO' : 'AVISO',
                 aprovada ? 'bi-credit-card' : 'bi-exclamation-circle', conexao
             );
@@ -114,8 +120,9 @@ function decidirReserva(novoStatus) {
                     badge: novoStatus === 'PAGAMENTO_PENDENTE' ? '⏱ Pagamento Pendente' : (aprovada ? '✓ Reserva Confirmada' : '● Reserva Recusada'),
                     detalhes: [
                         { rotulo: 'Reserva', valor: `#${reservaId}` },
-                        { rotulo: 'Imóvel', valor: imoveis[0].Imo_Nome || 'Recanto Camargo' },
+                        { rotulo: 'Unidade', valor: imoveis[0].Imo_Nome || 'Recanto Camargo' },
                         { rotulo: 'Período', valor: `${reserva.checkin} a ${reserva.checkout}` },
+                        ...(novoStatus === 'PAGAMENTO_PENDENTE' ? [{ rotulo: 'Prazo para Pagamento', valor: `Até ${expiraEmFmt} (24h)` }] : []),
                         ...(reserva.Res_ValorTotal ? [{ rotulo: 'Valor Total', valor: `R$ ${Number(reserva.Res_ValorTotal).toFixed(2).replace('.', ',')}` }] : [])
                     ],
                     botaoTexto: novoStatus === 'PAGAMENTO_PENDENTE' ? 'Efetuar Pagamento' : 'Acessar Meu Painel',
@@ -185,6 +192,7 @@ exports.concluirReserva = async (req, res) => {
 
         const [reservas] = await conexao.query(
             `SELECT Res_Status, Hos_Hospede_Usu_Id,
+                    Res_DataCheckIn, Res_DataCheckOut,
                     DATE_FORMAT(Res_DataCheckIn, '%d/%m/%Y') AS checkin,
                     DATE_FORMAT(Res_DataCheckOut, '%d/%m/%Y') AS checkout
              FROM res_reserva WHERE Res_Id = ? AND Imo_Id = ? FOR UPDATE`,
@@ -196,6 +204,17 @@ exports.concluirReserva = async (req, res) => {
         const reserva = reservas[0];
         if (reserva.Res_Status !== 'CONFIRMADA') {
             throw new ErroHttp(400, 'Somente reservas confirmadas podem ser concluídas.');
+        }
+
+        // Trava de segurança: impede conclusão manual de reserva cujo check-in ainda não iniciou
+        if (reserva.Res_DataCheckIn) {
+            const checkinDt = new Date(reserva.Res_DataCheckIn);
+            const agora = new Date();
+            const checkinDia = new Date(checkinDt.getFullYear(), checkinDt.getMonth(), checkinDt.getDate());
+            const hojeDia = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+            if (checkinDia > hojeDia) {
+                throw new ErroHttp(400, `Não é possível concluir a reserva antes do início da estadia (${reserva.checkin}).`);
+            }
         }
 
         const [resultado] = await conexao.query(
@@ -535,6 +554,7 @@ exports.listarReservas = async (req, res) => {
                 r.Res_ObsHospede as observacoes,
                 r.Res_ObsPropietario as obsProprietario,
                 (SELECT His_Motivo FROM his_historicoreservastatus hhs WHERE hhs.Res_Id = r.Res_Id ORDER BY hhs.His_DataAlteracao DESC LIMIT 1) as motivo,
+                (SELECT MAX(hhs.His_DataAlteracao) FROM his_historicoreservastatus hhs WHERE hhs.Res_Id = r.Res_Id AND hhs.His_StatusAtual = 'PAGAMENTO_PENDENTE') as dataAprovacao,
                 p.Pag_Status as pagamentoStatus,
                 p.Pag_ValorReembolsado as valorReembolsado,
                 p.Pag_TransacaoId as transacaoId
@@ -557,6 +577,24 @@ exports.listarReservas = async (req, res) => {
             'CONCLUIDA': 'concluida'
         };
 
+        const calcularExpiraEm = (reserva) => {
+            if (!reserva.criadaEm) return null;
+            const checkinTime = reserva.checkin ? new Date(reserva.checkin).getTime() : Infinity;
+            if (reserva.status === 'PENDENTE') {
+                const base = new Date(reserva.criadaEm).getTime();
+                const exp48h = base + 48 * 60 * 60 * 1000;
+                const limite = Math.min(exp48h, checkinTime);
+                return new Date(limite).toISOString();
+            }
+            if (reserva.status === 'PAGAMENTO_PENDENTE') {
+                const base = new Date(reserva.dataAprovacao || reserva.criadaEm).getTime();
+                const exp24h = base + 24 * 60 * 60 * 1000;
+                const limite = Math.min(exp24h, checkinTime);
+                return new Date(limite).toISOString();
+            }
+            return null;
+        };
+
         const reservasFormatadas = reservas.map(r => ({
             ...r,
             id: r.id.toString(),
@@ -564,9 +602,10 @@ exports.listarReservas = async (req, res) => {
             email: r.email,
             telefone: r.telefone,
             hospedes: r.quantidadeHospedes,
-            checkin: r.checkin.toISOString().split('T')[0],
-            checkout: r.checkout.toISOString().split('T')[0],
-            criadaEm: r.criadaEm.toISOString().split('T')[0],
+            checkin: r.checkin ? (r.checkin instanceof Date ? r.checkin.toISOString().split('T')[0] : String(r.checkin).slice(0, 10)) : null,
+            checkout: r.checkout ? (r.checkout instanceof Date ? r.checkout.toISOString().split('T')[0] : String(r.checkout).slice(0, 10)) : null,
+            criadaEm: r.criadaEm ? (r.criadaEm instanceof Date ? r.criadaEm.toISOString() : new Date(r.criadaEm).toISOString()) : null,
+            expiraEm: calcularExpiraEm(r),
             total: Number(r.total),
             status: statusMap[r.status] || 'pendente',
             observacoes: r.observacoes || null,
@@ -973,6 +1012,52 @@ exports.listarCuponsProprietario = async (req, res) => {
     }
 };
 
+exports.buscarHospedes = async (req, res) => {
+    try {
+        const proprietarioId = req.usuario.id;
+        await garantirProprietario(db, proprietarioId);
+
+        const termo = typeof req.query?.q === 'string' ? req.query.q.trim() : '';
+
+        let query = `
+            SELECT 
+                u.Usu_Id AS id,
+                u.Usu_Nome AS nome,
+                u.Usu_Email AS email,
+                u.Usu_Telefone AS telefone,
+                (SELECT COUNT(*) FROM res_reserva r WHERE r.Hos_Hospede_Usu_Id = u.Usu_Id AND r.Res_Status NOT IN ('CANCELADA', 'RECUSADA')) AS totalReservas
+            FROM usu_usuario u
+            JOIN hos_hospede h ON h.Usu_Id = u.Usu_Id
+            WHERE u.Usu_Status = 'ATIVO'
+        `;
+        const params = [];
+
+        if (termo) {
+            query += ` AND (u.Usu_Nome LIKE ? OR u.Usu_Email LIKE ? OR u.Usu_Telefone LIKE ?) `;
+            const likeTermo = `%${termo}%`;
+            params.push(likeTermo, likeTermo, likeTermo);
+        }
+
+        query += ` ORDER BY u.Usu_Nome ASC LIMIT 20 `;
+
+        const [hospedes] = await db.query(query, params);
+
+        res.json(hospedes.map(h => ({
+            id: Number(h.id),
+            nome: h.nome,
+            email: h.email,
+            telefone: h.telefone || '',
+            totalReservas: Number(h.totalReservas)
+        })));
+    } catch (error) {
+        if (error instanceof ErroHttp) {
+            return res.status(error.status).json({ error: error.message });
+        }
+        console.error('Erro ao buscar hóspedes:', error);
+        res.status(500).json({ error: 'Erro interno ao buscar hóspedes.' });
+    }
+};
+
 exports.criarCupom = async (req, res) => {
     try {
         const proprietarioId = req.usuario.id;
@@ -1011,17 +1096,42 @@ exports.criarCupom = async (req, res) => {
             return res.status(400).json({ error: 'Informe uma data de validade válida (AAAA-MM-DD).' });
         }
 
-        const limite = limiteUso && Number(limiteUso) > 0 ? Number(limiteUso) : 999999;
         const publicoValido = ['TODOS', 'CLIENTE_ESPECIFICO', 'PRIMEIRA_RESERVA', 'CLIENTE_RETORNANTE', 'CLIENTE_RECORRENTE'].includes(publicoAlvo)
             ? publicoAlvo
             : 'TODOS';
+        const limite = limiteUso && Number(limiteUso) > 0
+            ? Number(limiteUso)
+            : (publicoValido === 'CLIENTE_ESPECIFICO' ? 1 : 999999);
         
         let clienteIdSeguro = null;
         if (publicoValido === 'CLIENTE_ESPECIFICO') {
-            if (!clienteId || isNaN(Number(clienteId))) {
-                return res.status(400).json({ error: 'Selecione o hóspede destinatário para este cupom específico.' });
+            if (!clienteId || (typeof clienteId !== 'string' && typeof clienteId !== 'number')) {
+                return res.status(400).json({ error: 'Informe o e-mail, nome ou ID do hóspede para este cupom específico.' });
             }
-            clienteIdSeguro = Number(clienteId);
+            const termo = String(clienteId).trim();
+            if (!termo) {
+                return res.status(400).json({ error: 'Informe o e-mail, nome ou ID do hóspede para este cupom específico.' });
+            }
+
+            if (!isNaN(Number(termo)) && Number.isInteger(Number(termo)) && Number(termo) > 0) {
+                const [usuarios] = await db.query(
+                    'SELECT Usu_Id FROM usu_usuario WHERE Usu_Id = ? LIMIT 1',
+                    [Number(termo)]
+                );
+                if (usuarios.length === 0) {
+                    return res.status(400).json({ error: 'Nenhum hóspede cadastrado foi encontrado com esse ID.' });
+                }
+                clienteIdSeguro = Number(termo);
+            } else {
+                const [usuarios] = await db.query(
+                    'SELECT Usu_Id FROM usu_usuario WHERE LOWER(Usu_Email) = LOWER(?) OR LOWER(Usu_Nome) = LOWER(?) OR LOWER(Usu_Nome) LIKE LOWER(?) LIMIT 2',
+                    [termo, termo, `%${termo}%`]
+                );
+                if (usuarios.length === 0) {
+                    return res.status(400).json({ error: `Nenhum hóspede cadastrado foi encontrado com o e-mail ou nome "${termo}".` });
+                }
+                clienteIdSeguro = usuarios[0].Usu_Id;
+            }
         }
 
         const minNoites = Number(minimoNoites) >= 1 ? Number(minimoNoites) : 1;
@@ -1043,9 +1153,117 @@ exports.criarCupom = async (req, res) => {
             [codigoNormalizado, tipo, valor, validoAte, limite, publicoValido, clienteIdSeguro, minNoites, valMin]
         );
 
+        const novoCupomId = resultado.insertId;
+
+        // --- DISPARO DE NOTIFICAÇÕES NO SININHO E E-MAIL EXCLUSIVO ---
+        const notificacoes = req.app.get('notificacoes');
+        const emailService = req.app.get('emailService');
+        const valorFormatado = tipo === 'PERCENTUAL' ? `${valor}% OFF` : `R$ ${valor.toFixed(2)}`;
+
+        // 1. Cupom Específico: Sininho + 1 E-mail exclusivo para o hóspede
+        if (publicoValido === 'CLIENTE_ESPECIFICO' && clienteIdSeguro) {
+            if (notificacoes?.criarNotificacao) {
+                await notificacoes.criarNotificacao(
+                    clienteIdSeguro,
+                    'Cupom Exclusivo para Você! 🎁',
+                    `Você recebeu o cupom ${codigoNormalizado} com ${valorFormatado} de desconto. Aproveite na sua próxima reserva!`,
+                    'SUCESSO',
+                    'bi-gift'
+                ).catch(err => console.error('Erro ao notificar hóspede sobre cupom específico:', err));
+            }
+
+            if (emailService?.enviarEmail) {
+                const [dadosHospede] = await db.query(
+                    'SELECT Usu_Nome, Usu_Email FROM usu_usuario WHERE Usu_Id = ? LIMIT 1',
+                    [clienteIdSeguro]
+                );
+                if (dadosHospede.length > 0 && dadosHospede[0].Usu_Email) {
+                    const hospede = dadosHospede[0];
+                    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+                    const htmlCorpo = typeof emailService.criarEmailCupomExclusivo === 'function'
+                        ? emailService.criarEmailCupomExclusivo({
+                            nome: hospede.Usu_Nome,
+                            codigo: codigoNormalizado,
+                            tipoDesconto: tipo,
+                            valorDesconto: valor,
+                            validoAte,
+                            minimoNoites: minNoites,
+                            valorMinimo: valMin,
+                            frontendUrl
+                        })
+                        : (emailService.criarHtmlEmail ? emailService.criarHtmlEmail('Você ganhou um cupom exclusivo! 🎁', `Use ${codigoNormalizado} para ter desconto.`, { nome: hospede.Usu_Nome }) : '');
+
+                    const tituloEmail = 'Você ganhou um cupom de desconto exclusivo no Recanto Camargo! 🎁';
+                    void Promise.resolve().then(() => emailService.enviarEmail(
+                        hospede.Usu_Email,
+                        tituloEmail,
+                        htmlCorpo,
+                        `cupom/exclusivo/${novoCupomId}-${clienteIdSeguro}`
+                    )).catch(errEmail => console.error('Erro ao enviar e-mail de cupom exclusivo:', errEmail));
+                }
+            }
+        } else if (publicoValido === 'TODOS') {
+            // 2. Cupom para Todos: Notifica no sininho de todos os hóspedes ativos (0 e-mails para preservar cota)
+            await db.query(
+                `INSERT INTO not_notificacao (Usu_Id, Not_Titulo, Not_Mensagem, Not_Tipo, Not_Icone)
+                 SELECT h.Usu_Id, 'Novo Cupom Disponível! 🏷️', ?, 'INFO', 'bi-tag'
+                 FROM hos_hospede h
+                 JOIN usu_usuario u ON u.Usu_Id = h.Usu_Id
+                 WHERE u.Usu_Status = 'ATIVO'`,
+                [`Aproveite o cupom ${codigoNormalizado} com ${valorFormatado} de desconto para planejar sua estadia!`]
+            ).catch(err => console.error('Erro ao gerar notificações de cupom para todos:', err));
+        } else if (publicoValido === 'PRIMEIRA_RESERVA') {
+            // 3. Primeira Reserva: Notifica no sininho quem ainda não tem reserva
+            await db.query(
+                `INSERT INTO not_notificacao (Usu_Id, Not_Titulo, Not_Mensagem, Not_Tipo, Not_Icone)
+                 SELECT h.Usu_Id, 'Cupom de Primeira Reserva! 🎉', ?, 'INFO', 'bi-tag'
+                 FROM hos_hospede h
+                 JOIN usu_usuario u ON u.Usu_Id = h.Usu_Id
+                 WHERE u.Usu_Status = 'ATIVO'
+                   AND NOT EXISTS (
+                       SELECT 1 FROM res_reserva r 
+                       WHERE r.Hos_Hospede_Usu_Id = h.Usu_Id AND r.Res_Status IN ('CONFIRMADA', 'CONCLUIDA')
+                   )`,
+                [`Use o cupom ${codigoNormalizado} na sua primeira estadia e garanta ${valorFormatado} de desconto!`]
+            ).catch(err => console.error('Erro ao gerar notificações de cupom primeira reserva:', err));
+        } else if (publicoValido === 'CLIENTE_RETORNANTE') {
+            // 4. Retornante: Notifica no sininho quem não reserva há 6+ meses
+            await db.query(
+                `INSERT INTO not_notificacao (Usu_Id, Not_Titulo, Not_Mensagem, Not_Tipo, Not_Icone)
+                 SELECT h.Usu_Id, 'Sentimos Sua Falta! 💙', ?, 'INFO', 'bi-tag'
+                 FROM hos_hospede h
+                 JOIN usu_usuario u ON u.Usu_Id = h.Usu_Id
+                 WHERE u.Usu_Status = 'ATIVO'
+                   AND EXISTS (
+                       SELECT 1 FROM res_reserva r3
+                       WHERE r3.Hos_Hospede_Usu_Id = h.Usu_Id AND r3.Res_Status = 'CONCLUIDA'
+                   )
+                   AND NOT EXISTS (
+                       SELECT 1 FROM res_reserva r4
+                       WHERE r4.Hos_Hospede_Usu_Id = h.Usu_Id AND r4.Res_Status = 'CONCLUIDA' 
+                         AND r4.Res_DataCheckOut >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+                   )`,
+                [`Volte ao Recanto Camargo com o cupom ${codigoNormalizado} e garanta ${valorFormatado} de desconto!`]
+            ).catch(err => console.error('Erro ao gerar notificações de cupom retornante:', err));
+        } else if (publicoValido === 'CLIENTE_RECORRENTE') {
+            // 5. Recorrente: Notifica no sininho clientes com 2+ reservas
+            await db.query(
+                `INSERT INTO not_notificacao (Usu_Id, Not_Titulo, Not_Mensagem, Not_Tipo, Not_Icone)
+                 SELECT h.Usu_Id, 'Vantagem para Cliente VIP! ⭐', ?, 'INFO', 'bi-tag'
+                 FROM hos_hospede h
+                 JOIN usu_usuario u ON u.Usu_Id = h.Usu_Id
+                 WHERE u.Usu_Status = 'ATIVO'
+                   AND (
+                       SELECT COUNT(*) FROM res_reserva r5
+                       WHERE r5.Hos_Hospede_Usu_Id = h.Usu_Id AND r5.Res_Status IN ('CONFIRMADA', 'CONCLUIDA')
+                   ) >= 2`,
+                [`Como agradecimento por sua fidelidade, use o cupom ${codigoNormalizado} e garanta ${valorFormatado} de desconto!`]
+            ).catch(err => console.error('Erro ao gerar notificações de cupom recorrente:', err));
+        }
+
         res.status(201).json({
             message: 'Cupom criado e ativado com sucesso.',
-            cupomId: resultado.insertId,
+            cupomId: novoCupomId,
             codigo: codigoNormalizado,
             tipoDesconto: tipo,
             valorDesconto: valor,

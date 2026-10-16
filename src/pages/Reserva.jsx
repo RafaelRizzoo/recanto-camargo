@@ -260,8 +260,8 @@ function Reserva() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // ESSENCIAL: Envia o Cookie JWT do usuário!
         body: JSON.stringify({
-          checkin: datas.checkin + ' 14:00:00', // Adicionando hora padrão
-          checkout: datas.checkout + ' 12:00:00',
+          checkin: datas.checkin + ' 14:00:00', // Check-in a partir das 14h
+          checkout: datas.checkout + ' 11:00:00', // Check-out até as 11h
           hospedes: parseInt(hospedes, 10),
           observacoes,
           ...(cupomAplicado ? { cupomId: cupomAplicado.cupomId } : {}),

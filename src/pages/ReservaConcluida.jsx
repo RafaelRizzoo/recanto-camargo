@@ -107,11 +107,11 @@ function ReservaConcluida() {
             </div>
             <div className="d-flex justify-content-between mb-2 pb-2 border-bottom border-light small">
               <span className="text-muted">Check-in</span>
-              <strong style={{ color: '#1a3c6d' }}>{formatarData(reserva.checkin)} (a partir das 12h)</strong>
+              <strong style={{ color: '#1a3c6d' }}>{formatarData(reserva.checkin)} (a partir das 14h)</strong>
             </div>
             <div className="d-flex justify-content-between mb-2 pb-2 border-bottom border-light small">
               <span className="text-muted">Check-out</span>
-              <strong style={{ color: '#1a3c6d' }}>{formatarData(reserva.checkout)} (até as 10h)</strong>
+              <strong style={{ color: '#1a3c6d' }}>{formatarData(reserva.checkout)} (até às 11h)</strong>
             </div>
             
             {/* Bloco de Valor Horizontal Compacto */}

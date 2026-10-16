@@ -1285,58 +1285,87 @@ textarea.form-controle-config {
   font-weight: 700;
 }
 
-/* Reservado linha no meio (100% indisponível) */
+/* Reservado hachurado (100% indisponível) - padrão painel do proprietário em vermelho */
 .custom-calendar-home .react-calendar__tile--reservado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive) {
-  background: #f8f9fa !important;
-  color: #adb5bd !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    #fee2e2,
+    #fee2e2 4px,
+    #fecaca 4px,
+    #fecaca 8px
+  ) !important;
+  color: #991b1b !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+  position: relative;
+  border: 1px solid #fca5a5 !important;
+  cursor: not-allowed;
 }
 
 .custom-calendar-home .react-calendar__tile--reservado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive)::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 10%;
-  right: 10%;
-  height: 2px;
-  background-color: #dc3545;
-  transform: translateY(-50%) rotate(-15deg);
-  opacity: 0.6;
+  display: none !important;
 }
 
-/* Check-in de outro hóspede (tarde ocupada, manhã livre para checkout) */
+/* Garante número da data 100% centralizado, nítido e sem sobreposição */
+.custom-calendar-home .react-calendar__tile abbr {
+  position: relative;
+  z-index: 2;
+  font-weight: 700;
+}
+
+/* Opção A: Check-in de outro hóspede (manhã livre para checkout, tarde ocupada - Diagonal Airbnb) */
 .custom-calendar-home .dia-checkin-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive) {
-  background: linear-gradient(to right, transparent 50%, #f8f9fa 50%) !important;
+  background: linear-gradient(135deg, #ffffff 50%, #fecaca 50%) !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.2);
 }
 
 .custom-calendar-home .dia-checkin-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive)::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  right: 8%;
-  height: 2px;
-  background-color: #dc3545;
-  transform: translateY(-50%) rotate(-15deg);
-  transform-origin: left center;
-  opacity: 0.6;
+  bottom: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  pointer-events: none;
+  z-index: 3;
 }
 
-/* Check-out de outro hóspede (manhã ocupada, tarde livre para checkin) */
+/* Opção A: Check-out de outro hóspede (manhã ocupada, tarde livre para checkin - Diagonal Airbnb) */
 .custom-calendar-home .dia-checkout-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive) {
-  background: linear-gradient(to right, #f8f9fa 50%, transparent 50%) !important;
+  background: linear-gradient(135deg, #fecaca 50%, #ffffff 50%) !important;
+  color: #1e293b !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.2);
 }
 
 .custom-calendar-home .dia-checkout-ocupado:not(.react-calendar__tile--active):not(.react-calendar__tile--hasActive)::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 8%;
-  right: 50%;
-  height: 2px;
-  background-color: #dc3545;
-  transform: translateY(-50%) rotate(-15deg);
-  transform-origin: right center;
-  opacity: 0.6;
+  top: 3px;
+  left: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Efeito hover interativo nos dias de troca habilitados */
+.custom-calendar-home .dia-checkin-ocupado:enabled:hover,
+.custom-calendar-home .dia-checkout-ocupado:enabled:hover {
+  filter: brightness(0.97);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 /* Legenda do calendário */
@@ -1368,26 +1397,23 @@ textarea.form-controle-config {
 }
 
 .legenda-cor.reservado {
-  background: transparent;
-  position: relative;
-  border: 1px solid #ced4da;
-  overflow: hidden;
+  background: repeating-linear-gradient(
+    -45deg,
+    #fee2e2,
+    #fee2e2 3px,
+    #fecaca 3px,
+    #fecaca 6px
+  ) !important;
+  border: 1px solid #f87171 !important;
 }
 
 .legenda-cor.reservado::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: -2px;
-  right: -2px;
-  height: 2px;
-  background-color: #dc3545;
-  transform: translateY(-50%) rotate(-15deg);
+  display: none !important;
 }
 
 .legenda-cor.checkout-ocupado {
-  background: linear-gradient(to right, #f8f9fa 50%, transparent 50%);
-  border: 1px solid #ced4da;
+  background: linear-gradient(135deg, #fecaca 50%, #ffffff 50%) !important;
+  border: 1px solid #94a3b8 !important;
   position: relative;
   overflow: hidden;
 }
@@ -1395,17 +1421,17 @@ textarea.form-controle-config {
 .legenda-cor.checkout-ocupado::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 0;
-  right: 50%;
-  height: 2px;
-  background-color: #dc3545;
-  transform: translateY(-50%) rotate(-15deg);
+  top: 1px;
+  left: 1px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #dc2626;
 }
 
 .legenda-cor.checkin-ocupado {
-  background: linear-gradient(to right, transparent 50%, #f8f9fa 50%);
-  border: 1px solid #ced4da;
+  background: linear-gradient(135deg, #ffffff 50%, #fecaca 50%) !important;
+  border: 1px solid #94a3b8 !important;
   position: relative;
   overflow: hidden;
 }
@@ -1413,12 +1439,12 @@ textarea.form-controle-config {
 .legenda-cor.checkin-ocupado::after {
   content: '';
   position: absolute;
-  top: 50%;
-  left: 50%;
-  right: 0;
-  height: 2px;
-  background-color: #dc3545;
-  transform: translateY(-50%) rotate(-15deg);
+  bottom: 1px;
+  right: 1px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #dc2626;
 }
 
 .legenda-cor.feriado {

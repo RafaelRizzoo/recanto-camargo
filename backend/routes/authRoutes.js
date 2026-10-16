@@ -6,7 +6,7 @@ const { verificarToken } = require('../middlewares/authMiddleware');
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: process.env.NODE_ENV === 'production' ? 5 : 200,
+    max: 5,
     message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
 });
 

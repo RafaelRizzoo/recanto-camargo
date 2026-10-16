@@ -3,10 +3,10 @@ const { ErroHttp } = require('../middlewares/errorHandler');
 const {
     garantirHospede,
     buscarCupomPorIdComLock,
-    validarRegrasCupom,
-    conciliarReservasConcluidas,
-    normalizarAvaliacao
+    validarRegrasCupom
 } = require('../services/helpers');
+const { processarLembretesPreCheckin, processarConvitesPosCheckoutAvaliacao } = require('../services/lembreteService');
+const { processarCancelamentoReservasAbandonadas } = require('../services/housekeepingService');
 
 exports.checarDisponibilidade = async (req, res) => {
     try {
@@ -14,6 +14,20 @@ exports.checarDisponibilidade = async (req, res) => {
         if (!checkin || !checkout) {
             return res.status(400).json({ error: 'Forneça checkin e checkout.' });
         }
+
+        const checkinStr = String(checkin).split(' ')[0].split('T')[0];
+        const checkoutStr = String(checkout).split(' ')[0].split('T')[0];
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(checkinStr) || !/^\d{4}-\d{2}-\d{2}$/.test(checkoutStr)) {
+            return res.status(400).json({ error: 'Formato de data inválido. Use AAAA-MM-DD.' });
+        }
+
+        if (checkoutStr <= checkinStr) {
+            return res.status(400).json({ error: 'A data de checkout deve ser maior que o check-in.' });
+        }
+
+        const checkinComHora = `${checkinStr} 14:00:00`;
+        const checkoutComHora = `${checkoutStr} 11:00:00`;
 
         const imoId = 1;
         const queryConflito = `
@@ -23,22 +37,22 @@ exports.checarDisponibilidade = async (req, res) => {
             AND (Res_DataCheckIn < ?) 
             AND (Res_DataCheckOut > ?)
         `;
-        const valoresConflito = [imoId, checkout, checkin];
+        const valoresConflito = [imoId, checkoutComHora, checkinComHora];
         const [reservasConflitantes] = await db.query(queryConflito, valoresConflito);
 
         if (reservasConflitantes.length > 0) {
-            return res.json({ disponivel: false, motivo: 'Data já reservada.' });
+            return res.json({ disponivel: false, motivo: 'As datas selecionadas estão indisponíveis.' });
         }
 
-        // Verifica bloqueios manuais do proprietário
+        // Verifica bloqueios manuais do proprietário (comparação de diárias estritas: checkin às 14h, checkout às 11h)
         const [bloqueios] = await db.query(
             `SELECT Bld_Id FROM bld_bloqueiodata
-             WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' AND Bld_Data >= ? AND Bld_Data < ?`,
-            [imoId, checkin, checkout]
+             WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' AND Bld_Data >= DATE(?) AND Bld_Data < DATE(?)`,
+            [imoId, checkinStr, checkoutStr]
         );
 
         if (bloqueios.length > 0) {
-            return res.json({ disponivel: false, motivo: 'Data bloqueada para manutenção pelo proprietário.' });
+            return res.json({ disponivel: false, motivo: 'As datas selecionadas estão indisponíveis.' });
         }
         
         return res.json({ disponivel: true });
@@ -113,16 +127,26 @@ exports.criarReserva = async (req, res) => {
             return res.status(400).json({ error: 'Dados incompletos para a reserva.' });
         }
 
-        const dataCheckin = new Date(checkin);
-        const dataCheckout = new Date(checkout);
-        const hoje = new Date();
-        hoje.setHours(0, 0, 0, 0);
+        const checkinStr = String(checkin).split(' ')[0].split('T')[0];
+        const checkoutStr = String(checkout).split(' ')[0].split('T')[0];
 
-        if (dataCheckin < hoje) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(checkinStr) || !/^\d{4}-\d{2}-\d{2}$/.test(checkoutStr)) {
+            conexao.release();
+            return res.status(400).json({ error: 'Formato de data inválido. Use AAAA-MM-DD.' });
+        }
+
+        const checkinComHora = `${checkinStr} 14:00:00`;
+        const checkoutComHora = `${checkoutStr} 11:00:00`;
+
+        const dataCheckin = new Date(checkinStr + 'T12:00:00Z');
+        const dataCheckout = new Date(checkoutStr + 'T12:00:00Z');
+        const hojeStr = new Date().toISOString().slice(0, 10);
+
+        if (checkinStr < hojeStr) {
             conexao.release();
             return res.status(400).json({ error: 'Você não pode reservar uma data no passado.' });
         }
-        if (dataCheckout <= dataCheckin) {
+        if (checkoutStr <= checkinStr) {
             conexao.release();
             return res.status(400).json({ error: 'A data de checkout deve ser maior que o check-in.' });
         }
@@ -148,26 +172,26 @@ exports.criarReserva = async (req, res) => {
             AND (Res_DataCheckIn < ?) 
             AND (Res_DataCheckOut > ?)
         `;
-        const valoresConflito = [imoId, checkout, checkin];
+        const valoresConflito = [imoId, checkoutComHora, checkinComHora];
         const [reservasConflitantes] = await conexao.query(queryConflito, valoresConflito);
 
         if (reservasConflitantes.length > 0) {
             await conexao.rollback();
             conexao.release();
-            return res.status(409).json({ error: 'As datas selecionadas já foram reservadas por outro hóspede.' });
+            return res.status(409).json({ error: 'As datas selecionadas estão indisponíveis.' });
         }
 
-        // Verifica bloqueios manuais do proprietário
+        // Verifica bloqueios manuais do proprietário (comparação de diárias estritas: checkin às 14h, checkout às 11h)
         const [bloqueiosConflitantes] = await conexao.query(
             `SELECT Bld_Id FROM bld_bloqueiodata
-             WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' AND Bld_Data >= ? AND Bld_Data < ?`,
-            [imoId, checkin, checkout]
+             WHERE Imo_Id = ? AND Bld_Status = 'ATIVO' AND Bld_Data >= DATE(?) AND Bld_Data < DATE(?)`,
+            [imoId, checkinStr, checkoutStr]
         );
 
         if (bloqueiosConflitantes.length > 0) {
             await conexao.rollback();
             conexao.release();
-            return res.status(409).json({ error: 'As datas selecionadas estão bloqueadas para manutenção pelo proprietário.' });
+            return res.status(409).json({ error: 'As datas selecionadas estão indisponíveis.' });
         }
 
         // Verifica se o hóspede possui restrição/bloqueio com o proprietário
@@ -216,7 +240,7 @@ exports.criarReserva = async (req, res) => {
             (Cup_Id, Imo_Id, Hos_Hospede_Usu_Id, Res_DataCheckIn, Res_DataCheckOut, Res_QuantidadeDeHospedes, Res_ValorTotal, Res_Status, Res_DataReserva, Res_ObsHospede)
             VALUES (?, ?, ?, ?, ?, ?, ?, 'PENDENTE', NOW(), ?)
         `;
-        const valoresInsert = [cupomAplicadoId, imoId, hospedeId, checkin, checkout, hospedes, valorFinalSeguro, observacoes || null];
+        const valoresInsert = [cupomAplicadoId, imoId, hospedeId, checkinComHora, checkoutComHora, hospedes, valorFinalSeguro, observacoes || null];
         const [resultado] = await conexao.query(queryInsert, valoresInsert);
         const reservaCriadaId = resultado.insertId;
 
@@ -227,8 +251,9 @@ exports.criarReserva = async (req, res) => {
         `, [reservaCriadaId]);
 
         const [destinatarios] = await conexao.query(
-            `SELECT p.Usu_Id AS proprietarioId, proprietario.Usu_Email AS proprietarioEmail,
-                    hospede.Usu_Email AS hospedeEmail
+            `SELECT p.Usu_Id AS proprietarioId, proprietario.Usu_Nome AS proprietarioNome, proprietario.Usu_Email AS proprietarioEmail,
+                    hospede.Usu_Nome AS hospedeNome, hospede.Usu_Email AS hospedeEmail,
+                    i.Imo_Nome AS imovelNome
              FROM imo_imovel i
              INNER JOIN pro_proprietario p ON p.Usu_Id = i.Pro_Proprietario_Usu_Id
              INNER JOIN usu_usuario proprietario ON proprietario.Usu_Id = p.Usu_Id
@@ -242,15 +267,20 @@ exports.criarReserva = async (req, res) => {
 
         const destinatario = destinatarios[0];
         const formatoData = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' });
-        const periodo = `${formatoData.format(dataCheckin)} a ${formatoData.format(dataCheckout)}`;
+        const checkinFmt = formatoData.format(dataCheckin);
+        const checkoutFmt = formatoData.format(dataCheckout);
+        const periodo = `${checkinFmt} a ${checkoutFmt}`;
+        const imovelNome = destinatario.imovelNome || 'Recanto Camargo';
+        const valorTotalFmt = `R$ ${Number(valorFinalSeguro).toFixed(2).replace('.', ',')}`;
+
         const tituloHospede = 'Reserva Recebida — Aguardando Aprovação';
         const mensagemHospede = `Sua reserva #${resultado.insertId}, de ${periodo}, foi recebida e aguarda aprovação do proprietário. Acompanhe pelo seu painel.`;
-        const tituloProprietario = 'Nova reserva';
-        const mensagemProprietario = `A reserva #${resultado.insertId}, de ${periodo}, aguarda sua aprovação ou recusa. Consulte os detalhes no seu painel.`;
+        const tituloProprietario = `Nova reserva — ${destinatario.hospedeNome}`;
+        const mensagemProprietario = `A reserva #${resultado.insertId}, de ${periodo}, foi solicitada por ${destinatario.hospedeNome} e aguarda sua aprovação ou recusa.`;
 
         const notificacoes = req.app.get('notificacoes');
         await notificacoes.criarNotificacao(hospedeId, tituloHospede, mensagemHospede, 'INFO', 'bi-info-circle', conexao);
-        await notificacoes.criarNotificacao(destinatario.proprietarioId, tituloProprietario, mensagemProprietario, 'INFO', 'bi-calendar-plus', conexao);
+        await notificacoes.criarNotificacao(destinatario.proprietarioId, 'Nova reserva', mensagemProprietario, 'INFO', 'bi-calendar-plus', conexao);
         
         await conexao.commit();
         conexao.release();
@@ -258,10 +288,61 @@ exports.criarReserva = async (req, res) => {
         res.status(201).json({ message: 'Reserva criada com sucesso no MySQL!', reservaId: resultado.insertId });
 
         const { enviarEmail, criarHtmlEmail } = req.app.get('emailService');
+        const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+
+        const opcoesEmailHospede = {
+            nome: destinatario.hospedeNome,
+            badge: '⏱ Aguardando Confirmação',
+            badgeCorFundo: '#fef7e0',
+            badgeCorTexto: '#b06000',
+            detalhes: [
+                { rotulo: 'Reserva', valor: `#${resultado.insertId}` },
+                { rotulo: 'Unidade', valor: imovelNome },
+                { rotulo: 'Entrada (Check-in)', valor: `${checkinFmt} (a partir das 14h)` },
+                { rotulo: 'Saída (Check-out)', valor: `${checkoutFmt} (até às 11h)` },
+                { rotulo: 'Duração', valor: `${quantidadeNoites} ${quantidadeNoites === 1 ? 'diária' : 'diárias'}` },
+                { rotulo: 'Hóspedes', valor: `${hospedes} ${Number(hospedes) === 1 ? 'pessoa' : 'pessoas'}` },
+                { rotulo: 'Valor Total', valor: valorTotalFmt }
+            ],
+            botaoTexto: 'Acessar Meu Painel',
+            botaoUrl: `${frontendUrl}/#/DashboardCliente`
+        };
+
+        const opcoesEmailProprietario = {
+            nome: destinatario.proprietarioNome,
+            badge: '🔔 Nova Solicitação de Reserva',
+            badgeCorFundo: '#e8f0fe',
+            badgeCorTexto: '#1a73e8',
+            detalhes: [
+                { rotulo: 'Reserva', valor: `#${resultado.insertId}` },
+                { rotulo: 'Hóspede', valor: `${destinatario.hospedeNome} (${destinatario.hospedeEmail})` },
+                { rotulo: 'Unidade', valor: imovelNome },
+                { rotulo: 'Entrada (Check-in)', valor: `${checkinFmt} (a partir das 14h)` },
+                { rotulo: 'Saída (Check-out)', valor: `${checkoutFmt} (até às 11h)` },
+                { rotulo: 'Duração', valor: `${quantidadeNoites} ${quantidadeNoites === 1 ? 'diária' : 'diárias'}` },
+                { rotulo: 'Hóspedes', valor: `${hospedes} ${Number(hospedes) === 1 ? 'pessoa' : 'pessoas'}` },
+                { rotulo: 'Valor Total', valor: valorTotalFmt }
+            ],
+            botaoTexto: 'Avaliar Solicitação',
+            botaoUrl: `${frontendUrl}/#/DashboardAdministrador`
+        };
+
+        const corpoHtmlHospede = criarHtmlEmail(
+            tituloHospede,
+            `Sua solicitação de reserva #${resultado.insertId} para a unidade "${imovelNome}" foi recebida com sucesso e aguarda aprovação do proprietário. Confira os dados da sua estadia abaixo e acompanhe pelo seu painel.`,
+            opcoesEmailHospede
+        );
+
+        const corpoHtmlProprietario = criarHtmlEmail(
+            tituloProprietario,
+            `O hóspede ${destinatario.hospedeNome} (${destinatario.hospedeEmail}) enviou uma solicitação de reserva para a unidade "${imovelNome}". Confira os detalhes abaixo e acesse seu painel para aprovar ou recusar.`,
+            opcoesEmailProprietario
+        );
+
         void Promise.resolve().then(async () => {
             await Promise.all([
-                enviarEmail(destinatario.hospedeEmail, tituloHospede, criarHtmlEmail(tituloHospede, mensagemHospede), `reserva/${resultado.insertId}/pendente/hospede`),
-                enviarEmail(destinatario.proprietarioEmail, tituloProprietario, criarHtmlEmail(tituloProprietario, mensagemProprietario), `reserva/${resultado.insertId}/pendente/proprietario`)
+                enviarEmail(destinatario.hospedeEmail, tituloHospede, corpoHtmlHospede, `reserva/${resultado.insertId}/pendente/hospede`),
+                enviarEmail(destinatario.proprietarioEmail, tituloProprietario, corpoHtmlProprietario, `reserva/${resultado.insertId}/pendente/proprietario`)
             ]);
         }).catch(() => console.error('Falha ao processar emails da reserva já salva.'));
     } catch (error) {
@@ -303,3 +384,52 @@ exports.buscarPorId = async (req, res) => {
         res.status(500).json({ error: 'Erro interno ao buscar a reserva.' });
     }
 };
+
+exports.dispararLembretesCheckin = async (req, res) => {
+    try {
+        const emailService = req.app.get('emailService');
+        const notificacoes = req.app.get('notificacoes');
+        const resultado = await processarLembretesPreCheckin({ db, emailService, notificacoes });
+        res.json({
+            message: 'Lembretes pré-checkin processados com sucesso.',
+            totalProcessadas: resultado.total,
+            detalhes: resultado.resultados
+        });
+    } catch (error) {
+        console.error('Erro ao disparar lembretes pré-checkin:', error);
+        res.status(500).json({ error: 'Erro interno ao disparar lembretes de check-in.' });
+    }
+};
+
+exports.dispararConvitesAvaliacao = async (req, res) => {
+    try {
+        const emailService = req.app.get('emailService');
+        const notificacoes = req.app.get('notificacoes');
+        const resultado = await processarConvitesPosCheckoutAvaliacao({ db, emailService, notificacoes });
+        res.json({
+            message: 'Convites de avaliação pós-checkout processados com sucesso.',
+            totalProcessadas: resultado.total,
+            detalhes: resultado.resultados
+        });
+    } catch (error) {
+        console.error('Erro ao disparar convites de avaliação:', error);
+        res.status(500).json({ error: 'Erro interno ao disparar convites de avaliação.' });
+    }
+};
+
+exports.executarHousekeeping = async (req, res) => {
+    try {
+        const emailService = req.app.get('emailService');
+        const notificacoes = req.app.get('notificacoes');
+        const resultado = await processarCancelamentoReservasAbandonadas({ db, emailService, notificacoes });
+        res.json({
+            message: 'Rotina de housekeeping executada com sucesso.',
+            totalCanceladas: resultado.total,
+            detalhes: resultado.resultados
+        });
+    } catch (error) {
+        console.error('Erro na rotina de housekeeping:', error);
+        res.status(500).json({ error: 'Erro interno ao executar housekeeping de reservas.' });
+    }
+};
+

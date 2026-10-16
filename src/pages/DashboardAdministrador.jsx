@@ -21,7 +21,31 @@ const fmtData  = (s) => {
   return (a && m && d) ? `${d}/${m}/${a}` : s;
 };
 
+const fmtDataHora = (s) => {
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return fmtData(s);
+    return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return fmtData(s);
+  }
+};
+
 const fmtMoeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const fmtTelefone = (tel) => {
+  if (!tel) return '';
+  const digits = String(tel).replace(/\D/g, '');
+  const clean = (digits.startsWith('55') && digits.length > 11) ? digits.slice(2) : digits;
+  if (clean.length === 11) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`;
+  }
+  if (clean.length === 10) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+  }
+  return tel;
+};
 
 const noites   = (ci, co) => {
   if (!ci || !co) return 0;
@@ -430,7 +454,9 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
   const [enviando, setEnviando] = useState(false);
   const envioRef = useRef(false);
 
-  useEffect(() => { setMotivo(''); setErroDecisao(''); }, [reserva?.id]);
+  const [confirmandoConclusao, setConfirmandoConclusao] = useState(false);
+
+  useEffect(() => { setMotivo(''); setErroDecisao(''); setConfirmandoConclusao(false); }, [reserva?.id]);
 
   async function decidir(acao) {
     if (envioRef.current) return;
@@ -446,109 +472,303 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
   const r = reserva;
   const n = noites(reserva.checkin, reserva.checkout);
 
+  // Verificação de prazo para a trava de segurança da conclusão manual
+  const agora = new Date();
+  const checkinDt = r.checkin ? new Date(r.checkin + 'T14:00:00') : null;
+  const checkoutDt = r.checkout ? new Date(r.checkout + 'T11:00:00') : null;
+  const checkinNoFuturo = checkinDt ? agora < checkinDt : false;
+  const checkoutNoFuturo = checkoutDt ? agora < checkoutDt : false;
+
   return (
-    <Modal show onHide={() => !enviando && aoFechar()} centered size="lg" className="modal-reserva-admin">
-      <Modal.Header closeButton className="modal-header-admin">
-        <Modal.Title>Reserva #{reserva.id}</Modal.Title>
+    <>
+      <Modal show onHide={() => !enviando && aoFechar()} centered scrollable size="lg" className="modal-reserva-admin">
+        <Modal.Header closeButton className="modal-header-admin py-2 px-3 px-md-4">
+          <Modal.Title style={{ fontSize: '1.2rem', fontWeight: 700 }} className="d-flex align-items-center gap-2">
+            <i className="bi bi-calendar2-check-fill" style={{ color: '#38bdf8' }}></i> Reserva #{reserva.id}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-3 px-md-4">
+          {erroDecisao && <Alert variant="danger" role="alert">{erroDecisao}</Alert>}
+          <Row className="g-3">
+            {/* Banner do Hóspede */}
+            <Col xs={12}>
+              <div className="info-hospede-modal d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="avatar-hospede-modal">{(r.nome || r.hospede || '?').charAt(0)}</div>
+                  <div>
+                    <div className="cli-bloco-valor" style={{ fontSize: '1.08rem' }}>{r.nome || r.hospede}</div>
+                    <div className="text-muted small mt-1">{r.email}</div>
+                    {r.telefone && (
+                      <div className="text-muted small mt-0.5">
+                        <i className="bi bi-telephone me-1" />{fmtTelefone(r.telefone)}
+                      </div>
+                    )}
+                    <div className="mt-1"><BadgeStatus status={r.status} /></div>
+                  </div>
+                </div>
+                {r.criadaEm && (
+                  <div className="text-md-end text-muted small ms-auto">
+                    <div className="label-data-modal mb-1" style={{ fontSize: '0.68rem' }}>Criada em</div>
+                    <strong style={{ color: '#334155', fontSize: '0.85rem' }}>{fmtDataHora(r.criadaEm)}</strong>
+                  </div>
+                )}
+              </div>
+            </Col>
+
+            {/* Coluna 1: Período */}
+            <Col md={6}>
+              <div className="p-3 rounded-3 border bg-white h-100">
+                <div className="label-secao-modal d-flex align-items-center gap-1 mb-2">
+                  <i className="bi bi-calendar3"></i> Período
+                </div>
+                <div className="d-flex gap-2">
+                  <div className="bloco-data-modal flex-fill">
+                    <div className="label-data-modal">Check-in</div>
+                    <div className="valor-data-modal">{fmtData(r.checkin)}</div>
+                  </div>
+                  <div className="bloco-data-modal flex-fill">
+                    <div className="label-data-modal">Check-out</div>
+                    <div className="valor-data-modal">{fmtData(r.checkout)}</div>
+                  </div>
+                  <div className="bloco-data-modal" style={{ minWidth: '60px' }}>
+                    <div className="label-data-modal">Noites</div>
+                    <div className="valor-data-modal">{n}</div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+
+            {/* Coluna 2: Pessoas & Valor */}
+            <Col md={6}>
+              <div className="p-3 rounded-3 border bg-white h-100">
+                <div className="label-secao-modal d-flex align-items-center gap-1 mb-2">
+                  <i className="bi bi-cash-stack"></i> Pessoas & Valor
+                </div>
+                <div className="d-flex gap-2">
+                  <div className="bloco-data-modal" style={{ minWidth: '70px' }}>
+                    <div className="label-data-modal">Pessoas</div>
+                    <div className="valor-data-modal">{r.hospedes}</div>
+                  </div>
+                  <div className="bloco-data-modal flex-fill" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                    <div className="label-data-modal">Total</div>
+                    <div className="valor-data-modal" style={{ color: '#16a34a' }}>{fmtMoeda(r.total || r.valorTotal)}</div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+
+            {(r.observacoes || r.observacao) && (
+              <Col xs={12}>
+                <p className="label-secao-modal mb-1">Observações do Hóspede</p>
+                <div className="cli-obs-box py-2 px-3" style={{ fontSize: '0.88rem' }}>{r.observacoes || r.observacao}</div>
+              </Col>
+            )}
+
+            {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
+              <Col xs={12}>
+                <div className="obs-modal" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
+                  <i className="bi bi-arrow-counterclockwise me-2"></i>
+                  <strong>Estorno Realizado no Mercado Pago:</strong> {fmtMoeda(r.valorReembolsado)} devolvidos diretamente ao hóspede.
+                </div>
+              </Col>
+            )}
+
+            {(r.motivoRecusa || r.motivo) && (r.status === 'recusada' || r.status === 'cancelada') && (
+              <Col xs={12}>
+                <p className="label-secao-modal mb-1">
+                  {r.status === 'cancelada' ? 'Motivo do Cancelamento' : 'Motivo da Recusa'}
+                </p>
+                <div className="obs-modal" style={{ background: '#fff1f2', border: '1px solid #fecaca', color: '#9a3412', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
+                  <i className="bi bi-info-circle me-2"></i>
+                  {r.motivoRecusa || r.motivo}
+                </div>
+              </Col>
+            )}
+
+            {r.status === 'pagamento pendente' && (
+              <Col xs={12}>
+                <div className="obs-modal" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                  <div>
+                    <i className="bi bi-clock-history me-2"></i>
+                    <strong>Aguardando Pagamento do Hóspede:</strong> Esta reserva foi pré-aprovada e aguarda o pagamento via Mercado Pago pelo hóspede. O faturamento e confirmação definitiva ocorrerão automaticamente assim que o pagamento for aprovado.
+                  </div>
+                  {r.expiraEm && (
+                    <div className="mt-2 pt-2 border-top border-warning-subtle fw-semibold" style={{ color: '#78350f' }}>
+                      <i className="bi bi-hourglass-split me-1"></i>
+                      Prazo para pagamento: até <strong>{fmtDataHora(r.expiraEm)} (24 horas)</strong>. Caso o pagamento não ocorra até esse horário, a reserva será cancelada e as datas serão liberadas automaticamente no calendário.
+                    </div>
+                  )}
+                </div>
+              </Col>
+            )}
+
+            {r.status === 'pendente' && (
+              <Col xs={12}>
+                <div className="obs-modal" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                  <i className="bi bi-info-circle me-2"></i>
+                  <strong>Aguardando sua Decisão:</strong>
+                  {r.expiraEm ? (
+                    <span> Você tem até <strong>{fmtDataHora(r.expiraEm)} (48 horas da solicitação)</strong> para aprovar ou recusar esta reserva antes que ela expire e seja cancelada automaticamente pelo sistema.</span>
+                  ) : (
+                    <span> Responda em até 48 horas para evitar cancelamento automático.</span>
+                  )}
+                </div>
+              </Col>
+            )}
+          </Row>
+
+          {r.status === 'pendente' && (
+            <div className="mt-3">
+              <label htmlFor="motivo-recusa" className="form-label small fw-semibold text-muted">Motivo da recusa (opcional)</label>
+              <textarea id="motivo-recusa" className="form-control" rows={2} maxLength={250}
+                value={motivo} disabled={enviando} onChange={e => setMotivo(e.target.value)}
+                style={{ borderRadius: '10px', fontSize: '0.88rem' }} />
+            </div>
+          )}
+        </Modal.Body>
+        {r.status === 'pendente' && (
+          <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={enviando} onClick={aoFechar}>
+              Fechar
+            </Button>
+            <div className="d-flex align-items-center gap-2">
+              <Button variant="outline-danger" style={{ borderRadius: '50px', padding: '0.45rem 1.1rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => decidir('recusar')}>
+                <i className="bi bi-x-circle me-1" /> Recusar reserva
+              </Button>
+              <Button variant="success" style={{ borderRadius: '50px', fontWeight: 700, padding: '0.45rem 1.3rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => decidir('aprovar')}>
+                <i className="bi bi-check2-circle me-1" /> {enviando ? 'Salvando…' : 'Aprovar reserva'}
+              </Button>
+            </div>
+          </Modal.Footer>
+        )}
+        {r.status === 'aprovada' && (
+          <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={enviando} onClick={aoFechar}>
+              Fechar
+            </Button>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <Button variant="outline-danger" style={{ borderRadius: '50px', padding: '0.45rem 1.1rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => { aoFechar(); aoAbrirCancelamento && aoAbrirCancelamento(r); }}>
+                <i className="bi bi-x-circle me-1" /> Cancelar Reserva (Estorno)
+              </Button>
+              {checkinNoFuturo ? (
+                <div className="d-flex align-items-center gap-2">
+                  <span className="small text-muted" style={{ fontSize: '0.8rem' }}>
+                    <i className="bi bi-lock-fill text-secondary me-1" />
+                    Conclusão liberada após o check-in ({fmtData(r.checkin)} às 14h)
+                  </span>
+                  <Button variant="secondary" disabled style={{ opacity: 0.65, borderRadius: '50px' }}>
+                    <i className="bi bi-check2-circle me-1" /> Concluir Estadia
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="primary"
+                  disabled={enviando}
+                  onClick={() => setConfirmandoConclusao(true)}
+                  style={{ borderRadius: '50px', fontWeight: 600, padding: '0.45rem 1.25rem', fontSize: '0.88rem' }}
+                >
+                  <i className="bi bi-check2-circle me-1" /> Concluir Estadia
+                </Button>
+              )}
+            </div>
+          </Modal.Footer>
+        )}
+        {r.status !== 'pendente' && r.status !== 'aprovada' && (
+          <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-end align-items-center">
+            <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} onClick={aoFechar}>
+              Fechar
+            </Button>
+          </Modal.Footer>
+        )}
+      </Modal>
+
+      {/* Modal de Confirmação com Trava contra Cliques Acidentais */}
+      {confirmandoConclusao && (
+        <ModalConfirmarConclusao
+          show={confirmandoConclusao}
+          reserva={r}
+          checkoutNoFuturo={checkoutNoFuturo}
+          aoFechar={() => setConfirmandoConclusao(false)}
+          aoConfirmar={() => {
+            setConfirmandoConclusao(false);
+            decidir('concluir');
+          }}
+          enviando={enviando}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── Modal Confirmação de Conclusão Manual de Estadia (Trava de Segurança) ────
+function ModalConfirmarConclusao({ show, reserva, checkoutNoFuturo, aoFechar, aoConfirmar, enviando }) {
+  if (!show || !reserva) return null;
+
+  return (
+    <Modal show onHide={aoFechar} centered backdrop={enviando ? 'static' : true}>
+      <Modal.Header closeButton={!enviando} style={{ background: checkoutNoFuturo ? '#fffbeb' : '#f0fdf4', borderBottom: '1px solid ' + (checkoutNoFuturo ? '#fde68a' : '#bbf7d0') }}>
+        <Modal.Title style={{ fontSize: '1.15rem', fontWeight: 700, color: checkoutNoFuturo ? '#92400e' : '#166534' }}>
+          <i className={`bi ${checkoutNoFuturo ? 'bi-exclamation-triangle-fill text-warning' : 'bi-check2-circle text-success'} me-2`} />
+          {checkoutNoFuturo ? 'Atenção: Conclusão Antecipada' : 'Confirmar Conclusão da Estadia'}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
-        {erroDecisao && <Alert variant="danger" role="alert">{erroDecisao}</Alert>}
-        <Row className="g-4">
-          <Col md={6}>
-            <p className="label-secao-modal">Hóspede</p>
-            <div className="info-hospede-modal">
-              <div className="avatar-hospede-modal">{(r.nome || r.hospede || '?').charAt(0)}</div>
-              <div>
-                <div className="cli-bloco-valor">{r.nome || r.hospede}</div>
-                <div className="text-muted small">{r.email}</div>
-                <div className="text-muted small">{r.telefone}</div>
+        {checkoutNoFuturo ? (
+          <div>
+            <div className="p-3 mb-3 rounded-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <div className="fw-bold mb-1" style={{ color: '#92400e' }}>
+                <i className="bi bi-hourglass-split me-1" />
+                O check-out oficial está previsto para {fmtData(reserva.checkout)} às 11:00.
               </div>
-            </div>
-          </Col>
-          <Col md={6}>
-            <p className="label-secao-modal">Status</p>
-            <BadgeStatus status={r.status} />
-            <div className="text-muted small mt-2">Criada em {fmtData(r.criadaEm)}</div>
-          </Col>
-          <Col md={6}>
-            <p className="label-secao-modal">Período</p>
-            <div className="d-flex gap-3 flex-wrap">
-              {[['Check-in', fmtData(r.checkin)], ['Check-out', fmtData(r.checkout)], ['Noites', n]].map(([l, v]) => (
-                <div key={l} className="bloco-data-modal">
-                  <div className="label-data-modal">{l}</div>
-                  <div className="valor-data-modal">{v}</div>
-                </div>
-              ))}
-            </div>
-          </Col>
-          <Col md={6}>
-            <p className="label-secao-modal">Pessoas & Valor</p>
-            <div className="d-flex gap-3">
-              <div className="bloco-data-modal"><div className="label-data-modal">Pessoas</div><div className="valor-data-modal">{r.hospedes}</div></div>
-              <div className="bloco-data-modal" style={{ background: '#f0fdf4' }}>
-                <div className="label-data-modal">Total</div>
-                <div className="cli-bloco-valor" style={{ color: '#198754' }}>{fmtMoeda(r.total || r.valorTotal)}</div>
-              </div>
-            </div>
-          </Col>
-          {(r.observacoes || r.observacao) && (
-            <Col xs={12}>
-              <div className="cli-obs-box mb-3">
-                <strong><i className="bi bi-chat-text me-2"></i>Observações do Hóspede:</strong>
-                <div className="mt-1">{r.observacoes || r.observacao}</div>
-              </div>
-            </Col>
-          )}
-          {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
-            <Col xs={12}>
-              <div className="obs-modal" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: '10px', padding: '0.85rem 1rem' }}>
-                <i className="bi bi-arrow-counterclockwise me-2"></i>
-                <strong>Estorno Realizado no Mercado Pago:</strong> {fmtMoeda(r.valorReembolsado)} devolvidos diretamente ao hóspede.
-              </div>
-            </Col>
-          )}
-          {(r.motivoRecusa || r.motivo) && (r.status === 'recusada' || r.status === 'cancelada') && (
-            <Col xs={12}>
-              <p className="label-secao-modal">
-                {r.status === 'cancelada' ? 'Motivo do Cancelamento' : 'Motivo da Recusa'}
+              <p className="small mb-0 text-muted">
+                O hóspede <strong>{reserva.nome || reserva.hospede}</strong> ainda está dentro do período regular da reserva contratada.
               </p>
-              <div className="obs-modal" style={{ background: '#fff1f2', border: '1px solid #fecaca', color: '#9a3412', borderRadius: '10px', padding: '0.85rem 1rem' }}>
-                <i className="bi bi-info-circle me-2"></i>
-                {r.motivoRecusa || r.motivo}
-              </div>
-            </Col>
-          )}
-          {r.status === 'pagamento pendente' && (
-            <Col xs={12}>
-              <div className="obs-modal" style={{ background: '#fef3c7', border: '1px solid #fde68a', color: '#92400e', borderRadius: '10px', padding: '0.85rem 1rem' }}>
-                <i className="bi bi-clock-history me-2"></i>
-                <strong>Aguardando Pagamento do Hóspede:</strong> Esta reserva foi pré-aprovada e aguarda o pagamento via Mercado Pago pelo hóspede. O faturamento e confirmação definitiva ocorrerão automaticamente assim que o pagamento for aprovado.
-              </div>
-            </Col>
-          )}
-        </Row>
-        {r.status === 'pendente' && (
-          <div className="mt-3">
-            <label htmlFor="motivo-recusa" className="form-label">Motivo da recusa (opcional)</label>
-            <textarea id="motivo-recusa" className="form-control" rows={3} maxLength={250}
-              value={motivo} disabled={enviando} onChange={e => setMotivo(e.target.value)} />
+            </div>
+            <p className="small text-muted mb-2">
+              Você confirma que o hóspede já liberou o chalé e realizou o <strong>check-out antecipado</strong>?
+            </p>
+            <div className="small text-muted border-start border-3 border-warning ps-2 py-1 mb-0" style={{ background: '#f8fafc' }}>
+              Ao confirmar, a reserva será concluída no sistema e um convite de avaliação será disparado para o hóspede.
+            </div>
+          </div>
+        ) : (
+          <div>
+            <p className="mb-2">
+              Deseja confirmar o encerramento da estadia da <strong>Reserva #{reserva.id}</strong>?
+            </p>
+            <div className="p-3 mb-3 rounded-3 border bg-light small">
+              <div><strong>Hóspede:</strong> {reserva.nome || reserva.hospede}</div>
+              <div><strong>Período:</strong> {fmtData(reserva.checkin)} às 14:00 até {fmtData(reserva.checkout)} às 11:00</div>
+            </div>
+            <p className="small text-muted mb-0">
+              Ao confirmar a conclusão, o hóspede receberá um convite por e-mail e pelo painel para avaliar a hospedagem no Recanto Camargo.
+            </p>
           </div>
         )}
       </Modal.Body>
-      {r.status === 'pendente' && <Modal.Footer className="gap-2 flex-wrap">
-        <Button variant="outline-danger" disabled={enviando} onClick={() => decidir('recusar')}>Recusar reserva</Button>
-        <Button variant="success" disabled={enviando} onClick={() => decidir('aprovar')}>
-          {enviando ? 'Salvando…' : 'Aprovar reserva'}
+      <Modal.Footer className="border-0 pt-0 gap-2">
+        <Button variant="outline-secondary" disabled={enviando} onClick={aoFechar} style={{ borderRadius: '50px' }}>
+          Voltar
         </Button>
-      </Modal.Footer>}
-      {r.status === 'aprovada' && <Modal.Footer className="gap-2 flex-wrap justify-content-between">
-        <Button variant="outline-danger" disabled={enviando} onClick={() => { aoFechar(); aoAbrirCancelamento && aoAbrirCancelamento(r); }}>
-          <i className="bi bi-x-circle me-1" /> Cancelar Reserva (Estorno)
+        <Button
+          variant={checkoutNoFuturo ? 'warning' : 'primary'}
+          disabled={enviando}
+          onClick={aoConfirmar}
+          style={{ borderRadius: '50px', fontWeight: 600, padding: '0.55rem 1.4rem' }}
+        >
+          {enviando ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+              Concluindo...
+            </>
+          ) : (
+            <>
+              <i className="bi bi-check2-circle me-1" />
+              {checkoutNoFuturo ? 'Sim, Concluir Antecipado' : 'Confirmar Conclusão'}
+            </>
+          )}
         </Button>
-        <Button variant="primary" disabled={enviando} onClick={() => decidir('concluir')}>
-          {enviando ? 'Concluindo…' : <><i className="bi bi-check2-circle me-1" /> Concluir Estadia</>}
-        </Button>
-      </Modal.Footer>}
+      </Modal.Footer>
     </Modal>
   );
 }
@@ -603,9 +823,9 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
   if (!reserva) return null;
 
   return (
-    <Modal show onHide={() => !cancelando && aoFechar()} centered size="lg" className="modal-reserva-admin">
-      <Modal.Header closeButton className="modal-header-admin" style={{ background: '#7f1d1d', color: '#fff' }}>
-        <Modal.Title style={{ color: '#fff' }}>
+    <Modal show onHide={() => !cancelando && aoFechar()} centered scrollable size="lg" className="modal-reserva-admin">
+      <Modal.Header closeButton className="modal-header-admin py-2 px-3 px-md-4" style={{ background: 'linear-gradient(135deg, #7f1d1d, #dc2626)', color: '#fff', borderBottom: 'none' }}>
+        <Modal.Title style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 700 }}>
           <i className="bi bi-exclamation-triangle-fill me-2" />
           Cancelar Reserva #{reserva.id}
         </Modal.Title>
@@ -620,130 +840,128 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
           </div>
         ) : simulacao ? (
           <div>
-            <div className="p-3 mb-3 rounded-3" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
-              <h6 className="fw-bold mb-1" style={{ color: '#991b1b' }}>
-                <i className="bi bi-shield-check me-2" />
-                Cancelamento pelo Anfitrião — Reembolso Integral (100%)
-              </h6>
-              <p className="small mb-0 text-muted">
-                Por se tratar de um cancelamento iniciado pelo anfitrião, o hóspede tem direito ao estorno integral de 100% do valor pago via Mercado Pago, sem qualquer retenção.
-              </p>
-            </div>
-
-            {/* Sugestão de Remarcação Amigável via WhatsApp */}
-            <div className="p-3 mb-4 rounded-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-              <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-                <div style={{ maxWidth: '480px' }}>
-                  <h6 className="fw-bold mb-1 text-success d-flex align-items-center">
-                    <i className="bi bi-whatsapp me-2 fs-5" />
-                    Prefere propor uma remarcação de datas?
-                  </h6>
-                  <p className="small mb-0 text-muted">
-                    Antes de cancelar e estornar o valor, que tal conversar com o hóspede para verificar se ele aceita remarcar para outro final de semana?
-                  </p>
+            <Row className="g-3 mb-3">
+              {/* Coluna 1: Informações e WhatsApp */}
+              <Col md={6} className="d-flex flex-column gap-3">
+                <div className="p-3 rounded-3 border bg-light h-100" style={{ fontSize: '0.88rem' }}>
+                  <div className="text-muted small text-uppercase fw-bold mb-2" style={{ letterSpacing: '0.5px' }}>Dados da Reserva</div>
+                  <div className="mb-2">
+                    <span className="text-muted">Hóspede: </span>
+                    <strong className="text-dark fs-6">{simulacao.hospedeNome}</strong>
+                    {simulacao.hospedeTelefone && <div className="text-muted small mt-1"><i className="bi bi-telephone me-1" />{fmtTelefone(simulacao.hospedeTelefone)}</div>}
+                  </div>
+                  <div className="text-muted small">
+                    <div>Check-in: <strong className="text-dark">{fmtData(simulacao.checkin)} às 14:00</strong></div>
+                    <div>Check-out: <strong className="text-dark">{fmtData(simulacao.checkout)} às 11:00</strong></div>
+                  </div>
                 </div>
-                {simulacao.hospedeTelefone ? (
-                  <a
-                    href={`https://wa.me/55${simulacao.hospedeTelefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${simulacao.hospedeNome}! Aqui é o anfitrião do Recanto Camargo sobre a reserva #${reserva.id}. Gostaria de conversar com você sobre a possibilidade de remarcar a sua estadia.`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-sm btn-success fw-semibold px-3 py-2 d-inline-flex align-items-center"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <i className="bi bi-whatsapp me-2" />
-                    Falar no WhatsApp
-                  </a>
-                ) : (
-                  <span className="badge bg-secondary py-2 px-3">Telefone não informado</span>
-                )}
-              </div>
-            </div>
 
-            <Row className="g-3 mb-4">
-              <Col sm={6}>
-                <div className="p-3 rounded-2 border bg-light">
-                  <div className="small text-muted">Hóspede</div>
-                  <div className="fw-bold fs-6">{simulacao.hospedeNome}</div>
-                  <div className="small text-muted">{simulacao.hospedeEmail}</div>
-                  {simulacao.hospedeTelefone && <div className="small text-success mt-1"><i className="bi bi-telephone me-1" />{simulacao.hospedeTelefone}</div>}
+                <div className="p-3 rounded-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                  <div className="fw-bold text-success small d-flex align-items-center mb-1">
+                    <i className="bi bi-whatsapp me-2 fs-6" />
+                    Prefere propor uma remarcação de datas?
+                  </div>
+                  <div className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
+                    Converse com o hóspede pelo WhatsApp antes de cancelar e estornar o valor.
+                  </div>
+                  {simulacao.hospedeTelefone ? (
+                    <a
+                      href={`https://wa.me/55${simulacao.hospedeTelefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${simulacao.hospedeNome}! Aqui é o anfitrião do Recanto Camargo sobre a reserva #${reserva.id}. Gostaria de conversar com você sobre a possibilidade de remarcar a sua estadia.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-success fw-semibold px-3 py-1 d-inline-flex align-items-center"
+                      style={{ borderRadius: '50px' }}
+                    >
+                      <i className="bi bi-whatsapp me-1" />
+                      Falar no WhatsApp
+                    </a>
+                  ) : (
+                    <span className="badge bg-secondary py-1 px-2" style={{ fontSize: '0.75rem' }}>Telefone não informado</span>
+                  )}
                 </div>
               </Col>
-              <Col sm={6}>
-                <div className="p-3 rounded-2 border bg-light">
-                  <div className="small text-muted">Check-in Previsto</div>
-                  <div className="fw-bold fs-6">{fmtData(simulacao.checkin)} às 14:00</div>
-                  <div className="small text-muted">Check-out: {fmtData(simulacao.checkout)} às 11:00</div>
+
+              {/* Coluna 2: Política e Estorno */}
+              <Col md={6}>
+                <div className="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <div>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="fw-bold" style={{ color: '#991b1b', fontSize: '0.9rem' }}>
+                        <i className="bi bi-shield-check me-1" />
+                        Cancelamento pelo Anfitrião
+                      </span>
+                      <span className="badge bg-danger px-2 py-1" style={{ fontSize: '0.75rem' }}>
+                        Reembolso 100%
+                      </span>
+                    </div>
+                    <p className="small text-muted mb-3" style={{ fontSize: '0.82rem' }}>
+                      Por regra dos Termos de Uso, cancelamentos pelo anfitrião exigem estorno integral de 100% do valor pago via Mercado Pago (retenção zero).
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-top" style={{ borderColor: '#fecaca', fontSize: '0.88rem' }}>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="text-muted">Valor pago na reserva:</span>
+                      <span className="fw-semibold text-dark">{fmtMoeda(simulacao.calculo.valorTotal)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-bold" style={{ color: '#991b1b' }}>
+                        <i className="bi bi-arrow-counterclockwise me-1" />
+                        Valor a Estornar (Mercado Pago):
+                      </span>
+                      <span className="fw-bold fs-5" style={{ color: '#991b1b' }}>
+                        {fmtMoeda(simulacao.calculo.valorReembolso)}
+                      </span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center small text-muted">
+                      <span>Retenção do anfitrião:</span>
+                      <span>R$ 0,00 (0%)</span>
+                    </div>
+                  </div>
                 </div>
               </Col>
             </Row>
 
-            {/* Quadro de Regra e Valores */}
-            <div className="p-4 rounded-3 mb-4" style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <span className="fw-bold text-dark">Política Aplicada:</span>
-                <span className="badge bg-success px-3 py-2 fs-6">
-                  100% de Reembolso Integral
-                </span>
-              </div>
-              <p className="small text-muted mb-3">
-                <i className="bi bi-info-circle me-1" />
-                {simulacao.calculo.descricaoRegra}
-              </p>
-
-              <hr />
-
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <span className="text-muted">Valor Pago na Reserva:</span>
-                <span className="fw-semibold">{fmtMoeda(simulacao.calculo.valorTotal)}</span>
-              </div>
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <span className="fw-bold text-success fs-5">
-                  <i className="bi bi-arrow-counterclockwise me-1" />
-                  Valor a Estornar (Mercado Pago):
-                </span>
-                <span className="fw-bold text-success fs-5">
-                  {fmtMoeda(simulacao.calculo.valorReembolso)}
-                </span>
-              </div>
-              <div className="d-flex justify-content-between align-items-center small text-muted">
-                <span>Retenção do proprietário:</span>
-                <span className="fw-semibold text-muted">R$ 0,00 (0%)</span>
-              </div>
-            </div>
-
-            <div className="mb-3">
-              <label htmlFor="motivo-cancelamento" className="form-label fw-semibold">
+            {/* Motivo */}
+            <div className="mb-2">
+              <label htmlFor="motivo-cancelamento" className="form-label small fw-semibold text-muted mb-1">
                 Motivo do cancelamento (opcional — será enviado no e-mail do hóspede)
               </label>
               <textarea
                 id="motivo-cancelamento"
                 className="form-control"
-                rows={3}
+                rows={2}
                 maxLength={250}
                 placeholder="Ex.: Manutenção urgente na estrutura do chalé."
                 value={motivo}
                 disabled={cancelando}
                 onChange={e => setMotivo(e.target.value)}
+                style={{ borderRadius: '10px', fontSize: '0.88rem', resize: 'vertical' }}
               />
             </div>
           </div>
         ) : null}
       </Modal.Body>
-      <Modal.Footer className="gap-2">
-        <Button variant="secondary" disabled={cancelando} onClick={aoFechar}>
-          Voltar / Não Cancelar
+      <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
+        <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={cancelando} onClick={aoFechar}>
+          Voltar
         </Button>
         {simulacao && (
-          <Button variant="danger" disabled={cancelando} onClick={confirmar}>
+          <Button
+            variant="danger"
+            style={{ borderRadius: '50px', padding: '0.45rem 1.4rem', fontSize: '0.88rem' }}
+            disabled={cancelando}
+            onClick={confirmar}
+          >
             {cancelando ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                Estornando via Mercado Pago...
+                Estornando no MP...
               </>
             ) : (
               <>
                 <i className="bi bi-x-circle me-1" />
-                Confirmar Cancelamento e Estornar {fmtMoeda(simulacao.calculo.valorReembolso)}
+                Confirmar Estorno ({fmtMoeda(simulacao.calculo.valorReembolso)})
               </>
             )}
           </Button>
@@ -1098,12 +1316,13 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
 
   // Mapeamento de reservas para cores do calendário
   const mapaStatus = useMemo(() => reservas.reduce((acc, r) => {
-    if (r.status !== 'aprovada' && r.status !== 'pendente') return acc;
+    if (r.status !== 'aprovada' && r.status !== 'pendente' && r.status !== 'pagamento pendente') return acc;
     const ini = new Date(r.checkin + 'T00:00:00');
     const fim = new Date(r.checkout + 'T00:00:00');
     for (let d = new Date(ini); d < fim; d = new Date(d.getTime() + 86400000)) {
       const k = d.toISOString().slice(0, 10);
-      if (!acc[k] || r.status === 'aprovada') acc[k] = r.status;
+      const st = (r.status === 'pagamento pendente' || r.status === 'pendente') ? 'pendente' : 'aprovada';
+      if (!acc[k] || st === 'aprovada') acc[k] = st;
     }
     return acc;
   }, {}), [reservas]);
@@ -1138,15 +1357,22 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
     dtAnt.setDate(dtAnt.getDate() - 1);
     const dAntStr = getIso(dtAnt);
 
+    const normalizarStatus = (status) => {
+      if (status === 'pagamento pendente') return 'pendente';
+      return status;
+    };
+
+    const statusValidos = ['aprovada', 'pendente', 'pagamento pendente'];
+
     // Verificações para MANHÃ (Check-out)
-    const resCheckout = reservas.find(r => (r.status === 'aprovada' || r.status === 'pendente') && r.checkout === dStr);
-    const resMeio = reservas.find(r => (r.status === 'aprovada' || r.status === 'pendente') && r.checkin < dStr && r.checkout > dStr);
+    const resCheckout = reservas.find(r => statusValidos.includes(r.status) && r.checkout === dStr);
+    const resMeio = reservas.find(r => statusValidos.includes(r.status) && r.checkin < dStr && r.checkout > dStr);
     const bloqAnterior = !!mapaBloqueios[dAntStr];
     const bloqAtual = !!mapaBloqueios[dStr];
 
     let manha = 'livre';
-    if (resCheckout) manha = resCheckout.status;
-    else if (resMeio) manha = resMeio.status;
+    if (resCheckout) manha = normalizarStatus(resCheckout.status);
+    else if (resMeio) manha = normalizarStatus(resMeio.status);
     else if (bloqAnterior) manha = 'bloqueado';
 
     // Verificações para TARDE (Check-in / Pernoite)
@@ -1154,8 +1380,8 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
     if (bloqAtual) {
       tarde = 'bloqueado';
     } else {
-      const resTarde = reservas.find(r => (r.status === 'aprovada' || r.status === 'pendente') && r.checkin <= dStr && r.checkout > dStr);
-      if (resTarde) tarde = resTarde.status;
+      const resTarde = reservas.find(r => statusValidos.includes(r.status) && r.checkin <= dStr && r.checkout > dStr);
+      if (resTarde) tarde = normalizarStatus(resTarde.status);
     }
 
     // Se ambos os períodos forem iguais
@@ -1186,6 +1412,10 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
     // 5. Bloqueio e Livre (Entrada / Saída)
     if (manha === 'bloqueado' && tarde === 'livre') return 'dia-split-bloqueio-livre';
     if (manha === 'livre' && tarde === 'bloqueado') return 'dia-split-livre-bloqueio';
+
+    // 6. Reserva Aprovada e Reserva Pendente
+    if (manha === 'aprovada' && tarde === 'pendente') return 'dia-split-reserva-pendente';
+    if (manha === 'pendente' && tarde === 'aprovada') return 'dia-split-pendente-reserva';
 
     return null;
   };
@@ -1343,9 +1573,18 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
   const [tipo, setTipo] = useState('PERCENTUAL');
   const [valor, setValor] = useState('');
   const [publico, setPublico] = useState('TODOS');
-  const [clienteEspecifico, setClienteEspecifico] = useState('');
+  
+  // Hóspede específico (busca + seleção com abinha/dropdown)
+  const [buscaHospede, setBuscaHospede] = useState('');
+  const [hospedeSelecionado, setHospedeSelecionado] = useState(null);
+  const [sugestoesHospedes, setSugestoesHospedes] = useState([]);
+  const [carregandoSugestoes, setCarregandoSugestoes] = useState(false);
+  const [mostrarDropdown, setMostrarDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
   const [minimoNoites, setMinimoNoites] = useState(1);
   const [valorMinimo, setValorMinimo] = useState('');
+  const [limiteUso, setLimiteUso] = useState('');
   const [validade, setValidade] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 3);
@@ -1354,9 +1593,71 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
 
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickFora = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setMostrarDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  // Busca hóspedes na API quando o público for CLIENTE_ESPECIFICO
+  useEffect(() => {
+    if (!show || publico !== 'CLIENTE_ESPECIFICO' || hospedeSelecionado) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCarregandoSugestoes(true);
+      try {
+        const queryParam = encodeURIComponent(buscaHospede.trim());
+        const res = await fetch(`${API_BASE}/api/proprietario/hospedes/buscar?q=${queryParam}`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const dados = await res.json();
+          setSugestoesHospedes(dados || []);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar sugestões de hóspedes:', err);
+      } finally {
+        setCarregandoSugestoes(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [show, publico, buscaHospede, hospedeSelecionado]);
+
+  // Reseta campos quando o modal abre ou fecha
+  useEffect(() => {
+    if (!show) {
+      setCodigo('');
+      setTipo('PERCENTUAL');
+      setValor('');
+      setPublico('TODOS');
+      setBuscaHospede('');
+      setHospedeSelecionado(null);
+      setSugestoesHospedes([]);
+      setMostrarDropdown(false);
+      setMinimoNoites(1);
+      setValorMinimo('');
+      setLimiteUso('');
+      setErro('');
+    }
+  }, [show]);
+
   const submeter = async (e) => {
     e.preventDefault();
     if (!codigo.trim() || !valor || !validade || enviando) return;
+
+    if (publico === 'CLIENTE_ESPECIFICO' && !hospedeSelecionado && !buscaHospede.trim()) {
+      setErro('Por favor, selecione um hóspede da lista para este cupom específico.');
+      return;
+    }
+
     setEnviando(true);
     setErro('');
 
@@ -1366,9 +1667,12 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
         tipoDesconto: tipo,
         valorDesconto: Number(valor),
         publicoAlvo: publico,
-        clienteId: publico === 'CLIENTE_ESPECIFICO' ? clienteEspecifico.trim() : null,
+        clienteId: publico === 'CLIENTE_ESPECIFICO'
+          ? (hospedeSelecionado ? hospedeSelecionado.id : buscaHospede.trim())
+          : null,
         minimoNoites: Number(minimoNoites) || 1,
         valorMinimo: Number(valorMinimo) || 0,
+        limiteUso: limiteUso && Number(limiteUso) > 0 ? Number(limiteUso) : (publico === 'CLIENTE_ESPECIFICO' ? 1 : null),
         validoAte: validade,
         ativo: true,
       });
@@ -1439,7 +1743,19 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                 id="cupom-publico"
                 className="form-select"
                 value={publico}
-                onChange={e => setPublico(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  setPublico(val);
+                  if (val === 'CLIENTE_ESPECIFICO') {
+                    setLimiteUso('1');
+                  } else if (limiteUso === '1') {
+                    setLimiteUso('');
+                  }
+                  if (val !== 'CLIENTE_ESPECIFICO') {
+                    setHospedeSelecionado(null);
+                    setBuscaHospede('');
+                  }
+                }}
               >
                 <option value="TODOS">🌐 Todos os Clientes (Geral)</option>
                 <option value="PRIMEIRA_RESERVA">🎉 Cliente Novo (1ª Reserva)</option>
@@ -1451,17 +1767,138 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
           </Row>
 
           {publico === 'CLIENTE_ESPECIFICO' && (
-            <div className="mb-3">
-              <label htmlFor="cupom-cliente" className="form-label fw-semibold small text-muted">E-mail ou Nome do Hóspede *</label>
-              <input
-                id="cupom-cliente"
-                type="text"
-                className="form-control"
-                placeholder="Ex.: mariasilva@email.com"
-                value={clienteEspecifico}
-                onChange={e => setClienteEspecifico(e.target.value)}
-                required
-              />
+            <div className="mb-3 position-relative" ref={dropdownRef}>
+              <label htmlFor="cupom-cliente" className="form-label fw-semibold small text-muted d-flex justify-content-between">
+                <span>Hóspede Específico *</span>
+                <span className="text-primary fw-normal" style={{ fontSize: '0.78rem' }}>
+                  <i className="bi bi-person-check me-1" /> Selecione da lista abaixo
+                </span>
+              </label>
+
+              {hospedeSelecionado ? (
+                <div className="p-2 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between shadow-sm" style={{ borderColor: '#bbf7d0' }}>
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 34, height: 34, fontSize: '0.85rem' }}>
+                      {hospedeSelecionado.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="fw-bold text-dark" style={{ fontSize: '0.9rem' }}>
+                        {hospedeSelecionado.nome}
+                        <span className="badge bg-success-subtle text-success border border-success-subtle ms-2" style={{ fontSize: '0.72rem' }}>
+                          ✓ Selecionado
+                        </span>
+                      </div>
+                      <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                        {hospedeSelecionado.email}
+                        {hospedeSelecionado.telefone ? ` • ${fmtTelefone(hospedeSelecionado.telefone)}` : ''}
+                        {hospedeSelecionado.totalReservas > 0 ? ` • ${hospedeSelecionado.totalReservas} reserva(s)` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    className="py-1 px-2"
+                    style={{ fontSize: '0.78rem', borderRadius: '20px' }}
+                    onClick={() => {
+                      setHospedeSelecionado(null);
+                      setBuscaHospede('');
+                      setMostrarDropdown(true);
+                    }}
+                  >
+                    <i className="bi bi-arrow-repeat me-1" /> Trocar
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="input-group">
+                    <span className="input-group-text bg-white border-end-0 text-muted">
+                      <i className="bi bi-search" />
+                    </span>
+                    <input
+                      id="cupom-cliente"
+                      type="text"
+                      className="form-control border-start-0"
+                      placeholder="Digite o nome ou e-mail (ex.: Felipe)..."
+                      value={buscaHospede}
+                      onChange={e => {
+                        setBuscaHospede(e.target.value);
+                        setMostrarDropdown(true);
+                      }}
+                      onFocus={() => setMostrarDropdown(true)}
+                      autoComplete="off"
+                      required
+                    />
+                    {buscaHospede && (
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary border-start-0"
+                        onClick={() => {
+                          setBuscaHospede('');
+                          setMostrarDropdown(true);
+                        }}
+                      >
+                        <i className="bi bi-x-lg" style={{ fontSize: '0.8rem' }} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown de sugestões flutuante */}
+                  {mostrarDropdown && (
+                    <div
+                      className="position-absolute w-100 bg-white border rounded-3 shadow-lg mt-1"
+                      style={{ zIndex: 1050, maxHeight: '220px', overflowY: 'auto' }}
+                    >
+                      {carregandoSugestoes ? (
+                        <div className="p-3 text-center text-muted small">
+                          <span className="spinner-border spinner-border-sm me-2" /> Buscando hóspedes...
+                        </div>
+                      ) : sugestoesHospedes.length > 0 ? (
+                        <div className="py-1">
+                          <div className="px-3 py-1 bg-light border-bottom text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                            {buscaHospede ? `Hóspedes encontrados (${sugestoesHospedes.length})` : 'Hóspedes no sistema (clique para escolher)'}
+                          </div>
+                          {sugestoesHospedes.map(h => (
+                            <div
+                              key={h.id}
+                              className="px-3 py-2 btn-sugestao-hospede d-flex align-items-center justify-content-between"
+                              style={{ cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                              onClick={() => {
+                                setHospedeSelecionado(h);
+                                setBuscaHospede(h.nome);
+                                setMostrarDropdown(false);
+                                setErro('');
+                              }}
+                            >
+                              <div className="d-flex align-items-center gap-2">
+                                <div className="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
+                                  {h.nome.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="fw-semibold text-dark" style={{ fontSize: '0.88rem' }}>
+                                    {h.nome}
+                                  </div>
+                                  <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                                    {h.email} {h.telefone ? `• ${fmtTelefone(h.telefone)}` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="badge bg-light text-secondary border" style={{ fontSize: '0.72rem' }}>
+                                {h.totalReservas} reserva(s)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3 text-center text-muted small">
+                          <i className="bi bi-person-x me-1 text-danger" /> Nenhum hóspede cadastrado encontrado para "{buscaHospede}".
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -1492,17 +1929,31 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
             </Col>
           </Row>
 
-          <div className="mb-2">
-            <label htmlFor="cupom-validade" className="form-label fw-semibold small text-muted">Data de Validade *</label>
-            <input
-              id="cupom-validade"
-              type="date"
-              className="form-control"
-              value={validade}
-              onChange={e => setValidade(e.target.value)}
-              required
-            />
-          </div>
+          <Row className="g-3 mb-2">
+            <Col sm={6}>
+              <label htmlFor="cupom-validade" className="form-label fw-semibold small text-muted">Data de Validade *</label>
+              <input
+                id="cupom-validade"
+                type="date"
+                className="form-control"
+                value={validade}
+                onChange={e => setValidade(e.target.value)}
+                required
+              />
+            </Col>
+            <Col sm={6}>
+              <label htmlFor="cupom-limite" className="form-label fw-semibold small text-muted">Quantidade de Usos</label>
+              <input
+                id="cupom-limite"
+                type="number"
+                min="1"
+                className="form-control"
+                placeholder={publico === 'CLIENTE_ESPECIFICO' ? '1 (Exclusivo)' : 'Opcional (Ilimitado)'}
+                value={limiteUso}
+                onChange={e => setLimiteUso(e.target.value)}
+              />
+            </Col>
+          </Row>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={aoFechar} disabled={enviando} style={{ borderRadius: '50px' }}>
@@ -1560,8 +2011,9 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
         <div className="cupons-grid-admin">
           {cupons.map(c => {
             const publicoCfg = PUBLICO_CFG[c.publicoAlvo] || PUBLICO_CFG.TODOS;
+            const esgotado = Boolean(c.limiteUso && c.limiteUso < 999999 && c.totalUsos >= c.limiteUso);
             return (
-              <div key={c.id} className={`card-cupom-moderno ${c.expirado ? 'inativo opacity-75' : (!c.ativo ? 'inativo' : '')}`}>
+              <div key={c.id} className={`card-cupom-moderno ${c.expirado ? 'inativo opacity-75' : esgotado ? 'inativo opacity-75' : (!c.ativo ? 'inativo' : '')}`}>
                 <div>
                   <div className="d-flex align-items-center justify-content-between mb-2">
                     <span className={publicoCfg.classeBadge}>
@@ -1569,11 +2021,15 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                       {publicoCfg.label}
                     </span>
                     <div className="d-flex gap-1 align-items-center">
-                      {c.expirado && (
+                      {c.expirado ? (
                         <span className="badge bg-danger-subtle text-danger border border-danger-subtle small">
                           Vencido
                         </span>
-                      )}
+                      ) : esgotado ? (
+                        <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">
+                          {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? 'Utilizado' : 'Esgotado'}
+                        </span>
+                      ) : null}
                       <span className="badge bg-light text-muted border small">
                         {c.tipoDesconto === 'PERCENTUAL' ? 'Desconto %' : 'Desconto R$'}
                       </span>
@@ -1584,10 +2040,13 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                     {c.tipoDesconto === 'PERCENTUAL' ? `${c.valorDesconto}% OFF` : `${fmtMoeda(c.valorDesconto)} OFF`}
                   </div>
 
-                  {c.clienteId && (
-                    <div className="text-muted small mb-2">
+                  {(c.clienteNome || c.clienteId) && (
+                    <div
+                      className="text-muted small mb-2 text-truncate"
+                      title={c.clienteEmail ? `${c.clienteNome || 'Hóspede'} (${c.clienteEmail})` : (c.clienteNome || undefined)}
+                    >
                       <i className="bi bi-person me-1" />
-                      Para: <strong>{c.clienteId}</strong>
+                      Para: <strong>{c.clienteNome || c.clienteEmail || `Hóspede #${c.clienteId}`}</strong>
                     </div>
                   )}
 
@@ -1618,6 +2077,13 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                       </span>
                     )}
                     <span>
+                      <i className="bi bi-ticket-perforated me-1 text-primary" />
+                      {c.limiteUso && c.limiteUso < 999999
+                        ? `Limite: ${c.limiteUso} ${c.limiteUso === 1 ? 'uso' : 'usos'} (Utilizado: ${c.totalUsos})`
+                        : `Utilizações: ${c.totalUsos} (Ilimitado)`
+                      }
+                    </span>
+                    <span>
                       <i className={`bi bi-calendar3 me-1 ${c.expirado ? 'text-danger' : 'text-warning'}`} />
                       Válido até: <strong className={c.expirado ? 'text-danger' : ''}>{fmtData(c.validoAte)} {c.expirado && '(Expirado)'}</strong>
                     </span>
@@ -1630,21 +2096,41 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                       <i className="bi bi-x-circle-fill me-1" style={{ fontSize: '0.55rem' }} />
                       Cupom Expirado
                     </span>
+                  ) : esgotado ? (
+                    <span className="fw-semibold small text-secondary">
+                      <i className="bi bi-check-circle-fill me-1 text-secondary" style={{ fontSize: '0.65rem' }} />
+                      {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? `Já Utilizado (${c.totalUsos}/${c.limiteUso})` : `Esgotado (${c.totalUsos}/${c.limiteUso})`}
+                    </span>
                   ) : (
                     <span className={`fw-semibold small ${c.ativo ? 'text-success' : 'text-muted'}`}>
                       <i className={`bi bi-circle-fill me-1 ${c.ativo ? 'text-success' : 'text-secondary'}`} style={{ fontSize: '0.45rem' }} />
                       {c.ativo ? 'Cupom Ativo' : 'Cupom Pausado'}
                     </span>
                   )}
-                  <div className="form-check form-switch m-0" title={c.expirado ? 'Cupom expirado pela data de validade' : ''}>
+                  <div
+                    className="form-check form-switch m-0"
+                    title={
+                      c.expirado
+                        ? 'Cupom expirado pela data de validade'
+                        : esgotado
+                        ? 'Cupom já atingiu o limite de utilizações'
+                        : ''
+                    }
+                  >
                     <input
                       className="form-check-input switch-cupom-input"
                       type="checkbox"
                       role="switch"
-                      checked={c.ativo && !c.expirado}
-                      disabled={c.expirado}
+                      checked={c.ativo && !c.expirado && !esgotado}
+                      disabled={c.expirado || esgotado}
                       onChange={() => aoAlternarStatus(c.id, c.ativo)}
-                      aria-label={c.expirado ? `Cupom ${c.codigo} expirado` : `Ativar ou pausar cupom ${c.codigo}`}
+                      aria-label={
+                        c.expirado
+                          ? `Cupom ${c.codigo} expirado`
+                          : esgotado
+                          ? `Cupom ${c.codigo} esgotado`
+                          : `Ativar ou pausar cupom ${c.codigo}`
+                      }
                     />
                   </div>
                 </div>

@@ -32,7 +32,8 @@ exports.listarMeus = async (req, res) => {
                       AND usada.Res_Status NOT IN ('CANCELADA', 'RECUSADA')
                 ) AS Cup_Usado
              FROM cup_cupom c
-             WHERE c.Cup_DataValidade >= CURDATE()
+             WHERE c.Cup_Ativo = 1
+               AND c.Cup_DataValidade >= CURDATE()
                AND c.Cup_LimiteUso > (
                    SELECT COUNT(*) 
                    FROM res_reserva r 
