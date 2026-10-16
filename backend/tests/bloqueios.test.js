@@ -277,7 +277,7 @@ test('Reserva: impede criação em data bloqueada no calendário pelo proprietá
         }
     });
     assert.equal(resposta.status, 409);
-    assert.match(resposta.dados.error, /bloqueadas para manutenção/i);
+    assert.match(resposta.dados.error, /indisponíveis/i);
 });
 
 test('Reserva: impede criação para hóspede restrito em blo_bloqueiohospede (403)', async () => {

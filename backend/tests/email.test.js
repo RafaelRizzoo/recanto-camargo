@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { criarServicoEmail, criarHtmlEmail, escaparHtml } = require('../email');
+const { criarServicoEmail, criarHtmlEmail, criarEmailBoasVindas, criarEmailCupomExclusivo, escaparHtml } = require('../email');
 
 function capturarLog() {
     const mensagens = [];
@@ -119,3 +119,59 @@ test('parâmetros de email inválidos não alcançam o provedor', async () => {
     ]) assert.equal((await enviarEmail(...argumentos)).enviado, false);
     assert.equal(chamadas, 0);
 });
+
+test('criarHtmlEmail remove saudação duplicada caso a mensagem já contenha Olá', () => {
+    const html = criarHtmlEmail('Boas-vindas', 'Olá, Felipe Carvalho!\n\nFalta pouco para sua viagem.', {
+        nome: 'Felipe Carvalho'
+    });
+    // O nome 'Felipe Carvalho' deve aparecer apenas uma vez (na tag strong da saudação)
+    const ocorrencias = (html.match(/Felipe Carvalho/g) || []).length;
+    assert.equal(ocorrencias, 1);
+    assert.ok(html.includes('Olá, <strong>Felipe Carvalho</strong>!'));
+    assert.ok(html.includes('Falta pouco para sua viagem.'));
+    assert.equal(html.includes('Olá, Felipe Carvalho!'), false);
+});
+
+test('criarEmailBoasVindas gera template estilo plataforma de reservas com benefícios e segurança', () => {
+    const html = criarEmailBoasVindas({
+        nome: '<script>alert(1)</script>Vinicius',
+        email: 'vini@example.com',
+        telefone: '(12) 99999-0000',
+        frontendUrl: 'https://recantocamargo.com.br'
+    });
+
+    assert.ok(html.includes('&lt;script&gt;alert(1)&lt;/script&gt;Vinicius'));
+    assert.ok(html.includes('vini@example.com'));
+    assert.ok(html.includes('(12) 99999-0000'));
+    assert.ok(html.includes('Sua casa em Aparecida está de portas abertas!'));
+    assert.ok(html.includes('Espaço Inteiro com Privacidade Absoluta'));
+    assert.ok(html.includes('Disponibilidade &amp; Calendário Interativo'));
+    assert.ok(html.includes('Cupons de Desconto &amp; Ofertas Exclusivas'));
+    assert.ok(html.includes('Atendimento Direto com o Anfitrião'));
+    assert.ok(html.includes('Dica do Anfitrião:'));
+    assert.ok(html.includes('https://recantocamargo.com.br/#/'));
+});
+
+test('criarEmailCupomExclusivo gera voucher com código, regras e escapamento', () => {
+    const html = criarEmailCupomExclusivo({
+        nome: '<b style="color:red">Felipe</b>',
+        codigo: 'EXCLUSIVO15',
+        tipoDesconto: 'PERCENTUAL',
+        valorDesconto: 15,
+        validoAte: '2026-12-31',
+        minimoNoites: 2,
+        valorMinimo: 400,
+        frontendUrl: 'https://recantocamargo.com.br'
+    });
+
+    assert.ok(html.includes('&lt;b style=&quot;color:red&quot;&gt;Felipe&lt;/b&gt;'));
+    assert.ok(html.includes('EXCLUSIVO15'));
+    assert.ok(html.includes('15% OFF'));
+    assert.ok(html.includes('2 noites'));
+    assert.ok(html.includes('R$ 400.00'));
+    assert.ok(html.includes('Presente Exclusivo para Você'));
+    assert.ok(html.includes('https://recantocamargo.com.br/#/Reserva'));
+});
+
+
+

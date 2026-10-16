@@ -22,7 +22,8 @@ router.get('/bloqueios', verificarToken, verificarProprietario, proprietarioCont
 router.post('/bloqueios', verificarToken, verificarProprietario, proprietarioController.criarBloqueio);
 router.delete('/bloqueios/:id', verificarToken, verificarProprietario, proprietarioController.removerBloqueio);
 
-// Gestão de Cupons
+// Gestão de Cupons e Hóspedes
+router.get('/hospedes/buscar', verificarToken, verificarProprietario, proprietarioController.buscarHospedes);
 router.get('/cupons', verificarToken, verificarProprietario, proprietarioController.listarCuponsProprietario);
 router.post('/cupons', verificarToken, verificarProprietario, proprietarioController.criarCupom);
 router.patch('/cupons/:id/status', verificarToken, verificarProprietario, proprietarioController.atualizarStatusCupom);

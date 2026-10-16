@@ -146,6 +146,7 @@ async function buscarCupomPorCodigo(executor, codigo) {
             Cup_Cliente_Usu_Id,
             Cup_MinimoNoites,
             Cup_ValorMinimo,
+            Cup_Ativo,
             (Cup_DataValidade < CURDATE()) AS Cup_Expirado
          FROM cup_cupom
          WHERE UPPER(Cup_Codigo) = UPPER(?)
@@ -178,6 +179,7 @@ async function buscarCupomPorIdComLock(executor, cupomId) {
             Cup_Cliente_Usu_Id,
             Cup_MinimoNoites,
             Cup_ValorMinimo,
+            Cup_Ativo,
             (Cup_DataValidade < CURDATE()) AS Cup_Expirado
          FROM cup_cupom
          WHERE Cup_Id = ?
@@ -193,6 +195,10 @@ async function buscarCupomPorIdComLock(executor, cupomId) {
 }
 
 async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = false, reservaContexto = {}) {
+    if (cupomDb.Cup_Ativo !== undefined && Number(cupomDb.Cup_Ativo) === 0) {
+        throw new ErroHttp(400, 'Este cupom está temporariamente pausado ou desativado.');
+    }
+
     if (Number(cupomDb.Cup_Expirado) === 1) {
         throw new ErroHttp(400, 'Este cupom expirou.');
     }
@@ -212,7 +218,7 @@ async function validarRegrasCupom(executor, cupomDb, hospedeId, bloquearUsos = f
 
     // Regra 1: Público Alvo - Cliente Específico
     if (cupom.publicoAlvo === 'CLIENTE_ESPECIFICO') {
-        if (cupom.clienteId && Number(cupom.clienteId) !== Number(hospedeId)) {
+        if (!cupom.clienteId || Number(cupom.clienteId) !== Number(hospedeId)) {
             throw new ErroHttp(403, 'Este cupom é exclusivo e intransferível para outro destinatário.');
         }
     }

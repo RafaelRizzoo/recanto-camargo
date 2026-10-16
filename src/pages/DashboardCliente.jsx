@@ -15,8 +15,20 @@ const CHAVE_RESERVAS_CLIENTE = 'recanto_reservas_cliente';
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 const fmtData = (s) => {
   if (!s) return '—';
-  const [a, m, d] = s.split('-');
-  return `${d}/${m}/${a}`;
+  const str = String(s).slice(0, 10);
+  const [a, m, d] = str.split('-');
+  return (a && m && d) ? `${d}/${m}/${a}` : s;
+};
+
+const fmtDataHora = (s) => {
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return fmtData(s);
+    return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return fmtData(s);
+  }
 };
 
 const fmtMoeda = (v) =>
@@ -90,7 +102,21 @@ const diasAteCheckin = (ci) => {
   return Math.round((dataCi - hoje) / 86400000);
 };
 
-const podeCancelar = (ci) => diasAteCheckin(ci) > 7;
+const podeCancelar = (reservaOuCheckin, checkout) => {
+  if (!reservaOuCheckin) return false;
+  if (typeof reservaOuCheckin === 'object') {
+    const r = reservaOuCheckin;
+    const statusValido = ['aprovada', 'pendente', 'pagamento pendente'].includes(r.status);
+    if (!statusValido) return false;
+    const dataRef = r.checkout || r.checkin;
+    if (!dataRef) return true;
+    const fim = new Date(dataRef + 'T11:00:00');
+    return new Date() <= fim;
+  }
+  const dataRef = checkout || reservaOuCheckin;
+  const fim = new Date(dataRef + 'T11:00:00');
+  return new Date() <= fim;
+};
 
 const STATUS_CFG = {
   pendente:  { label: 'Pendente',   bg: '#fff3cd', cor: '#856404', icone: 'bi-hourglass-split' },
@@ -141,124 +167,202 @@ Estrelas.propTypes = {
 };
 
 // ─── Modal Detalhe da Reserva ─────────────────────────────────────────────────
-function ModalDetalheReserva({ reserva, aoFechar, aoPagar, pagando = false }) {
+function ModalDetalheReserva({ reserva, aoFechar, aoCancelar, aoPagar, pagando = false }) {
   if (!reserva) return null;
   const n = calcNoites(reserva.checkin, reserva.checkout);
+  const podeCanc = podeCancelar(reserva);
   return (
-    <Modal show onHide={aoFechar} centered size="lg" className="cli-modal">
-      <Modal.Header closeButton className="cli-modal-header">
-        <Modal.Title>Reserva #{reserva.id}</Modal.Title>
+    <Modal show onHide={aoFechar} centered scrollable size="lg" className="cli-modal">
+      <Modal.Header closeButton className="cli-modal-header py-2 px-3 px-md-4">
+        <Modal.Title style={{ fontSize: '1.2rem', fontWeight: 700 }} className="d-flex align-items-center gap-2">
+          <i className="bi bi-calendar2-check-fill" style={{ color: '#38bdf8' }}></i> Reserva #{reserva.id}
+        </Modal.Title>
       </Modal.Header>
-      <Modal.Body className="p-4">
-        <Row className="g-4">
+      <Modal.Body className="p-3 px-md-4">
+        <Row className="g-3">
+          {/* Banner do Imóvel + Data de Solicitação */}
           <Col xs={12}>
-            <div className="cli-modal-imovel">
-              <div className="cli-modal-imovel-img">
-                <i className="bi bi-house-heart"></i>
-              </div>
-              <div>
-                <div className="fw-bold" style={{ fontSize: '1.1rem', color: '#223a5e' }}>{reserva.imovel}</div>
-                <div className="text-muted small"><i className="bi bi-geo-alt me-1"></i>{reserva.localizacao}</div>
-                <BadgeStatus status={reserva.status} />
-              </div>
-            </div>
-          </Col>
-          <Col md={6}>
-            <p className="cli-label-secao">Período</p>
-            <div className="d-flex gap-3 flex-wrap">
-              {[['Check-in', fmtData(reserva.checkin)], ['Check-out', fmtData(reserva.checkout)], ['Noites', n]].map(([l, v]) => (
-                <div key={l} className="cli-bloco-dado">
-                  <div className="cli-bloco-label">{l}</div>
-                  <div className="cli-bloco-valor">{v}</div>
+            <div className="cli-modal-imovel d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div className="d-flex align-items-center gap-3">
+                <div className="cli-modal-imovel-img">
+                  <i className="bi bi-house-heart"></i>
                 </div>
-              ))}
+                <div>
+                  <div className="fw-bold" style={{ fontSize: '1.08rem', color: '#1e3a5f', lineHeight: 1.2 }}>{reserva.imovel}</div>
+                  <div className="text-muted small mt-1" style={{ fontSize: '0.82rem' }}>
+                    <i className="bi bi-geo-alt-fill text-danger me-1"></i>{reserva.localizacao}
+                  </div>
+                  <div className="mt-1"><BadgeStatus status={reserva.status} /></div>
+                </div>
+              </div>
+              {reserva.criadaEm && (
+                <div className="text-md-end text-muted small ms-auto">
+                  <div className="cli-bloco-label mb-1" style={{ fontSize: '0.68rem' }}>Solicitada em</div>
+                  <strong style={{ color: '#334155', fontSize: '0.85rem' }}>{fmtDataHora(reserva.criadaEm)}</strong>
+                </div>
+              )}
             </div>
           </Col>
+
+          {/* Coluna 1: Período & Hóspedes */}
           <Col md={6}>
-            <p className="cli-label-secao">Valores</p>
-            <div className="d-flex gap-3 flex-wrap">
-              <div className="cli-bloco-dado">
-                <div className="cli-bloco-label">Diária</div>
-                <div className="cli-bloco-valor">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}</div>
+            <div className="p-3 rounded-3 border bg-white h-100 d-flex flex-column gap-2">
+              <div className="cli-label-secao d-flex align-items-center gap-1 mb-1">
+                <i className="bi bi-calendar3"></i> Período & Hóspedes
               </div>
-              <div className="cli-bloco-dado" style={{ background: '#f0fdf4' }}>
-                <div className="cli-bloco-label">Total</div>
-                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a' }}>{fmtMoeda(reserva.total ?? reserva.valorTotal)}</div>
+              <div className="d-flex gap-2">
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Check-in</div>
+                  <div className="cli-bloco-valor">{fmtData(reserva.checkin)}</div>
+                </div>
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Check-out</div>
+                  <div className="cli-bloco-valor">{fmtData(reserva.checkout)}</div>
+                </div>
+              </div>
+              <div className="d-flex gap-2">
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Duração</div>
+                  <div className="cli-bloco-valor">{n} noites</div>
+                </div>
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Hóspedes</div>
+                  <div className="cli-bloco-valor">{reserva.hospedes} pessoas</div>
+                </div>
               </div>
             </div>
           </Col>
+
+          {/* Coluna 2: Valores & Pagamento */}
           <Col md={6}>
-            <p className="cli-label-secao">Hóspedes & Pagamento</p>
-            <div className="d-flex gap-3">
-              <div className="cli-bloco-dado">
-                <div className="cli-bloco-label">Pessoas</div>
-                <div className="cli-bloco-valor">{reserva.hospedes}</div>
+            <div className="p-3 rounded-3 border bg-white h-100 d-flex flex-column gap-2">
+              <div className="cli-label-secao d-flex align-items-center gap-1 mb-1">
+                <i className="bi bi-cash-stack"></i> Valores & Pagamento
               </div>
-              <div className="cli-bloco-dado">
-                <div className="cli-bloco-label">Pagamento</div>
-                <div className="cli-bloco-valor" style={{ fontSize: '0.82rem' }}>{reserva.formaPagamento}</div>
+              <div className="d-flex gap-2">
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Diária</div>
+                  <div className="cli-bloco-valor">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}</div>
+                </div>
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Método</div>
+                  <div className="cli-bloco-valor">{reserva.formaPagamento || 'PIX'}</div>
+                </div>
+              </div>
+              <div className="cli-bloco-dado d-flex justify-content-between align-items-center px-3" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                <div className="cli-bloco-label mb-0 fw-bold" style={{ color: '#166534', fontSize: '0.72rem' }}>
+                  <i className="bi bi-receipt me-1"></i> Valor Total
+                </div>
+                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a', fontSize: '1.05rem' }}>
+                  {fmtMoeda(reserva.total ?? reserva.valorTotal)}
+                </div>
               </div>
             </div>
           </Col>
-          <Col md={6}>
-            <p className="cli-label-secao">Solicitada em</p>
-            <div className="cli-bloco-dado" style={{ display: 'inline-block' }}>
-              <div className="cli-bloco-valor">{fmtData(reserva.criadaEm)}</div>
-            </div>
-          </Col>
-      {(reserva.observacoes || reserva.observacao) && (
-        <Col xs={12}>
-          <p className="cli-label-secao">Suas Observações</p>
-          <div className="cli-obs-box">{reserva.observacoes || reserva.observacao}</div>
-        </Col>
-      )}
-      {reserva.status === 'recusada' && (reserva.motivoRecusa || reserva.motivo) && (
-        <Col xs={12}>
-          <p className="cli-label-secao">Motivo da Recusa</p>
-          <div className="cli-motivo-recusa">
-            <i className="bi bi-info-circle me-2"></i>
-            {reserva.motivoRecusa || reserva.motivo}
-          </div>
-        </Col>
-      )}
-      {reserva.status === 'cancelada' && (
-        <Col xs={12}>
-          <p className="cli-label-secao">Cancelamento & Reembolso</p>
-          <div className="cli-motivo-recusa" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
-            <i className="bi bi-arrow-counterclockwise me-2"></i>
-            {Number(reserva.valorReembolsado) > 0 ? (
-              <><strong>Reembolso Processado:</strong> {fmtMoeda(reserva.valorReembolsado)} estornados diretamente à sua operadora no Mercado Pago conforme a Cláusula 4 dos Termos de Uso.</>
-            ) : (
-              reserva.motivoRecusa || reserva.motivo || 'Cancelada conforme a política de uso.'
-            )}
-          </div>
-        </Col>
-      )}
+
+          {/* Avisos de Status / Prazos */}
+          {reserva.status === 'pagamento pendente' && (
+            <Col xs={12}>
+              <div className="p-3 rounded-3" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                <div>
+                  <strong><i className="bi bi-clock-history me-1"></i> Aguardando seu Pagamento:</strong> Sua reserva foi pré-aprovada!
+                </div>
+                {reserva.expiraEm && (
+                  <div className="mt-1 fw-bold" style={{ color: '#b45309' }}>
+                    <i className="bi bi-hourglass-split me-1"></i> Pague até {fmtDataHora(reserva.expiraEm)} (24 horas) para garantir suas datas.
+                  </div>
+                )}
+              </div>
+            </Col>
+          )}
+
+          {reserva.status === 'pendente' && (
+            <Col xs={12}>
+              <div className="p-3 rounded-3" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                <i className="bi bi-info-circle me-1"></i>
+                <strong>Aguardando Aprovação do Anfitrião:</strong> O proprietário analisa sua solicitação.
+                {reserva.expiraEm && (
+                  <span className="ms-1">
+                    Prazo para resposta: até <strong>{fmtDataHora(reserva.expiraEm)} (48 horas)</strong>.
+                  </span>
+                )}
+              </div>
+            </Col>
+          )}
+
+          {(reserva.observacoes || reserva.observacao) && (
+            <Col xs={12}>
+              <p className="cli-label-secao mb-1">Suas Observações</p>
+              <div className="cli-obs-box py-2 px-3" style={{ fontSize: '0.88rem' }}>{reserva.observacoes || reserva.observacao}</div>
+            </Col>
+          )}
+
+          {reserva.status === 'recusada' && (reserva.motivoRecusa || reserva.motivo) && (
+            <Col xs={12}>
+              <p className="cli-label-secao mb-1">Motivo da Recusa</p>
+              <div className="cli-motivo-recusa py-2 px-3" style={{ fontSize: '0.88rem' }}>
+                <i className="bi bi-info-circle me-2"></i>
+                {reserva.motivoRecusa || reserva.motivo}
+              </div>
+            </Col>
+          )}
+
+          {reserva.status === 'cancelada' && (
+            <Col xs={12}>
+              <p className="cli-label-secao mb-1">Cancelamento & Reembolso</p>
+              <div className="cli-motivo-recusa py-2 px-3" style={{ background: Number(reserva.valorReembolsado) > 0 ? '#f0fdf4' : '#fff1f2', borderColor: Number(reserva.valorReembolsado) > 0 ? '#bbf7d0' : '#fecaca', color: Number(reserva.valorReembolsado) > 0 ? '#166534' : '#9a3412', fontSize: '0.88rem' }}>
+                <i className={`bi ${Number(reserva.valorReembolsado) > 0 ? 'bi-arrow-counterclockwise' : 'bi-x-circle'} me-2`}></i>
+                {Number(reserva.valorReembolsado) > 0 ? (
+                  <><strong>Reembolso Processado:</strong> {fmtMoeda(reserva.valorReembolsado)} estornados diretamente à sua operadora no Mercado Pago conforme a Cláusula 4 dos Termos de Uso.</>
+                ) : (
+                  reserva.motivoRecusa || reserva.motivo || 'Cancelada conforme a política de uso.'
+                )}
+              </div>
+            </Col>
+          )}
         </Row>
       </Modal.Body>
-      <Modal.Footer className="border-0 pt-0 d-flex justify-content-between flex-wrap gap-2">
-        <div className="d-flex align-items-center gap-2 flex-wrap">
-          {reserva.status === 'pagamento pendente' && aoPagar && (
-            <Button
-              variant="success"
-              style={{ borderRadius: '50px', fontWeight: 700 }}
-              disabled={pagando}
-              onClick={() => aoPagar(reserva)}
-            >
-              <i className="bi bi-credit-card-2-front me-2"></i>
-              {pagando ? 'Abrindo Pagamento...' : 'Efetuar Pagamento (Pix / Cartão)'}
-            </Button>
-          )}
+      <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
+        <Button variant="outline-secondary" size="sm" style={{ borderRadius: '50px', padding: '0.42rem 1.1rem', fontSize: '0.85rem' }} onClick={aoFechar}>
+          Fechar
+        </Button>
+        <div className="d-flex align-items-center gap-2">
           <a
-            href={`https://wa.me/5512996297452?text=Olá! Tenho uma dúvida sobre minha reserva ${reserva.id}`}
+            href={`https://wa.me/5512997193233?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre minha reserva #${reserva.id} no Recanto Camargo.`)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="cli-btn-whats"
+            style={{ padding: '0.42rem 0.95rem', fontSize: '0.85rem', borderRadius: '50px' }}
           >
-            <Ico.Whats /> Falar com o Proprietário
+            <Ico.Whats /> WhatsApp
           </a>
+          {podeCanc && aoCancelar && (
+            <Button
+              variant="outline-danger"
+              size="sm"
+              style={{ borderRadius: '50px', fontWeight: 600, padding: '0.42rem 0.95rem', fontSize: '0.85rem' }}
+              onClick={() => {
+                aoFechar();
+                aoCancelar(reserva);
+              }}
+            >
+              <i className="bi bi-x-circle me-1"></i>
+              Cancelar Reserva
+            </Button>
+          )}
+          {reserva.status === 'pagamento pendente' && aoPagar && (
+            <Button
+              variant="success"
+              size="sm"
+              style={{ borderRadius: '50px', fontWeight: 700, padding: '0.42rem 1.15rem', fontSize: '0.85rem' }}
+              disabled={pagando}
+              onClick={() => aoPagar(reserva)}
+            >
+              <i className="bi bi-credit-card-2-front me-1"></i>
+              {pagando ? 'Abrindo...' : 'Pagar Reserva'}
+            </Button>
+          )}
         </div>
-        <Button variant="outline-secondary" style={{ borderRadius: '50px' }} onClick={aoFechar}>Fechar</Button>
       </Modal.Footer>
     </Modal>
   );
@@ -266,63 +370,149 @@ function ModalDetalheReserva({ reserva, aoFechar, aoPagar, pagando = false }) {
 ModalDetalheReserva.propTypes = {
   reserva: PropTypes.object,
   aoFechar: PropTypes.func.isRequired,
+  aoCancelar: PropTypes.func,
   aoPagar: PropTypes.func,
   pagando: PropTypes.bool,
 };
 
 // ─── Modal Cancelar Reserva ───────────────────────────────────────────────────
-function ModalCancelar({ reserva, aoFechar, aoConfirmar }) {
+function ModalCancelar({ reserva, aoFechar, aoConfirmar, cancelando = false }) {
   const [motivo, setMotivo] = useState('');
   if (!reserva) return null;
+
+  const estimativaReembolso = (() => {
+    if (!reserva?.checkin) return null;
+    if (reserva.status !== 'aprovada') return null;
+    const checkinDate = new Date(reserva.checkin);
+    const ano = checkinDate.getUTCFullYear();
+    const mes = checkinDate.getUTCMonth();
+    const dia = checkinDate.getUTCDate();
+    const checkinHora = new Date(ano, mes, dia, 14, 0, 0, 0);
+    const diffMs = checkinHora.getTime() - Date.now();
+    const horas = Math.max(0, diffMs / (1000 * 60 * 60));
+    const total = Number(reserva.total ?? reserva.valorTotal ?? 0);
+    let percentual = 0;
+    let descricao = '';
+    let cor = '#991b1b';
+    let bg = '#fef2f2';
+    let borda = '#fecaca';
+
+    if (horas >= 168) {
+      percentual = 100;
+      descricao = 'Cancelamento com mais de 7 dias de antecedência: 100% de reembolso integral estornado no Mercado Pago.';
+      cor = '#166534';
+      bg = '#f0fdf4';
+      borda = '#bbf7d0';
+    } else if (horas >= 48) {
+      percentual = 50;
+      descricao = 'Cancelamento entre 2 e 7 dias de antecedência: 50% de reembolso (retenção de 50%).';
+      cor = '#92400e';
+      bg = '#fffbeb';
+      borda = '#fde68a';
+    } else {
+      percentual = 0;
+      descricao = 'Cancelamento com menos de 48h do check-in: sem direito a reembolso conforme os Termos de Uso (retenção de 100%).';
+      cor = '#991b1b';
+      bg = '#fef2f2';
+      borda = '#fecaca';
+    }
+    const valor = Math.round((total * (percentual / 100)) * 100) / 100;
+    return { percentual, valor, descricao, cor, bg, borda };
+  })();
+
   return (
-    <Modal show onHide={aoFechar} centered className="cli-modal">
-      <Modal.Header closeButton className="cli-modal-header-danger">
-        <Modal.Title>Cancelar Reserva #{reserva.id}</Modal.Title>
+    <Modal show onHide={aoFechar} centered scrollable size="lg" className="cli-modal">
+      <Modal.Header closeButton className="cli-modal-header-danger py-2 px-3 px-md-4">
+        <Modal.Title style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 700 }}>
+          <i className="bi bi-exclamation-triangle-fill me-2"></i>
+          Cancelar Reserva #{reserva.id}
+        </Modal.Title>
       </Modal.Header>
-      <Modal.Body className="p-4">
-        {/* Sugestão de Remarcação Amigável via WhatsApp */}
-        <div className="p-3 mb-3 rounded-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-          <div className="d-flex align-items-center justify-content-between flex-wrap gap-2">
-            <div>
-              <div className="fw-bold text-success small d-flex align-items-center">
-                <i className="bi bi-whatsapp me-2 fs-6" />
-                Prefere remarcar sua estadia para outra data?
+      <Modal.Body className="p-3 px-md-4 py-md-3">
+        <Row className="g-3 mb-3">
+          {/* Coluna 1: Sugestão de Remarcação */}
+          <Col md={6}>
+            <div className="p-3 rounded-3 border h-100 d-flex flex-column justify-content-between" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+              <div>
+                <div className="fw-bold text-success small d-flex align-items-center mb-1">
+                  <i className="bi bi-whatsapp me-2 fs-6" />
+                  Prefere remarcar sua estadia para outra data?
+                </div>
+                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                  Antes de cancelar, você pode solicitar a remarcação de datas diretamente com o anfitrião sem qualquer multa ou taxa extra!
+                </div>
               </div>
-              <div className="text-muted" style={{ fontSize: '0.8rem' }}>
-                Antes de cancelar, você pode solicitar a remarcação de datas diretamente com o anfitrião sem multas!
+              <div className="mt-3">
+                <a
+                  href={`https://wa.me/5512997193233?text=${encodeURIComponent(`Olá! Gostaria de verificar a possibilidade de remarcar minha reserva #${reserva.id} no Recanto Camargo.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-sm btn-success fw-semibold px-3 py-1 d-inline-flex align-items-center"
+                  style={{ borderRadius: '50px' }}
+                >
+                  <i className="bi bi-whatsapp me-1" />
+                  Remarcar no WhatsApp
+                </a>
               </div>
             </div>
-            <a
-              href={`https://wa.me/5512997193233?text=${encodeURIComponent(`Olá! Gostaria de verificar a possibilidade de remarcar minha reserva #${reserva.id} no Recanto Camargo.`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-sm btn-success fw-semibold px-3 py-1 d-inline-flex align-items-center"
-              style={{ borderRadius: '50px' }}
-            >
-              <i className="bi bi-whatsapp me-1" />
-              Remarcar no WhatsApp
-            </a>
-          </div>
-        </div>
+          </Col>
 
-        <div className="cli-aviso-cancelar mb-3">
-          <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          Tem certeza que deseja cancelar? Conforme a política dos Termos de Uso, pedidos com mais de 7 dias têm 100% de reembolso; entre 2 e 7 dias, 50% de reembolso; e com menos de 48h, não há reembolso.
-        </div>
-        <label className="label-config mb-2 d-block">Motivo (opcional)</label>
+          {/* Coluna 2: Política de Cancelamento */}
+          <Col md={6}>
+            <div className="p-3 rounded-3 border h-100" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
+              <div className="fw-bold text-dark small d-flex align-items-center mb-1" style={{ color: '#92400e' }}>
+                <i className="bi bi-shield-exclamation me-2 fs-6" style={{ color: '#b45309' }}></i>
+                Política de Cancelamento (Termos de Uso)
+              </div>
+              <ul className="small text-muted ps-3 mb-0" style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>
+                <li><strong>Mais de 7 dias de antecedência:</strong> 100% de reembolso integral.</li>
+                <li><strong>Entre 2 e 7 dias de antecedência:</strong> 50% de reembolso.</li>
+                <li><strong>Com menos de 48h do check-in:</strong> Não há reembolso (retenção de 100%).</li>
+              </ul>
+            </div>
+          </Col>
+        </Row>
+
+        {estimativaReembolso && (
+          <div
+            className="p-3 rounded-3 mb-3 border small"
+            style={{
+              background: estimativaReembolso.bg,
+              borderColor: estimativaReembolso.borda,
+              color: estimativaReembolso.cor
+            }}
+          >
+            <div className="fw-bold d-flex align-items-center mb-1">
+              <i className="bi bi-info-circle-fill me-2" />
+              Previsão de Reembolso: {fmtMoeda(estimativaReembolso.valor)} ({estimativaReembolso.percentual}%)
+            </div>
+            <div>{estimativaReembolso.descricao}</div>
+          </div>
+        )}
+
+        <label className="label-config mb-1 d-block small fw-semibold text-muted">Motivo do cancelamento (opcional)</label>
         <textarea
           className="form-controle-config w-100"
-          rows={3}
+          rows={2}
           placeholder="Nos conte o motivo do cancelamento..."
           value={motivo}
           onChange={e => setMotivo(e.target.value)}
-          style={{ borderRadius: '12px', padding: '0.75rem', border: '1px solid #e2e8f0', resize: 'vertical' }}
+          style={{ borderRadius: '10px', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', resize: 'vertical', fontSize: '0.88rem' }}
         />
       </Modal.Body>
-      <Modal.Footer className="border-0 pt-0 gap-2">
-        <Button variant="outline-secondary" style={{ borderRadius: '50px' }} onClick={aoFechar}>Voltar</Button>
-        <Button variant="danger" style={{ borderRadius: '50px', padding: '0.55rem 1.5rem' }} onClick={() => aoConfirmar(reserva.id, motivo)}>
-          <i className="bi bi-x-circle me-2"></i>Confirmar Cancelamento
+      <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
+        <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} onClick={aoFechar} disabled={cancelando}>Voltar</Button>
+        <Button
+          variant="danger"
+          style={{ borderRadius: '50px', padding: '0.45rem 1.4rem', fontSize: '0.88rem' }}
+          onClick={() => aoConfirmar(reserva.id, motivo)}
+          disabled={cancelando}
+        >
+          {cancelando ? (
+            <><span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />Cancelando...</>
+          ) : (
+            <><i className="bi bi-x-circle me-2" />Confirmar Cancelamento</>
+          )}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -332,6 +522,7 @@ ModalCancelar.propTypes = {
   reserva: PropTypes.object,
   aoFechar: PropTypes.func.isRequired,
   aoConfirmar: PropTypes.func.isRequired,
+  cancelando: PropTypes.bool,
 };
 
 // ─── Modal Avaliação ──────────────────────────────────────────────────────────
@@ -531,7 +722,7 @@ ModalAvaliar.propTypes = {
 function CardReserva({ reserva, onVer, onCancelar, onAvaliar, onPagar, pagando = false }) {
   const n    = calcNoites(reserva.checkin, reserva.checkout);
   const dias = diasAteCheckin(reserva.checkin);
-  const podeCanc = podeCancelar(reserva.checkin) && (reserva.status === 'aprovada' || reserva.status === 'pendente' || reserva.status === 'pagamento pendente');
+  const podeCanc = podeCancelar(reserva);
 
   return (
     <div className="cli-card-reserva">
@@ -571,9 +762,16 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar, onPagar, pagando =
       )}
 
       {reserva.status === 'cancelada' && (
-        <div className="cli-motivo-recusa" style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}>
-          <i className="bi bi-arrow-counterclockwise me-2"></i>
+        <div className="cli-motivo-recusa" style={{ background: Number(reserva.valorReembolsado) > 0 ? '#f0fdf4' : '#fff1f2', borderColor: Number(reserva.valorReembolsado) > 0 ? '#bbf7d0' : '#fecaca', color: Number(reserva.valorReembolsado) > 0 ? '#166534' : '#9a3412' }}>
+          <i className={`bi ${Number(reserva.valorReembolsado) > 0 ? 'bi-arrow-counterclockwise' : 'bi-x-circle'} me-2`}></i>
           <strong>Reserva Cancelada:</strong> {Number(reserva.valorReembolsado) > 0 ? `Reembolso de ${fmtMoeda(reserva.valorReembolsado)} processado via Mercado Pago.` : (reserva.motivoRecusa || reserva.motivo || 'Cancelada conforme Termos de Uso.')}
+        </div>
+      )}
+
+      {reserva.status === 'pagamento pendente' && (
+        <div className="cli-motivo-recusa" style={{ background: '#fef3c7', borderColor: '#fde68a', color: '#92400e' }}>
+          <i className="bi bi-clock-history me-2"></i>
+          <strong>Pré-Aprovada!</strong> {reserva.expiraEm ? `Pague até ${fmtDataHora(reserva.expiraEm)} para garantir suas datas.` : 'Efetue o pagamento em até 24h para garantir suas datas.'}
         </div>
       )}
 
@@ -623,7 +821,7 @@ CardReserva.propTypes = {
   pagando: PropTypes.bool,
 };
 
-function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao, onPagar, pagandoId }) {
+function VisaoGeral({ reservas, cupons, onVerReserva, onCancelarReserva, onIrAba, reputacao, onPagar, pagandoId }) {
   const hoje = useMemo(() => {
     const h = new Date();
     h.setHours(0, 0, 0, 0);
@@ -753,8 +951,17 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba, reputacao, onPaga
                   <button className="cli-btn-ver" onClick={() => onVerReserva(proxima)}>
                     <i className="bi bi-eye me-1"></i>Ver Detalhes
                   </button>
+                  {podeCancelar(proxima) && onCancelarReserva && (
+                    <button
+                      type="button"
+                      className="cli-btn-cancelar"
+                      onClick={() => onCancelarReserva(proxima)}
+                    >
+                      <i className="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                  )}
                   <a
-                    href="https://wa.me/5512996297452"
+                    href="https://wa.me/5512997193233"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="cli-btn-whats-sm"
@@ -795,6 +1002,7 @@ VisaoGeral.propTypes = {
   reservas: PropTypes.array.isRequired,
   cupons: PropTypes.array.isRequired,
   onVerReserva: PropTypes.func.isRequired,
+  onCancelarReserva: PropTypes.func,
   onIrAba: PropTypes.func.isRequired,
   reputacao: PropTypes.object,
   onPagar: PropTypes.func,
@@ -1079,6 +1287,7 @@ function DashboardCliente() {
   const [avaliacaoEnviando, setAvaliacaoEnviando] = useState(false);
   const [erroAvaliacao, setErroAvaliacao] = useState('');
   const [pagandoReservaId, setPagandoReservaId] = useState(null);
+  const [cancelando, setCancelando] = useState(false);
 
   // Proteção de rota
   useEffect(() => { if (tipo !== 'hospede') navigate('/'); }, [tipo, navigate]);
@@ -1193,6 +1402,7 @@ function DashboardCliente() {
 
   // RN02 — Cancelamento
   const confirmarCancelamento = useCallback(async (id, motivo) => {
+    setCancelando(true);
     try {
       const resposta = await fetch(`${API_BASE}/api/hospede/reservas/${id}/cancelar`, {
         method: 'PATCH',
@@ -1201,21 +1411,34 @@ function DashboardCliente() {
         body: JSON.stringify({ motivo })
       });
 
+      const dados = await resposta.json().catch(() => null);
+
       if (!resposta.ok) {
-        throw new Error('Falha ao cancelar');
+        throw new Error(dados?.error || 'Falha ao cancelar');
       }
 
       const atualizadas = reservas.map(r =>
-        r.id === id ? { ...r, status: 'cancelada', motivoCancelamento: motivo } : r
+        r.id === id ? {
+          ...r,
+          status: 'cancelada',
+          motivoCancelamento: motivo,
+          valorReembolsado: dados?.calculo?.valorReembolso ?? r.valorReembolsado,
+          motivo: dados?.calculo?.descricaoRegra || motivo || r.motivo
+        } : r
       );
       salvarReservas(atualizadas);
       setModalCancelar(null);
-      fb('sucesso', `Reserva #${id} cancelada com sucesso.`);
+      if (modalDetalhe && modalDetalhe.id === id) {
+        setModalDetalhe(null);
+      }
+      fb('sucesso', dados?.message || `Reserva #${id} cancelada com sucesso.`);
     } catch (erro) {
       console.error(erro);
-      fb('erro', 'Não foi possível cancelar a reserva. Tente novamente.');
+      fb('erro', erro.message || 'Não foi possível cancelar a reserva. Tente novamente.');
+    } finally {
+      setCancelando(false);
     }
-  }, [reservas]);
+  }, [reservas, modalDetalhe]);
 
   // Integração Mercado Pago — Gerar preferência e abrir Checkout Pro
   const handlePagar = useCallback(async (reserva) => {
@@ -1353,6 +1576,7 @@ function DashboardCliente() {
             reservas={reservas}
             cupons={cupons}
             onVerReserva={setModalDetalhe}
+            onCancelarReserva={setModalCancelar}
             onIrAba={irAba}
             reputacao={reputacao}
             onPagar={handlePagar}
@@ -1504,10 +1728,19 @@ function DashboardCliente() {
       <ModalDetalheReserva
         reserva={modalDetalhe}
         aoFechar={() => setModalDetalhe(null)}
+        aoCancelar={(res) => {
+          setModalDetalhe(null);
+          setModalCancelar(res);
+        }}
         aoPagar={handlePagar}
         pagando={pagandoReservaId === modalDetalhe?.id}
       />
-      <ModalCancelar       reserva={modalCancelar} aoFechar={() => setModalCancelar(null)} aoConfirmar={confirmarCancelamento} />
+      <ModalCancelar
+        reserva={modalCancelar}
+        aoFechar={() => setModalCancelar(null)}
+        aoConfirmar={confirmarCancelamento}
+        cancelando={cancelando}
+      />
       <ModalAvaliar
         reserva={modalAvaliar}
         aoFechar={fecharModalAvaliacao}

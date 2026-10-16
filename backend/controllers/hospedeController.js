@@ -209,6 +209,7 @@ exports.listarReservas = async (req, res) => {
                 r.Res_DataReserva as criadaEm,
                 r.Res_ObsHospede as observacao,
                 (SELECT His_Motivo FROM his_historicoreservastatus hhs WHERE hhs.Res_Id = r.Res_Id ORDER BY hhs.His_DataAlteracao DESC LIMIT 1) as motivo,
+                (SELECT MAX(hhs.His_DataAlteracao) FROM his_historicoreservastatus hhs WHERE hhs.Res_Id = r.Res_Id AND hhs.His_StatusAtual = 'PAGAMENTO_PENDENTE') as dataAprovacao,
                 p.Pag_ValorReembolsado as valorReembolsado,
                 p.Pag_Status as pagamentoStatus,
                 i.Imo_Nome as imovel,
@@ -265,6 +266,24 @@ exports.listarReservas = async (req, res) => {
             'CONCLUIDA': 'concluida'
         };
 
+        const calcularExpiraEm = (reserva) => {
+            if (!reserva.criadaEm) return null;
+            const checkinTime = reserva.checkin ? new Date(reserva.checkin).getTime() : Infinity;
+            if (reserva.status === 'PENDENTE') {
+                const base = new Date(reserva.criadaEm).getTime();
+                const exp48h = base + 48 * 60 * 60 * 1000;
+                const limite = Math.min(exp48h, checkinTime);
+                return new Date(limite).toISOString();
+            }
+            if (reserva.status === 'PAGAMENTO_PENDENTE') {
+                const base = new Date(reserva.dataAprovacao || reserva.criadaEm).getTime();
+                const exp24h = base + 24 * 60 * 60 * 1000;
+                const limite = Math.min(exp24h, checkinTime);
+                return new Date(limite).toISOString();
+            }
+            return null;
+        };
+
         const reservasFormatadas = reservas.map(r => {
             const {
                 avaliacaoId,
@@ -280,9 +299,10 @@ exports.listarReservas = async (req, res) => {
             return {
                 ...reserva,
                 id: reserva.id.toString(),
-                checkin: reserva.checkin.toISOString().split('T')[0],
-                checkout: reserva.checkout.toISOString().split('T')[0],
-                criadaEm: reserva.criadaEm.toISOString().split('T')[0],
+                checkin: reserva.checkin ? (reserva.checkin instanceof Date ? reserva.checkin.toISOString().split('T')[0] : String(reserva.checkin).slice(0, 10)) : null,
+                checkout: reserva.checkout ? (reserva.checkout instanceof Date ? reserva.checkout.toISOString().split('T')[0] : String(reserva.checkout).slice(0, 10)) : null,
+                criadaEm: reserva.criadaEm ? (reserva.criadaEm instanceof Date ? reserva.criadaEm.toISOString() : new Date(reserva.criadaEm).toISOString()) : null,
+                expiraEm: calcularExpiraEm(reserva),
                 status: statusMap[reserva.status] || 'pendente',
                 formaPagamento: 'PIX',
                 valorReembolsado: Number(reserva.valorReembolsado || 0),

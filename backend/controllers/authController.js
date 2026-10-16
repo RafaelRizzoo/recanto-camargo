@@ -90,8 +90,45 @@ exports.cadastrar = async (req, res) => {
         const queryHospede = `INSERT INTO hos_hospede (Usu_Id) VALUES (?)`;
         await conexao.query(queryHospede, [novoUsuarioId]);
 
+        // Notificação de boas-vindas in-app (Sino do Painel)
+        const notificacoes = req.app.get('notificacoes');
+        if (notificacoes?.criarNotificacao) {
+            await notificacoes.criarNotificacao(
+                novoUsuarioId,
+                'Bem-vindo ao Recanto Camargo!',
+                `Olá, ${nome}! Sua conta foi criada com sucesso. Estamos prontos para receber você e sua família com todo carinho e conforto em Aparecida-SP.`,
+                'SUCESSO',
+                'bi-house-heart',
+                conexao
+            );
+        }
+
         await conexao.commit();
         res.status(201).json({ message: 'Conta de Hóspede criada com sucesso!' });
+
+        // Disparo assíncrono do e-mail de Boas-Vindas estilo plataforma de hospedagem
+        const emailService = req.app.get('emailService');
+        if (emailService?.enviarEmail && email) {
+            const { enviarEmail, criarEmailBoasVindas, criarHtmlEmail } = emailService;
+            const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+            const tituloEmail = 'Bem-vindo(a) ao Recanto Camargo! 🏡';
+
+            const htmlCorpo = typeof criarEmailBoasVindas === 'function'
+                ? criarEmailBoasVindas({
+                    nome,
+                    email,
+                    telefone,
+                    frontendUrl
+                })
+                : (criarHtmlEmail ? criarHtmlEmail(tituloEmail, 'Bem-vindo ao Recanto Camargo!', { nome }) : '<p>Bem-vindo ao Recanto Camargo!</p>');
+
+            void Promise.resolve().then(() => enviarEmail(
+                email,
+                tituloEmail,
+                htmlCorpo,
+                `cadastro/boas-vindas/${novoUsuarioId}`
+            )).catch((errEmail) => console.error('Erro ao enviar e-mail de boas-vindas no cadastro:', errEmail));
+        }
     } catch (error) {
         if (conexao) await conexao.rollback();
         console.error('Erro no cadastro:', error);
@@ -104,6 +141,110 @@ exports.cadastrar = async (req, res) => {
     }
 };
 
+// =============================================================================
+// MONITOR DE TENTATIVAS DE LOGIN E ALERTA ANTI-BRUTE FORCE / PHISHING (OWASP A07)
+// =============================================================================
+const tentativasFalhasPorUsuario = new Map();
+const LIMITE_TENTATIVAS_ALERTA = 5;
+const JANELA_TENTATIVAS_MS = 15 * 60 * 1000; // 15 minutos
+const COOLDOWN_ALERTA_MS = 24 * 60 * 60 * 1000; // 24 horas entre e-mails de alerta
+
+function extrairIpCliente(req) {
+    const rawIp = req?.headers?.['x-forwarded-for']
+        ? String(req.headers['x-forwarded-for']).split(',')[0].trim()
+        : (req?.socket?.remoteAddress || req?.ip || '127.0.0.1');
+    return String(rawIp || '127.0.0.1').replace(/^::ffff:/, '');
+}
+
+async function registrarFalhaLogin(usuario, req) {
+    const agora = Date.now();
+    const usuId = usuario.Usu_Id;
+    let registro = tentativasFalhasPorUsuario.get(usuId);
+
+    if (!registro || (agora - registro.primeiraFalhaEm) > JANELA_TENTATIVAS_MS) {
+        registro = {
+            tentativas: 1,
+            primeiraFalhaEm: agora,
+            ultimoAvisoEm: registro?.ultimoAvisoEm || 0
+        };
+    } else {
+        registro.tentativas += 1;
+    }
+
+    tentativasFalhasPorUsuario.set(usuId, registro);
+
+    // Quando atinge o limite de 5 tentativas consecutivas na janela de 15 minutos
+    if (registro.tentativas >= LIMITE_TENTATIVAS_ALERTA) {
+        registro.bloqueadoAte = agora + JANELA_TENTATIVAS_MS;
+        tentativasFalhasPorUsuario.set(usuId, registro);
+
+        const podeEnviarAlerta = (agora - registro.ultimoAvisoEm) >= COOLDOWN_ALERTA_MS;
+        if (podeEnviarAlerta) {
+            registro.ultimoAvisoEm = agora;
+            tentativasFalhasPorUsuario.set(usuId, registro);
+
+            const emailService = req?.app?.get ? req.app.get('emailService') : null;
+            if (emailService) {
+                const { enviarEmail, criarHtmlEmail } = emailService;
+                const ipOrigem = extrairIpCliente(req);
+                const dataHoraFormatada = new Intl.DateTimeFormat('pt-BR', {
+                    dateStyle: 'short',
+                    timeStyle: 'medium',
+                    timeZone: 'America/Sao_Paulo'
+                }).format(new Date());
+
+                const tituloAlerta = 'Alerta de Segurança — Tentativas de Acesso Incomuns';
+                const mensagemAlerta = `Identificamos ${registro.tentativas} tentativas consecutivas de acesso com senha incorreta à sua conta no Recanto Camargo.\n\nSe foi você quem tentou entrar e esqueceu a senha, desconsidere este aviso ou utilize a recuperação de conta no site oficial.\n\nCaso você NÃO reconheça essa atividade, acerte sua proteção acessando o site oficial diretamente pelo seu navegador e altere sua senha imediatamente.\n\n🛡️ Segurança Anti-Phishing: Por precaução, este e-mail NÃO contém botões nem links clicáveis de login ou redefinição. O Recanto Camargo NUNCA solicita sua senha, tokens ou pagamentos por e-mail, telefone ou WhatsApp.`;
+
+                const htmlCorpo = criarHtmlEmail(tituloAlerta, mensagemAlerta, {
+                    nome: usuario.Usu_Nome,
+                    badge: '⚠️ Alerta de Segurança',
+                    badgeCorFundo: '#fce8e6',
+                    badgeCorTexto: '#c5221f',
+                    semBotao: true,
+                    detalhes: [
+                        { rotulo: 'Conta / E-mail', valor: usuario.Usu_Email },
+                        { rotulo: 'Data e Horário', valor: dataHoraFormatada },
+                        { rotulo: 'Endereço IP Detectado', valor: ipOrigem },
+                        { rotulo: 'Status da Conta', valor: 'Protegida (Trava ativa)' },
+                        { rotulo: 'Ação Recomendada', valor: 'Acessar o site oficial pelo navegador' }
+                    ]
+                });
+
+                const diaChave = new Date().toISOString().slice(0, 10);
+                return Promise.resolve().then(() => {
+                    return enviarEmail(
+                        usuario.Usu_Email,
+                        tituloAlerta,
+                        htmlCorpo,
+                        `alerta-seguranca/${usuId}/${diaChave}`
+                    );
+                }).catch(err => console.error('Falha ao disparar e-mail de alerta de segurança:', err.message));
+            }
+        }
+    }
+    return Promise.resolve();
+}
+
+function estaContaBloqueada(usuarioId) {
+    const registro = tentativasFalhasPorUsuario.get(usuarioId);
+    if (!registro) return false;
+    const agora = Date.now();
+    if (registro.bloqueadoAte && agora < registro.bloqueadoAte) {
+        return true;
+    }
+    return false;
+}
+
+function limparFalhasLogin(usuarioId) {
+    const registro = tentativasFalhasPorUsuario.get(usuarioId);
+    if (registro) {
+        registro.tentativas = 0;
+        registro.bloqueadoAte = 0;
+        tentativasFalhasPorUsuario.set(usuarioId, registro);
+    }
+}
+
 exports.login = async (req, res) => {
     try {
         const { email, senha } = req.body;
@@ -115,8 +256,20 @@ exports.login = async (req, res) => {
         if (!usuario) return res.status(401).json({ error: 'Credenciais inválidas.' });
         if (usuario.Usu_Status !== 'ATIVO') return res.status(403).json({ error: 'Esta conta encontra-se inativa ou bloqueada.' });
 
+        // Camada 2: Proteção Temporal por Conta (Dual-Layer OWASP A07 contra VPNs e bots)
+        if (estaContaBloqueada(usuario.Usu_Id)) {
+            return res.status(429).json({ 
+                error: 'Esta conta está temporariamente protegida devido a múltiplas tentativas incorretas. Tente novamente em 15 minutos.' 
+            });
+        }
+
         const senhaCorreta = await bcrypt.compare(senha, usuario.Usu_SenhaHash);
-        if (!senhaCorreta) return res.status(401).json({ error: 'Credenciais inválidas.' });
+        if (!senhaCorreta) {
+            await registrarFalhaLogin(usuario, req);
+            return res.status(401).json({ error: 'Credenciais inválidas.' });
+        }
+
+        limparFalhasLogin(usuario.Usu_Id);
 
         const [adminRows] = await db.query('SELECT * FROM pro_proprietario WHERE Usu_Id = ?', [usuario.Usu_Id]);
         const isAdmin = adminRows.length > 0;
@@ -259,3 +412,16 @@ exports.alterarSenha = async (req, res) => {
         res.status(500).json({ error: 'Erro interno ao alterar senha.' });
     }
 };
+
+// Test hooks para inspeção em testes automatizados
+exports._testHooks = {
+    tentativasFalhasPorUsuario,
+    registrarFalhaLogin,
+    estaContaBloqueada,
+    limparFalhasLogin,
+    extrairIpCliente,
+    LIMITE_TENTATIVAS_ALERTA,
+    JANELA_TENTATIVAS_MS,
+    COOLDOWN_ALERTA_MS
+};
+

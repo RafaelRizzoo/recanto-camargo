@@ -8,6 +8,7 @@ const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 
 function CalendarioCustom({ valor, onChange, minDate }) {
   const [reservas, setReservas] = useState([]);
+  const [erroConflito, setErroConflito] = useState('');
 
   useEffect(() => {
     if (IS_API_AVAILABLE) {
@@ -26,6 +27,7 @@ function CalendarioCustom({ valor, onChange, minDate }) {
   }, []);
 
   const handleCalendarChange = (range) => {
+    setErroConflito('');
     if (Array.isArray(range) && range[0] && range[1]) {
       const startIso = new Date(range[0].getTime() - range[0].getTimezoneOffset() * 60000).toISOString().split('T')[0];
       const endIso = new Date(range[1].getTime() - range[1].getTimezoneOffset() * 60000).toISOString().split('T')[0];
@@ -36,7 +38,7 @@ function CalendarioCustom({ valor, onChange, minDate }) {
       });
 
       if (conflito) {
-        alert('O período selecionado cruza com datas já reservadas. Por favor, ajuste sua seleção.');
+        setErroConflito('O período selecionado cruza com datas já reservadas. Por favor, ajuste sua seleção.');
         return;
       }
     }
@@ -92,11 +94,20 @@ function CalendarioCustom({ valor, onChange, minDate }) {
         locale="pt-BR"
         showFixedNumberOfWeeks={true}
       />
+      {erroConflito && (
+        <div 
+          className="alert alert-danger py-2 px-3 mt-2 mb-2 small d-flex align-items-center rounded-3 border-0 shadow-sm"
+          style={{ backgroundColor: '#fce8e6', color: '#c5221f', fontSize: '13px', lineHeight: '1.4' }}
+        >
+          <i className="bi bi-exclamation-triangle-fill me-2 fs-6 flex-shrink-0"></i>
+          <span>{erroConflito}</span>
+        </div>
+      )}
       <div className="calendario-legenda mt-2 d-flex flex-wrap gap-2">
         <div className="legenda-item"><div className="legenda-cor selecionado"></div> Selecionado</div>
         <div className="legenda-item"><div className="legenda-cor reservado"></div> Indisponível</div>
-        <div className="legenda-item"><div className="legenda-cor checkout-ocupado"></div> Saída</div>
-        <div className="legenda-item"><div className="legenda-cor checkin-ocupado"></div> Entrada</div>
+        <div className="legenda-item" title="Manhã ocupada por checkout anterior, tarde livre para sua entrada"><div className="legenda-cor checkout-ocupado"></div> Saída</div>
+        <div className="legenda-item" title="Manhã livre para sua saída, tarde ocupada por novo hóspede"><div className="legenda-cor checkin-ocupado"></div> Entrada</div>
         <div className="legenda-item"><div className="legenda-cor feriado"></div> Feriado</div>
       </div>
     </>
