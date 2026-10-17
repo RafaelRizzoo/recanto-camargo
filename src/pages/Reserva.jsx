@@ -10,7 +10,7 @@ import { API_BASE } from '../utils/api';
 
 const DIARIA = 270;
 const TAXA_LIMPEZA = 80;
-const WHATSAPP_NUMERO = '5512996297452';
+const WHATSAPP_NUMERO = '5512992126734';
 const MAPS_URL = 'https://www.google.com/maps?q=Recanto+Camargo+Aparecida+SP';
 
 function calcularNoites(checkin, checkout) {

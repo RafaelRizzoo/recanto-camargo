@@ -1,3 +1,15 @@
+import R2Fachada from "../assets/img/recanto2/fachada.webp";
+import R2Sala from "../assets/img/recanto2/sala.webp";
+import R2Cozinha from "../assets/img/recanto2/cozinha.webp";
+import R2Quarto1 from "../assets/img/recanto2/quarto1.webp";
+import R2Quarto2 from "../assets/img/recanto2/quarto2.webp";
+import R2Varanda from "../assets/img/recanto2/varanda.webp";
+import R2Gourmet from "../assets/img/recanto2/gourmet.webp";
+import R2Banheiro from "../assets/img/recanto2/banheiro.webp";
+import R2Escada from "../assets/img/recanto2/escada.webp";
+import R2Estar from "../assets/img/recanto2/estar.webp";
+import BasilicaArte from "../assets/img/artes/basilica.webp";
+
 import BanheiroImg from "../assets/img/comodos/Banheiro.webp";
 import ChurrasqueiraImg from "../assets/img/comodos/Churrasqueira.webp";
 import CozinhaImg from "../assets/img/comodos/Cozinha.webp";
@@ -39,6 +51,7 @@ export const comodidades = [
 export const pontosTuristicos = [
   {
     id: "basilica",
+    categoria: "Fé",
     titulo: "Santuário Nacional",
     descricao: "A maior basílica dedicada a Maria no mundo.",
     tempo: "5 min",
@@ -48,6 +61,7 @@ export const pontosTuristicos = [
   },
   {
     id: "passarela",
+    categoria: "Fé",
     titulo: "Passarela da Fé",
     descricao: "Caminho que liga a Basílica Velha ao Santuário.",
     tempo: "6 min",
@@ -57,6 +71,7 @@ export const pontosTuristicos = [
   },
   {
     id: "cruzeiro",
+    categoria: "Passeios",
     titulo: "Morro do Cruzeiro",
     descricao: "Vista privilegiada de toda a cidade e da Basílica.",
     tempo: "9 min",
@@ -66,6 +81,7 @@ export const pontosTuristicos = [
   },
   {
     id: "rosario",
+    categoria: "Fé",
     titulo: "Caminho do Rosário",
     descricao: "Cenários que retratam os mistérios do Rosário.",
     tempo: "5 min",
@@ -75,6 +91,7 @@ export const pontosTuristicos = [
   },
   {
     id: "porto",
+    categoria: "Passeios",
     titulo: "Porto Itaguaçu",
     descricao: "Local onde a imagem da Padroeira foi encontrada.",
     tempo: "7 min",
@@ -84,6 +101,7 @@ export const pontosTuristicos = [
   },
   {
     id: "feira",
+    categoria: "Compras",
     titulo: "Feira Livre",
     descricao: "O ponto ideal para compras e artigos religiosos.",
     tempo: "4 min",
@@ -214,4 +232,138 @@ export const linksFooter = [
   { id: "reserva", label: "Reservar", to: "/Reserva" },
   { id: "termos", label: "Termos de Uso", to: "/TermosDeUso" },
   { id: "privacidade", label: "Privacidade (LGPD)", to: "/Privacidade" },
+];
+
+export const contato = {
+  whatsapp: "5512992126734",
+  telefone: "(12) 99212-6734",
+  endereco: "Rua José Ourives, 76 - Ponte Alta",
+  cidade: "Aparecida, SP",
+  instagram: "https://www.instagram.com/recantocamargoaparecida/",
+  airbnb: "https://airbnb.com.br/h/recantocamargo",
+  google: "https://maps.app.goo.gl/yaAmQ3iSwUPoX5Pi9",
+  mensagemPadrao: "Olá! Gostaria de saber mais sobre a disponibilidade do Recanto Camargo.",
+};
+
+export const MAX_HOSPEDES = 10;
+
+export const mapaEmbedSrc =
+  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1279.723618367829!2d-45.23822072662757!3d-22.84648000473076!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ccc3d5a125211b%3A0x240324a5c110d090!2sRecanto%20Camargo!5e0!3m2!1sen!2sbr!4v1774143793114!5m2!1sen!2sbr";
+
+export const fotoBasilica = BasilicaArte;
+
+// consultaOnline: só o imóvel 1 existe na API de disponibilidade atual
+export const unidades = [
+  {
+    id: 1,
+    nome: "Recanto Camargo 1",
+    selo: "Recanto 1",
+    cor: "#FF751F",
+    foto: SalaImg,
+    alt: "Sala de estar do Recanto Camargo 1",
+    resumo:
+      "Casa completa para a família ou o grupo: sala, cozinha equipada, banheiro e área gourmet com churrasqueira.",
+    destaques: [
+      { icone: "bi-people", texto: "Até 10 hóspedes" },
+      { icone: "bi-door-closed", texto: "2 quartos" },
+      { icone: "bi-fire", texto: "Churrasqueira" },
+      { icone: "bi-car-front", texto: "Garagem" },
+    ],
+    consultaOnline: true,
+  },
+  {
+    id: 2,
+    nome: "Recanto Camargo 2",
+    selo: "Recanto 2",
+    cor: "#003366",
+    foto: R2Fachada,
+    alt: "Fachada do Recanto Camargo 2",
+    resumo:
+      "Casa completa, com sala, cozinha equipada, quartos com ventilador de teto e área gourmet com churrasqueira no terraço.",
+    destaques: [
+      { icone: "bi-people", texto: "Até 10 hóspedes" },
+      { icone: "bi-door-closed", texto: "2 quartos" },
+      { icone: "bi-fire", texto: "Churrasqueira" },
+      { icone: "bi-sun", texto: "Varanda" },
+    ],
+    consultaOnline: false,
+  },
+];
+
+export const galeriaPorUnidade = {
+  1: [
+    { src: SalaImg, alt: "Sala de estar" },
+    { src: FrenteImg, alt: "Fachada" },
+    { src: Quarto1Img, alt: "Quarto 1" },
+    { src: CozinhaImg, alt: "Cozinha" },
+    { src: ChurrasqueiraImg, alt: "Área gourmet" },
+    { src: Quarto2Img, alt: "Quarto 2" },
+    { src: BanheiroImg, alt: "Banheiro" },
+    { src: JardimImg, alt: "Jardim de inverno" },
+  ],
+  2: [
+    { src: R2Sala, alt: "Sala de estar" },
+    { src: R2Fachada, alt: "Fachada" },
+    { src: R2Quarto1, alt: "Quarto 1" },
+    { src: R2Cozinha, alt: "Cozinha" },
+    { src: R2Gourmet, alt: "Área gourmet" },
+    { src: R2Quarto2, alt: "Quarto 2" },
+    { src: R2Varanda, alt: "Varanda" },
+    { src: R2Banheiro, alt: "Banheiro" },
+    { src: R2Escada, alt: "Escada e corredor" },
+    { src: R2Estar, alt: "Área de estar" },
+  ],
+};
+
+export const fotosHero = { src: ChurrasqueiraImg, alt: "Área gourmet com churrasqueira do Recanto Camargo 1" };
+export const fotosExperiencia = [
+  { src: ChurrasqueiraImg, alt: "Área gourmet com churrasqueira" },
+  { src: CozinhaImg, alt: "Cozinha equipada" },
+];
+
+export const numerosExperiencia = [
+  { valor: "10", texto: "hóspedes por unidade" },
+  { valor: "2", texto: "quartos com enxoval incluso" },
+  { valor: "1", texto: "cozinha completa para toda a família" },
+  { valor: "+", texto: "área gourmet com churrasqueira" },
+];
+
+export const comodidadesGrupos = [
+  {
+    id: "dormir",
+    titulo: "Dormir bem",
+    itens: [
+      { icone: "bi-stars", texto: "Enxoval incluso" },
+      { icone: "bi-wind", texto: "Ventilador de teto" },
+    ],
+  },
+  {
+    id: "cozinhar",
+    titulo: "Cozinhar e conviver",
+    itens: [
+      { icone: "bi-egg-fried", texto: "Cozinha equipada" },
+      { icone: "bi-cup-hot", texto: "Utensílios domésticos" },
+      { icone: "bi-fire", texto: "Churrasqueira" },
+    ],
+  },
+  {
+    id: "conforto",
+    titulo: "Conforto e praticidade",
+    itens: [
+      { icone: "bi-wifi", texto: "Wi-Fi" },
+      { icone: "bi-tv", texto: "Smart TVs" },
+      { icone: "bi-car-front", texto: "Garagem" },
+      { icone: "bi-heart", texto: "Aceitamos pets" },
+    ],
+  },
+];
+
+export const depoimentosDestaque = [3, 6, 2];
+
+export const linksNavegacaoHome = [
+  { id: "topo", label: "Início" },
+  { id: "hospedagens", label: "Hospedagens" },
+  { id: "galeria", label: "Galeria" },
+  { id: "localizacao", label: "Localização" },
+  { id: "avaliacoes", label: "Avaliações" },
 ];

@@ -1,8 +1,8 @@
 import "./BotaoWhats.css";
+import { contato } from "../../data/conteudoSite";
 
 function BotaoWhats() {
-  const linkWhats =
-    "https://wa.me/5512996297452?text=Olá! Gostaria de saber mais sobre a disponibilidade do Recanto Camargo.";
+  const linkWhats = `https://wa.me/${contato.whatsapp}?text=${encodeURIComponent(contato.mensagemPadrao)}`;
 
   return (
     <a
@@ -11,6 +11,7 @@ function BotaoWhats() {
       target="_blank"
       rel="noopener noreferrer"
       title="Fale conosco no WhatsApp"
+      aria-label="Fale conosco no WhatsApp"
     >
       <i className="bi bi-whatsapp"></i>
     </a>

@@ -68,11 +68,13 @@ function ScrollToTop() {
 function AppContent() {
   const location = useLocation();
   const mostrarLayout = !ROTAS_SEM_LAYOUT.some(rota => location.pathname.startsWith(rota));
+  // A Home tem cabeçalho próprio (transparente sobre o Hero).
+  const ehHome = location.pathname === '/';
 
   return (
     <div className="app-shell">
       <ScrollToTop />
-      {mostrarLayout && <Menu />}
+      {mostrarLayout && !ehHome && <Menu />}
 
       <div className="app-main flex-grow-1">
         <Suspense fallback={<CarregandoPagina />}>

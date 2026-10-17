@@ -1,72 +1,82 @@
-import { Container, Row, Col } from "react-bootstrap";
 import { Link, useLocation } from "react-router-dom";
 import "./footer.css";
-import { linksFooter } from "../data/conteudoSite";
+import { contato, linksFooter } from "../data/conteudoSite";
+
+const REDES = [
+  { id: "instagram", label: "Instagram", href: contato.instagram, icone: "bi-instagram" },
+  { id: "airbnb", label: "Airbnb", href: contato.airbnb, icone: "bi-airbnb" },
+  { id: "google", label: "Avaliações no Google", href: contato.google, icone: "bi-google" },
+];
 
 function Footer() {
   const location = useLocation();
 
   const lidarCliqueLink = (destino) => {
-    const atual = (location.pathname || '').toLowerCase();
-    const dest = (destino || '').toLowerCase();
+    const atual = (location.pathname || "").toLowerCase();
+    const dest = (destino || "").toLowerCase();
 
     const ehMesmaPagina =
       atual === dest ||
-      (dest === '/' && (atual === '/' || atual === '' || window.location.hash === '#/' || window.location.hash === ''));
+      (dest === "/" && (atual === "/" || atual === "" || window.location.hash === "#/" || window.location.hash === ""));
 
     if (ehMesmaPagina) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      const rootEl = document.getElementById('root');
-      if (rootEl) rootEl.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      const rootEl = document.getElementById("root");
+      if (rootEl) rootEl.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   return (
-    <footer className="footer-recanto pt-5 pb-3">
-      <Container>
-        <Row className="gy-4">
-          <Col lg={4} className="text-center text-lg-start">
-            <h3 className="fonte-logo text-white mb-3">Recanto Camargo</h3>
-            <p className="text-white opacity-75 small pr-lg-5">
-              Sua casa de acolhimento e paz em Aparecida. Localização privilegiada para sua romaria ser inesquecível.
+    <footer className="footer-recanto">
+      <div className="footer-conteudo">
+        <div className="footer-grade">
+          <div>
+            <p className="footer-marca fonte-logo">Recanto Camargo</p>
+            <p className="footer-texto">
+              Hospedagem familiar em Aparecida, a cerca de 5 minutos a pé da Basílica Nacional.
             </p>
-          </Col>
+          </div>
 
-          <Col lg={4} className="text-center">
-            <h5 className="text-white mb-3 fw-bold">Navegação</h5>
-            <ul className="list-unstyled footer-links">
+          <nav aria-label="Rodapé">
+            <h2 className="footer-titulo">Navegação</h2>
+            <ul className="footer-links">
               {linksFooter.map((link) => (
                 <li key={link.id}>
                   <Link to={link.to} onClick={() => lidarCliqueLink(link.to)}>{link.label}</Link>
                 </li>
               ))}
             </ul>
-          </Col>
+          </nav>
 
-          <Col lg={4} className="text-center text-lg-end">
-            <h5 className="text-white mb-3 fw-bold">Fale Conosco</h5>
-            <p className="text-white small mb-2">
-              <i className="bi bi-geo-alt-fill me-2 text-warning"></i>
-              Rua José Ourives, 76 - Ponte Alta
-            </p>
-            <p className="text-white small mb-3">
-              <i className="bi bi-whatsapp me-2 text-success"></i>
-              (12) 99999-9999
-            </p>
-            <div className="footer-social">
-              <a href="#" className="text-white fs-4 me-3"><i className="bi bi-instagram"></i></a>
-              <a href="#" className="text-white fs-4 me-3"><i className="bi bi-facebook"></i></a>
-              <a href="#" className="text-white fs-4"><i className="bi bi-airbnb"></i></a>
-            </div>
-          </Col>
-        </Row>
-
-        <hr className="border-light opacity-25 my-4" />
-
-        <div className="text-center text-white opacity-50 small">
-          <p>© 2026 Recanto Camargo. Desenvolvido com carinho para nossos hóspedes.</p>
+          <div>
+            <h2 className="footer-titulo">Contato</h2>
+            <ul className="footer-links">
+              <li>
+                <a href={`https://wa.me/${contato.whatsapp}`} target="_blank" rel="noopener noreferrer">
+                  <i className="bi bi-whatsapp" aria-hidden="true" /> {contato.telefone}
+                </a>
+              </li>
+              <li>
+                <span><i className="bi bi-geo-alt" aria-hidden="true" /> {contato.endereco}, {contato.cidade}</span>
+              </li>
+              {REDES.map((r) => (
+                <li key={r.id}>
+                  <a href={r.href} target="_blank" rel="noopener noreferrer">
+                    <i className={`bi ${r.icone}`} aria-hidden="true" /> {r.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
-      </Container>
+
+        <div className="footer-legal">
+          <span>© 2026 Recanto Camargo</span>
+          <span>
+            <Link to="/TermosDeUso">Termos de Uso</Link> · <Link to="/Privacidade">Privacidade (LGPD)</Link>
+          </span>
+        </div>
+      </div>
     </footer>
   );
 }
