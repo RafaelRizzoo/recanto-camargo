@@ -232,3 +232,5 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 .rc-pop .calendario-legenda{font-size:.72rem;gap:.3rem .6rem!important}
 .rc-pop{padding:12px 14px}
 .rc-pop-head{margin-bottom:4px}
+/* conteúdo da Home acima do rodapé (z-index 10), para o calendário não ser coberto */
+.rc-home main{position:relative;z-index:11}

@@ -360,3 +360,8 @@
     top: auto;
   }
 }
+
+.rc-reserva {
+  position: relative;
+  z-index: 11;
+}
