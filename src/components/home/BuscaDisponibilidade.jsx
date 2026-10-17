@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import CalendarioCustom from "../UI/CalendarioCustom";
 import { MAX_HOSPEDES, unidades } from "../../data/conteudoSite";
 import CampoData from "./CampoData";
+import { useAjustarPopover } from "./useAjustarPopover";
 
 function paraIso(data) {
   return new Date(data.getTime() - data.getTimezoneOffset() * 60000).toISOString().split("T")[0];
@@ -23,6 +24,7 @@ function BuscaDisponibilidade({
 }) {
   const [calAberto, setCalAberto] = useState(null);
   const raiz = useRef(null);
+  useAjustarPopover(Boolean(calAberto), raiz);
 
   useEffect(() => {
     if (!calAberto) return undefined;

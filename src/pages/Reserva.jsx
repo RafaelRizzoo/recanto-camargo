@@ -6,6 +6,7 @@ import CalendarioCustom from '../components/UI/CalendarioCustom';
 import CampoData from '../components/home/CampoData';
 import MosaicoFotos from '../components/home/MosaicoFotos';
 import { linkWhats } from '../components/home/links';
+import { useAjustarPopover } from '../components/home/useAjustarPopover';
 import { useAvaliacoesGoogle } from '../hooks/useAvaliacoesGoogle';
 import { API_BASE } from '../utils/api';
 import '../components/home/home.css';
@@ -44,6 +45,7 @@ function Reserva() {
   const [hospedes, setHospedes] = useState(searchParams.get('hospedes') || '');
   const [erros, setErros] = useState({});
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
+  useAjustarPopover(mostrarCalendario, areaCalendario);
   
   const [cupomInput, setCupomInput] = useState('');
   const [cupomAplicado, setCupomAplicado] = useState(null);

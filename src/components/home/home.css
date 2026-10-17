@@ -224,3 +224,11 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 .rc-cards a:focus-visible{outline-offset:2px}
 .rc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .rc-drawer a,.rc-drawer button.rc-drawer-item{padding:0 3px}
+
+/* calendário mais compacto dentro do popover (cabe melhor na tela) */
+.rc-pop .custom-calendar-home .react-calendar__tile{padding:.38rem .15rem;font-size:.85rem}
+.rc-pop .custom-calendar-home .react-calendar__navigation{margin-bottom:.35rem}
+.rc-pop .custom-calendar-home .react-calendar__month-view__weekdays{font-size:.75rem;margin-bottom:.1rem}
+.rc-pop .calendario-legenda{font-size:.72rem;gap:.3rem .6rem!important}
+.rc-pop{padding:12px 14px}
+.rc-pop-head{margin-bottom:4px}
