@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { HashRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
-import Menu from "./components/navbar";
+import HeaderSite from "./components/home/HeaderSite";
 import Footer from "./components/footer";
 import Home from "./pages/Home";
 import BotaoWhats from "./components/UI/BotaoWhats";
@@ -68,13 +68,13 @@ function ScrollToTop() {
 function AppContent() {
   const location = useLocation();
   const mostrarLayout = !ROTAS_SEM_LAYOUT.some(rota => location.pathname.startsWith(rota));
-  // A Home tem cabeçalho próprio (transparente sobre o Hero).
+  // Cabeçalho único: transparente sobre o Hero na Home, sólido nas demais páginas.
   const ehHome = location.pathname === '/';
 
   return (
     <div className="app-shell">
       <ScrollToTop />
-      {mostrarLayout && !ehHome && <Menu />}
+      {mostrarLayout && <HeaderSite emHome={ehHome} />}
 
       <div className="app-main flex-grow-1">
         <Suspense fallback={<CarregandoPagina />}>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import "../components/home/home.css";
-import HeaderHome from "../components/home/HeaderHome";
 import HeroHome from "../components/home/HeroHome";
 import EscolhaHospedagem from "../components/home/EscolhaHospedagem";
 import Experiencia from "../components/home/Experiencia";
@@ -13,12 +13,26 @@ import BlocoReserva from "../components/home/BlocoReserva";
 import BarraMobile from "../components/home/BarraMobile";
 import { useConsultaDisponibilidade } from "../components/home/useConsultaDisponibilidade";
 import { useRevelar } from "../components/home/useRevelar";
+import { irPara } from "../components/home/links";
 
 function Home() {
   const consulta = useConsultaDisponibilidade();
   const [unidadeGaleria, setUnidadeGaleria] = useState(1);
 
   useRevelar();
+
+  // Vindo de outra página (ex.: "Localização" no cabeçalho), rola até a seção pedida.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const destino = location.state?.ir;
+  useEffect(() => {
+    if (!destino) return undefined;
+    const t = setTimeout(() => {
+      irPara(destino);
+      navigate(location.pathname, { replace: true, state: null });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [destino, navigate, location.pathname]);
 
   // Marca o body para que o CSS esconda o botão flutuante do WhatsApp no mobile
   // (a barra inferior da Home já oferece o mesmo acesso).
@@ -29,7 +43,6 @@ function Home() {
 
   return (
     <div className="rc-home">
-      <HeaderHome />
       <main>
         <HeroHome consulta={consulta} />
         <EscolhaHospedagem

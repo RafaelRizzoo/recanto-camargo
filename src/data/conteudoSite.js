@@ -292,26 +292,26 @@ export const unidades = [
 
 export const galeriaPorUnidade = {
   1: [
-    { src: SalaImg, alt: "Sala de estar" },
-    { src: FrenteImg, alt: "Fachada" },
-    { src: Quarto1Img, alt: "Quarto 1" },
-    { src: CozinhaImg, alt: "Cozinha" },
-    { src: ChurrasqueiraImg, alt: "Área gourmet" },
-    { src: Quarto2Img, alt: "Quarto 2" },
-    { src: BanheiroImg, alt: "Banheiro" },
-    { src: JardimImg, alt: "Jardim de inverno" },
+    { src: SalaImg, alt: "Sala de estar", categoria: "Sala" },
+    { src: FrenteImg, alt: "Fachada", categoria: "Área externa" },
+    { src: Quarto1Img, alt: "Quarto 1", categoria: "Quartos" },
+    { src: CozinhaImg, alt: "Cozinha", categoria: "Cozinha" },
+    { src: ChurrasqueiraImg, alt: "Área gourmet", categoria: "Área externa" },
+    { src: Quarto2Img, alt: "Quarto 2", categoria: "Quartos" },
+    { src: BanheiroImg, alt: "Banheiro", categoria: "Banheiros" },
+    { src: JardimImg, alt: "Jardim de inverno", categoria: "Área externa" },
   ],
   2: [
-    { src: R2Sala, alt: "Sala de estar" },
-    { src: R2Fachada, alt: "Fachada" },
-    { src: R2Quarto1, alt: "Quarto 1" },
-    { src: R2Cozinha, alt: "Cozinha" },
-    { src: R2Gourmet, alt: "Área gourmet" },
-    { src: R2Quarto2, alt: "Quarto 2" },
-    { src: R2Varanda, alt: "Varanda" },
-    { src: R2Banheiro, alt: "Banheiro" },
-    { src: R2Escada, alt: "Escada e corredor" },
-    { src: R2Estar, alt: "Área de estar" },
+    { src: R2Sala, alt: "Sala de estar", categoria: "Sala" },
+    { src: R2Fachada, alt: "Fachada", categoria: "Área externa" },
+    { src: R2Quarto1, alt: "Quarto 1", categoria: "Quartos" },
+    { src: R2Cozinha, alt: "Cozinha", categoria: "Cozinha" },
+    { src: R2Gourmet, alt: "Área gourmet", categoria: "Área externa" },
+    { src: R2Quarto2, alt: "Quarto 2", categoria: "Quartos" },
+    { src: R2Varanda, alt: "Varanda", categoria: "Área externa" },
+    { src: R2Banheiro, alt: "Banheiro", categoria: "Banheiros" },
+    { src: R2Escada, alt: "Escada e corredor", categoria: "Outros ambientes" },
+    { src: R2Estar, alt: "Área de estar", categoria: "Sala" },
   ],
 };
 
@@ -360,10 +360,11 @@ export const comodidadesGrupos = [
 
 export const depoimentosDestaque = [3, 6, 2];
 
+// rota: destino quando o link é usado fora da Home
 export const linksNavegacaoHome = [
-  { id: "topo", label: "Início" },
+  { id: "topo", label: "Início", rota: "/" },
   { id: "hospedagens", label: "Hospedagens" },
-  { id: "galeria", label: "Galeria" },
+  { id: "galeria", label: "Galeria", rota: "/Fotos" },
   { id: "localizacao", label: "Localização" },
-  { id: "avaliacoes", label: "Avaliações" },
+  { id: "avaliacoes", label: "Avaliações", rota: "/Avaliacoes" },
 ];

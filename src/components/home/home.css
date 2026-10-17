@@ -223,3 +223,4 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 }
 .rc-cards a:focus-visible{outline-offset:2px}
 .rc-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.rc-drawer a,.rc-drawer button.rc-drawer-item{padding:0 3px}
