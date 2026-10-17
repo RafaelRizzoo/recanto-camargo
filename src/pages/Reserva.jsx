@@ -1,16 +1,18 @@
-import { useState, useEffect } from 'react';
-import { Container, Row, Col, Form, Button } from 'react-bootstrap';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import Botao from '../components/UI/Botao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import { imagensCarrosselHome, comodidades, depoimentos } from '../data/conteudoSite';
+import { comodidadesGrupos, depoimentos, galeriaPorUnidade, mapaEmbedSrc, unidades, MAX_HOSPEDES } from '../data/conteudoSite';
 import CalendarioCustom from '../components/UI/CalendarioCustom';
-import Lightbox from '../components/UI/Lightbox';
+import CampoData from '../components/home/CampoData';
+import MosaicoFotos from '../components/home/MosaicoFotos';
+import { linkWhats } from '../components/home/links';
+import { useAvaliacoesGoogle } from '../hooks/useAvaliacoesGoogle';
 import { API_BASE } from '../utils/api';
+import '../components/home/home.css';
+import './Reserva.css';
 
 const DIARIA = 270;
 const TAXA_LIMPEZA = 80;
-const WHATSAPP_NUMERO = '5512992126734';
 const MAPS_URL = 'https://www.google.com/maps?q=Recanto+Camargo+Aparecida+SP';
 
 function calcularNoites(checkin, checkout) {
@@ -23,74 +25,16 @@ function formatarMoeda(valor) {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-function formatarData(iso) {
-  if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  return `${d}/${m}/${y}`;
-}
-
-function Estrelas({ total = 5 }) {
-  return (
-    <span>
-      {Array.from({ length: total }, (_, i) => (
-        <i key={i} className="bi bi-star-fill" style={{ color: '#f37321', fontSize: '0.85rem' }} />
-      ))}
-    </span>
-  );
-}
-
-function GaleriaFotos({ imagens, onAbrirFoto }) {
-  const [indiceAtivo, setIndiceAtivo] = useState(0);
-
-  return (
-    <>
-      <div className="galeria-reserva d-none d-md-grid">
-        <div className="galeria-principal" onClick={() => onAbrirFoto(0)}>
-          <img src={imagens[0].src} alt={imagens[0].alt} loading="eager" />
-          <div className="galeria-overlay"><i className="bi bi-arrows-fullscreen" /></div>
-        </div>
-        <div className="galeria-grade">
-          {imagens.slice(1, 5).map((img, i) => (
-            <div key={img.alt} className="galeria-miniatura" onClick={() => onAbrirFoto(i + 1)}>
-              <img src={img.src} alt={img.alt} loading="lazy" />
-              <div className="galeria-overlay"><i className="bi bi-arrows-fullscreen" /></div>
-              {i === 3 && imagens.length > 5 && (
-                <div className="galeria-mais">+{imagens.length - 5} fotos</div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="d-md-none galeria-mobile">
-        <div className="galeria-mobile-slide">
-          <img src={imagens[indiceAtivo].src} alt={imagens[indiceAtivo].alt} />
-        </div>
-        <div className="galeria-mobile-controles">
-          <button
-            type="button"
-            onClick={() => setIndiceAtivo(i => (i - 1 + imagens.length) % imagens.length)}
-          >
-            <i className="bi bi-chevron-left" />
-          </button>
-          <span>{indiceAtivo + 1} / {imagens.length}</span>
-          <button
-            type="button"
-            onClick={() => setIndiceAtivo(i => (i + 1) % imagens.length)}
-          >
-            <i className="bi bi-chevron-right" />
-          </button>
-        </div>
-      </div>
-    </>
-  );
-}
-
 function Reserva() {
   const { usuario, autenticado } = useAutenticacao();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const [unidadeId, setUnidadeId] = useState(1);
+  const unidade = unidades.find((u) => u.id === unidadeId) ?? unidades[0];
+  const { nota: notaMedia, total: totalGoogle, erro: erroGoogle, carregando: carregandoGoogle } = useAvaliacoesGoogle();
+  const areaCalendario = useRef(null);
 
   const [datas, setDatas] = useState({
     checkin: searchParams.get('checkin') || '',
@@ -100,15 +44,12 @@ function Reserva() {
   const [hospedes, setHospedes] = useState(searchParams.get('hospedes') || '');
   const [erros, setErros] = useState({});
   const [mostrarCalendario, setMostrarCalendario] = useState(false);
-  const [fotoAtiva, setFotoAtiva] = useState(0);
-  const [modalFotoAberta, setModalFotoAberta] = useState(false);
   
   const [cupomInput, setCupomInput] = useState('');
   const [cupomAplicado, setCupomAplicado] = useState(null);
   const [erroCupom, setErroCupom] = useState('');
   const [validandoCupom, setValidandoCupom] = useState(false);
 
-  const imagens = imagensCarrosselHome.filter(img => !img.ehVideo);
   const noites = calcularNoites(datas.checkin, datas.checkout);
   const subtotal = noites * DIARIA;
 
@@ -211,10 +152,24 @@ function Reserva() {
     setErroCupom('');
   }
 
-  function abrirFoto(indice) {
-    setFotoAtiva(indice);
-    setModalFotoAberta(true);
+  function escolherUnidade(id) {
+    setUnidadeId(id);
+    setMostrarCalendario(false);
   }
+
+  useEffect(() => {
+    if (!mostrarCalendario) return undefined;
+    const fecharFora = (e) => {
+      if (areaCalendario.current && !areaCalendario.current.contains(e.target)) setMostrarCalendario(false);
+    };
+    const fecharEsc = (e) => e.key === 'Escape' && setMostrarCalendario(false);
+    document.addEventListener('mousedown', fecharFora);
+    document.addEventListener('keydown', fecharEsc);
+    return () => {
+      document.removeEventListener('mousedown', fecharFora);
+      document.removeEventListener('keydown', fecharEsc);
+    };
+  }, [mostrarCalendario]);
 
   function handleCalendarChange(range) {
     if (Array.isArray(range) && range[0] && range[1]) {
@@ -284,357 +239,314 @@ function Reserva() {
   }
 
 
-  return (
-    <div className="reserva-page">
-      <Container className="reserva-conteudo py-5">
+  const reservaOnline = unidade.consultaOnline;
+  const notaGoogle = !carregandoGoogle && !erroGoogle && notaMedia != null && totalGoogle;
+  const localTexto = unidade.id === 1 ? 'Ponte Alta, Aparecida - SP' : 'Aparecida, SP';
 
-        <div className="reserva-header-info mb-4">
-          <h1 className="reserva-titulo-imovel">Recanto Camargo</h1>
-          <div className="d-flex align-items-center gap-3 flex-wrap mt-2">
-            <div className="d-flex align-items-center gap-1">
-              <Estrelas />
-              <span className="fw-bold ms-1">4,98</span>
-              <span className="text-muted">(9 avaliações)</span>
-            </div>
-            <span className="text-muted">·</span>
-            <a
-              href={MAPS_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="reserva-link-local"
-            >
-              <i className="bi bi-geo-alt-fill me-1" />
-              Ponte Alta, Aparecida - SP
+  return (
+    <div className="rc-home rc-reserva">
+      <div className="rc-wrap">
+
+        <header className="rc-res-head">
+          <span className="rc-eyebrow">Reserva direta</span>
+          <h1>{unidade.nome}</h1>
+          <div className="rc-res-meta">
+            <span className="rc-res-nota">
+              <i className="bi bi-star-fill" aria-hidden="true" />
+              {notaGoogle
+                ? <>{notaMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} no Google · {totalGoogle} avaliações</>
+                : <>{depoimentos.length} avaliações de hóspedes</>}
+            </span>
+            <span aria-hidden="true">·</span>
+            <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local">
+              <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {localTexto}
             </a>
           </div>
-        </div>
 
-        {/* ── HERO ROW: galeria + widget ── */}
-        <Row className="g-4 reserva-hero-row align-items-start">
+          <div className="rc-tabs" role="tablist" aria-label="Unidade">
+            {unidades.map((u) => (
+              <button
+                type="button"
+                role="tab"
+                key={u.id}
+                className="rc-tab"
+                aria-selected={unidade.id === u.id}
+                onClick={() => escolherUnidade(u.id)}
+              >
+                <i className="rc-dot" style={{ '--c': u.cor }} aria-hidden="true" /> {u.nome}
+              </button>
+            ))}
+          </div>
+        </header>
 
-          {/* Col esquerda: galeria */}
-          <Col lg={7}>
-            <GaleriaFotos imagens={imagens} onAbrirFoto={abrirFoto} />
-          </Col>
+        <MosaicoFotos fotos={galeriaPorUnidade[unidade.id]} rotulo={unidade.selo} />
 
-          {/* Col direita: título + widget de reserva */}
-          <Col lg={5}>
+        <div className="rc-res-grid">
+          <div className="rc-res-main">
 
-            <div className="reserva-widget-sticky">
-              <div className="reserva-widget shadow-lg bg-white p-4">
+            <section className="rc-res-bloco">
+              <h2>Sobre o {unidade.nome}</h2>
+              {unidade.id === 1 ? (
+                <>
+                  <p>
+                    Casa aconchegante com 2 quartos, localizada no bairro Ponte Alta, a apenas 5 minutos
+                    a pé do Santuário Nacional de Aparecida. Ideal para famílias e grupos de peregrinos
+                    que buscam conforto, privacidade e uma estadia tranquila na cidade da Padroeira do Brasil.
+                  </p>
+                  <p>
+                    A casa conta com cozinha completa, churrasqueira, Wi-Fi, Smart TVs, garagem e enxoval
+                    incluso. Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a
+                    melhor experiência possível.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p>{unidade.resumo}</p>
+                  <p>
+                    Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a melhor
+                    experiência possível.
+                  </p>
+                </>
+              )}
+            </section>
 
-                <div className="mb-3">
-                  <span className="fs-3 fw-bold text-azul">{formatarMoeda(DIARIA)}</span>
-                  <span className="text-muted"> / noite</span>
-                </div>
+            <section className="rc-res-bloco">
+              <h2>O que este lugar oferece</h2>
+              <div className="rc-am rc-am-reserva">
+                {comodidadesGrupos.map((g) => (
+                  <div className="rc-g" key={g.id}>
+                    <h3>{g.titulo}</h3>
+                    <ul>
+                      {g.itens.map((item) => (
+                        <li key={item.texto}><i className={`bi ${item.icone}`} aria-hidden="true" />{item.texto}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
 
-                <div className="position-relative">
-                  <div className="reserva-datas-grid mb-2">
-                    <div 
-                      className={`reserva-data-campo${erros.checkin ? ' is-invalid' : ''}`}
-                      onClick={() => setMostrarCalendario(!mostrarCalendario)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <label>CHECK-IN</label>
-                      <div className="fw-semibold text-azul mt-1">
-                        {datas.checkin ? formatarData(datas.checkin) : 'Selecionar'}
-                      </div>
-                    </div>
-                    <div 
-                      className={`reserva-data-campo${erros.checkout ? ' is-invalid' : ''}`}
-                      onClick={() => setMostrarCalendario(!mostrarCalendario)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <label>CHECK-OUT</label>
-                      <div className="fw-semibold text-azul mt-1">
-                        {datas.checkout ? formatarData(datas.checkout) : 'Selecionar'}
-                      </div>
-                    </div>
+            <section className="rc-res-bloco">
+              <h2>Localização</h2>
+              <p>{localTexto} — cerca de 5 min a pé do Santuário Nacional</p>
+              {unidade.id === 1 && (
+                <>
+                  <div className="rc-res-mapa">
+                    <iframe title="Localização do Recanto Camargo no mapa" loading="lazy" src={mapaEmbedSrc} />
+                  </div>
+                  <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local rc-res-maps">
+                    <i className="bi bi-geo-alt-fill" aria-hidden="true" /> Ver no Google Maps
+                  </a>
+                </>
+              )}
+            </section>
+          </div>
+
+          <aside className="rc-res-side" aria-label="Reservar">
+            <div className="rc-res-card">
+              {!reservaOnline ? (
+                <>
+                  <h2 className="rc-res-card-titulo">Reservar o {unidade.nome}</h2>
+                  <p className="rc-res-card-texto">
+                    A reserva online do {unidade.nome} ainda não está disponível. Fale com a gente pelo WhatsApp
+                    para consultar datas e valores.
+                  </p>
+                  <a
+                    className="rc-btn rc-btn-primary rc-res-cta"
+                    href={linkWhats(`Olá! Gostaria de reservar o ${unidade.nome}.`)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <i className="bi bi-whatsapp" aria-hidden="true" /> Falar no WhatsApp
+                  </a>
+                </>
+              ) : (
+                <>
+                  <div className="rc-res-preco">
+                    <strong>{formatarMoeda(DIARIA)}</strong> <span>/ noite</span>
                   </div>
 
-                  {mostrarCalendario && (
-                    <div 
-                      className="position-absolute shadow-lg bg-white" 
-                      style={{ top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 10, padding: '1rem', borderRadius: '16px', marginTop: '10px', width: '100%', minWidth: '340px' }}
-                    >
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <span className="fw-bold text-azul fs-5">Selecione as datas</span>
-                        <button 
-                          type="button" 
-                          className="btn-close" 
-                          onClick={() => setMostrarCalendario(false)} 
-                        />
-                      </div>
-                      <CalendarioCustom
-                        onChange={handleCalendarChange}
-                        valor={(datas.checkin && datas.checkout) ? [new Date(datas.checkin + 'T12:00:00'), new Date(datas.checkout + 'T12:00:00')] : null}
+                  <div className="rc-res-datas-wrap" ref={areaCalendario}>
+                    <div className={`rc-res-datas${erros.checkin || erros.checkout ? ' rc-invalid' : ''}`}>
+                      <CampoData
+                        id="res-checkin"
+                        rotulo="Check-in"
+                        valor={datas.checkin}
+                        aberto={mostrarCalendario}
+                        onAbrir={() => setMostrarCalendario(true)}
+                        onFechar={() => setMostrarCalendario(false)}
+                      />
+                      <CampoData
+                        id="res-checkout"
+                        rotulo="Check-out"
+                        valor={datas.checkout}
+                        aberto={mostrarCalendario}
+                        onAbrir={() => setMostrarCalendario(true)}
+                        onFechar={() => setMostrarCalendario(false)}
                       />
                     </div>
-                  )}
-                </div>
 
-                <div className="reserva-hospedes-container mb-3">
-                  <label className="small fw-bold text-azul mb-1">HÓSPEDES</label>
-                  <select 
-                    className={`form-select ${erros.hospedes ? 'is-invalid' : ''}`}
-                    value={hospedes}
-                    onChange={(e) => {
-                      setHospedes(e.target.value);
-                      setErros(er => ({ ...er, hospedes: undefined }));
-                    }}
-                    style={{ borderRadius: '8px', cursor: 'pointer', padding: '0.6rem 1rem' }}
-                  >
-                    <option value="">Quantidade de pessoas</option>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                      <option key={num} value={num}>{num} {num === 1 ? 'hóspede' : 'hóspedes'}</option>
-                    ))}
-                  </select>
-                  {erros.hospedes && (
-                    <div className="invalid-feedback d-block small">
-                      <i className="bi bi-exclamation-circle me-1" />
-                      {erros.hospedes}
-                    </div>
-                  )}
-                </div>
-
-                {(erros.checkin || erros.checkout) && (
-                  <p className="text-danger small mb-2">
-                    <i className="bi bi-exclamation-circle me-1" />
-                    {erros.checkin || erros.checkout}
-                  </p>
-                )}
-
-                {erros.conflito && (
-                  <div className="alert alert-danger py-2 small mb-3">
-                    <i className="bi bi-calendar-x me-1" />
-                    {erros.conflito}
-                  </div>
-                )}
-
-                {noites > 0 && (
-                  <div className="reserva-resumo-valores my-3">
-                    <div className="d-flex justify-content-between mb-2">
-                      <span>{formatarMoeda(DIARIA)} × {noites} {noites === 1 ? 'noite' : 'noites'}</span>
-                      <span>{formatarMoeda(subtotal)}</span>
-                    </div>
-                    <div className="d-flex justify-content-between mb-3">
-                      <span>Taxa de limpeza</span>
-                      <span>{formatarMoeda(TAXA_LIMPEZA)}</span>
-                    </div>
-                    {cupomAplicado && (
-                      <div className="d-flex justify-content-between mb-3 text-success">
-                        <span>Desconto ({cupomAplicado.codigo})</span>
-                        <span>-{formatarMoeda(desconto)}</span>
-                      </div>
-                    )}
-                    <hr className="my-2" />
-                    <div className="d-flex justify-content-between fw-bold fs-5">
-                      <span>Total</span>
-                      <span className="text-orange">{formatarMoeda(total)}</span>
-                    </div>
-                  </div>
-                )}
-
-                {autenticado && noites > 0 && (
-                  <div className="mb-4">
-                    {cupomAplicado ? (
-                      <div className="d-flex align-items-center justify-content-between p-2 rounded" style={{ backgroundColor: '#e8f5e9', border: '1px dashed #4caf50' }}>
-                        <div className="d-flex align-items-center gap-2">
-                          <i className="bi bi-tag-fill text-success" />
-                          <span className="text-success fw-bold">{cupomAplicado.codigo}</span>
-                        </div>
-                        <button type="button" className="btn btn-link text-danger p-0 m-0 text-decoration-none" onClick={removerCupom}>
-                          Remover
-                        </button>
-                      </div>
-                    ) : (
+                    {mostrarCalendario && (
                       <>
-                        <div className="d-flex gap-2">
-                          <Form.Control
-                            type="text"
-                            placeholder="Cupom de desconto"
-                            value={cupomInput}
-                            onChange={(e) => setCupomInput(e.target.value)}
-                            disabled={validandoCupom}
-                            style={{ textTransform: 'uppercase' }}
+                        <div className="rc-pop-backdrop" onClick={() => setMostrarCalendario(false)} aria-hidden="true" />
+                        <div className="rc-pop rc-pop-card" role="dialog" aria-label="Selecione as datas">
+                          <div className="rc-pop-head">
+                            <span>Selecione as datas</span>
+                            <button type="button" onClick={() => setMostrarCalendario(false)} aria-label="Fechar calendário">
+                              <i className="bi bi-x-lg" aria-hidden="true" />
+                            </button>
+                          </div>
+                          <CalendarioCustom
+                            onChange={handleCalendarChange}
+                            valor={(datas.checkin && datas.checkout) ? [new Date(datas.checkin + 'T12:00:00'), new Date(datas.checkout + 'T12:00:00')] : null}
                           />
-                          <Button
-                            type="button"
-                            variant="outline-secondary"
-                            onClick={aplicarCupom}
-                            disabled={validandoCupom}
-                          >
-                            {validandoCupom ? 'Validando...' : 'Aplicar'}
-                          </Button>
                         </div>
-                        {erroCupom && <div className="text-danger small mt-1"><i className="bi bi-exclamation-circle me-1" />{erroCupom}</div>}
                       </>
                     )}
                   </div>
-                )}
 
-                {autenticado && (
-                  <Form.Group className="mb-3">
-                    <Form.Label className="small fw-bold text-azul">Observações (opcional)</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      value={observacoes}
-                      onChange={e => setObservacoes(e.target.value)}
-                      placeholder="Ex: Berço, pet, chegada noturna..."
-                      style={{ borderRadius: '10px', fontSize: '0.9rem', resize: 'none' }}
-                    />
-                  </Form.Group>
-                )}
-
-                {erros.geral && (
-                  <div className="alert alert-danger py-2 small mb-3">{erros.geral}</div>
-                )}
-
-                {autenticado ? (
-                  <Botao larguraTotal onClick={handleSubmit} tipo="button" className="py-3 fs-5">
-                    Solicitar Reserva
-                  </Botao>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="reserva-btn-login w-100 py-3 fw-bold fs-6"
-                      onClick={irParaLogin}
+                  <div className="rc-res-campo">
+                    <label htmlFor="res-hospedes">Hóspedes</label>
+                    <select
+                      id="res-hospedes"
+                      className={erros.hospedes ? 'rc-invalid' : ''}
+                      value={hospedes}
+                      aria-invalid={Boolean(erros.hospedes)}
+                      onChange={(e) => {
+                        setHospedes(e.target.value);
+                        setErros(er => ({ ...er, hospedes: undefined }));
+                      }}
                     >
-                      <i className="bi bi-person-circle me-2" />
-                      Faça login para reservar
-                    </button>
-                    <p className="text-muted small text-center mt-2 mb-0">
-                      Você pode ver datas e valores sem fazer login.
+                      <option value="">Quantidade de pessoas</option>
+                      {Array.from({ length: MAX_HOSPEDES }, (_, i) => i + 1).map(num => (
+                        <option key={num} value={num}>{num} {num === 1 ? 'hóspede' : 'hóspedes'}</option>
+                      ))}
+                    </select>
+                    {erros.hospedes && (
+                      <p className="rc-res-erro" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true" /> {erros.hospedes}</p>
+                    )}
+                  </div>
+
+                  {(erros.checkin || erros.checkout) && (
+                    <p className="rc-res-erro" role="alert">
+                      <i className="bi bi-exclamation-circle" aria-hidden="true" /> {erros.checkin || erros.checkout}
                     </p>
-                  </>
-                )}
+                  )}
 
-                <div className="reserva-beneficios mt-3">
-                  <div className="d-flex align-items-center gap-2 small text-muted mb-1">
-                    <i className="bi bi-check-circle-fill text-success" />
-                    Cancelamento gratuito até 7 dias antes
-                  </div>
-                  <div className="d-flex align-items-center gap-2 small text-muted">
-                    <i className="bi bi-check-circle-fill text-success" />
-                    Sem taxas extras do Airbnb
-                  </div>
-                </div>
+                  {erros.conflito && (
+                    <p className="rc-res-erro rc-res-alerta" role="alert">
+                      <i className="bi bi-calendar-x" aria-hidden="true" /> {erros.conflito}
+                    </p>
+                  )}
 
-                {autenticado && (
-                  <div className="reserva-usuario-info mt-3">
-                    <i className="bi bi-person-check-fill me-2 text-success" />
-                    <span className="small">
-                      Reservando como <strong>{usuario.nome}</strong>
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Col>
-        </Row>
-
-        {/* ── SEÇÃO SOBRE + MAPA ── */}
-        <section className="reserva-secao-sobre mt-1 pt-2">
-          <hr className="reserva-divisor mb-4" />
-          <Row className="g-4">
-            <Col lg={6}>
-              <h2 className="reserva-subtitulo fs-4 mb-3">Sobre o Recanto Camargo</h2>
-              <p className="text-muted" style={{ lineHeight: '1.75', fontSize: '0.95rem' }}>
-                Casa aconchegante com 2 quartos, localizada no bairro Ponte Alta, a apenas 5 minutos
-                a pé do Santuário Nacional de Aparecida. Ideal para famílias e grupos de peregrinos
-                que buscam conforto, privacidade e uma estadia tranquila na cidade da Padroeira do Brasil.
-              </p>
-              <p className="text-muted" style={{ lineHeight: '1.75', fontSize: '0.95rem' }}>
-                A casa conta com cozinha completa, churrasqueira, Wi-Fi, Smart TVs, garagem e enxoval
-                incluso. Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a
-                melhor experiência possível.
-              </p>
-              <a
-                href={MAPS_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="reserva-link-local d-inline-flex align-items-center gap-1 mt-2"
-              >
-                <i className="bi bi-geo-alt-fill" />
-                Ver no Google Maps
-              </a>
-            </Col>
-            <Col lg={6}>
-              <h4 className="reserva-subtitulo mb-2">Localização</h4>
-              <p className="text-muted mb-3" style={{ fontSize: '0.9rem' }}>
-                Ponte Alta, Aparecida - SP &mdash; 5 min do Santuário Nacional
-              </p>
-              <div className="reserva-mapa-container">
-                <iframe
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d1279.723618367829!2d-45.23822072662757!3d-22.84648000473076!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94ccc3d5a125211b%3A0x240324a5c110d090!2sRecanto%20Camargo!5e0!3m2!1sen!2sbr!4v1774143793114!5m2!1sen!2sbr"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0, borderRadius: '16px' }}
-                  allowFullScreen=""
-                  loading="lazy"
-                  title="Localização Recanto Camargo"
-                />
-              </div>
-            </Col>
-          </Row>
-        </section>
-
-        {/* ── SEÇÃO COMODIDADES ── */}
-        <section className="reserva-secao-comodidades">
-          <hr className="reserva-divisor mb-4" />
-          <h2 className="reserva-subtitulo fs-4 mb-4">O que este lugar oferece</h2>
-          <Row className="g-3">
-            {comodidades.map(c => (
-              <Col key={c.id} xs={6} md={4} lg={3}>
-                <div className="reserva-comodidade">
-                  <i className={`bi ${c.icone}`} />
-                  <span>{c.titulo}</span>
-                </div>
-              </Col>
-            ))}
-          </Row>
-        </section>
-
-        {/* ── SEÇÃO AVALIAÇÕES ── */}
-        <section className="reserva-secao-avaliacoes mt-5 pt-4">
-          <hr className="reserva-divisor mb-4" />
-          <div className="d-flex align-items-center gap-2 mb-4">
-            <i className="bi bi-star-fill text-orange fs-5" />
-            <h2 className="reserva-subtitulo mb-0 fs-4">4,98 &middot; 9 avaliações</h2>
-          </div>
-          <Row className="g-3">
-            {depoimentos.slice(0, 6).map(dep => (
-              <Col key={dep.id} md={6} lg={4}>
-                <div className="reserva-card-depoimento h-100">
-                  <div className="mb-2">
-                    <Estrelas total={dep.estrelas} />
-                  </div>
-                  <p className="reserva-texto-depoimento mb-3">{dep.texto}</p>
-                  <div className="d-flex align-items-center gap-2 mt-auto">
-                    <div className="reserva-avatar">{dep.nome.charAt(0)}</div>
-                    <div>
-                      <div className="fw-bold small text-azul">{dep.nome}</div>
-                      <div className="text-muted" style={{ fontSize: '0.78rem' }}>{dep.local}</div>
+                  {noites > 0 && (
+                    <div className="rc-res-valores">
+                      <div><span>{formatarMoeda(DIARIA)} × {noites} {noites === 1 ? 'noite' : 'noites'}</span><span>{formatarMoeda(subtotal)}</span></div>
+                      <div><span>Taxa de limpeza</span><span>{formatarMoeda(TAXA_LIMPEZA)}</span></div>
+                      {cupomAplicado && (
+                        <div className="rc-res-desconto"><span>Desconto ({cupomAplicado.codigo})</span><span>-{formatarMoeda(desconto)}</span></div>
+                      )}
+                      <div className="rc-res-total"><span>Total</span><span>{formatarMoeda(total)}</span></div>
                     </div>
-                  </div>
-                </div>
-              </Col>
+                  )}
+
+                  {autenticado && noites > 0 && (
+                    <div className="rc-res-campo">
+                      {cupomAplicado ? (
+                        <div className="rc-res-cupom-ok">
+                          <span><i className="bi bi-tag-fill" aria-hidden="true" /> {cupomAplicado.codigo}</span>
+                          <button type="button" onClick={removerCupom}>Remover</button>
+                        </div>
+                      ) : (
+                        <>
+                          <label htmlFor="res-cupom">Cupom de desconto</label>
+                          <div className="rc-res-cupom">
+                            <input
+                              id="res-cupom"
+                              type="text"
+                              placeholder="Código do cupom"
+                              value={cupomInput}
+                              onChange={(e) => setCupomInput(e.target.value)}
+                              disabled={validandoCupom}
+                              style={{ textTransform: 'uppercase' }}
+                            />
+                            <button type="button" className="rc-btn rc-btn-line" onClick={aplicarCupom} disabled={validandoCupom}>
+                              {validandoCupom ? 'Validando...' : 'Aplicar'}
+                            </button>
+                          </div>
+                          {erroCupom && (
+                            <p className="rc-res-erro" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true" /> {erroCupom}</p>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {autenticado && (
+                    <div className="rc-res-campo">
+                      <label htmlFor="res-obs">Observações (opcional)</label>
+                      <textarea
+                        id="res-obs"
+                        rows={2}
+                        value={observacoes}
+                        onChange={e => setObservacoes(e.target.value)}
+                        placeholder="Ex: Berço, pet, chegada noturna..."
+                      />
+                    </div>
+                  )}
+
+                  {erros.geral && (
+                    <p className="rc-res-erro rc-res-alerta" role="alert">{erros.geral}</p>
+                  )}
+
+                  {autenticado ? (
+                    <button type="button" className="rc-btn rc-btn-primary rc-res-cta" onClick={handleSubmit}>
+                      Solicitar reserva
+                    </button>
+                  ) : (
+                    <>
+                      <button type="button" className="rc-btn rc-btn-dark rc-res-cta" onClick={irParaLogin}>
+                        <i className="bi bi-person-circle" aria-hidden="true" /> Faça login para reservar
+                      </button>
+                      <p className="rc-res-nota-pequena">Você pode ver datas e valores sem fazer login.</p>
+                    </>
+                  )}
+                </>
+              )}
+
+              <ul className="rc-res-beneficios">
+                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> Cancelamento gratuito até 7 dias antes</li>
+                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> Sem taxas extras do Airbnb</li>
+              </ul>
+
+              {autenticado && reservaOnline && (
+                <p className="rc-res-usuario">
+                  <i className="bi bi-person-check-fill" aria-hidden="true" /> Reservando como <strong>{usuario.nome}</strong>
+                </p>
+              )}
+            </div>
+          </aside>
+        </div>
+
+        <section className="rc-res-bloco rc-res-avaliacoes">
+          <h2>
+            <i className="bi bi-star-fill" aria-hidden="true" />{' '}
+            {notaGoogle
+              ? `${notaMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} · ${totalGoogle} avaliações no Google`
+              : `${depoimentos.length} avaliações de hóspedes`}
+          </h2>
+          <div className="rc-rev">
+            {depoimentos.slice(0, 6).map(dep => (
+              <figure className="rc-q" key={dep.id}>
+                <span className="rc-stars" role="img" aria-label={`${dep.estrelas} de 5 estrelas`}>{'★'.repeat(dep.estrelas)}</span>
+                <blockquote style={{ margin: 0 }}><p>“{dep.texto}”</p></blockquote>
+                <figcaption className="rc-who"><b>{dep.nome}</b>{dep.local}</figcaption>
+              </figure>
             ))}
-          </Row>
+          </div>
         </section>
 
-      </Container>
-
-      {/* Lightbox premium fullscreen */}
-      {modalFotoAberta && (
-        <Lightbox
-          midias={imagensCarrosselHome}
-          indiceInicial={fotoAtiva}
-          aoFechar={() => setModalFotoAberta(false)}
-        />
-      )}
+      </div>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import CalendarioCustom from "../UI/CalendarioCustom";
 import { MAX_HOSPEDES, unidades } from "../../data/conteudoSite";
-import { formatarData } from "./links";
+import CampoData from "./CampoData";
 
 function paraIso(data) {
   return new Date(data.getTime() - data.getTimezoneOffset() * 60000).toISOString().split("T")[0];
@@ -10,36 +10,6 @@ function paraIso(data) {
 
 const CLASSE_MENSAGEM = { erro: "rc-err", info: "rc-warn", ok: "rc-ok" };
 const ICONE_MENSAGEM = { erro: "bi-exclamation-circle", info: "bi-info-circle", ok: "bi-check-circle-fill" };
-
-function CampoData({ id, rotulo, valor, aberto, onAbrir, onFechar, children }) {
-  return (
-    <div className="rc-field">
-      <label id={`${id}-rotulo`} htmlFor={id}>{rotulo}</label>
-      <button
-        type="button"
-        id={id}
-        className="rc-fieldbtn"
-        aria-haspopup="dialog"
-        aria-expanded={aberto}
-        aria-labelledby={`${id}-rotulo ${id}`}
-        onClick={aberto ? onFechar : onAbrir}
-      >
-        {valor ? formatarData(valor) : <span className="rc-placeholder">Selecionar</span>}
-      </button>
-      {children}
-    </div>
-  );
-}
-
-CampoData.propTypes = {
-  id: PropTypes.string.isRequired,
-  rotulo: PropTypes.string.isRequired,
-  valor: PropTypes.string,
-  aberto: PropTypes.bool.isRequired,
-  onAbrir: PropTypes.func.isRequired,
-  onFechar: PropTypes.func.isRequired,
-  children: PropTypes.node,
-};
 
 function BuscaDisponibilidade({
   origem,

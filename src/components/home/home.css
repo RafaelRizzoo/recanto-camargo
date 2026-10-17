@@ -212,8 +212,8 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 @media (min-width:641px){body.rc-home-ativo .btn-whats-flutuante{display:flex}}
 @media (max-width:640px){
   body.rc-home-ativo .footer-recanto{padding-bottom:96px!important}
-  .rc-pop-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99}
-  .rc-pop{position:fixed;left:0;right:0;bottom:0;top:auto;min-width:0;border-radius:24px 24px 0 0;z-index:100;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+  .rc-pop-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1099}
+  .rc-pop{position:fixed;left:0;right:0;bottom:0;top:auto;min-width:0;border-radius:24px 24px 0 0;z-index:1100;padding:16px 16px calc(16px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
   .rc-hero .rc-search-wrap{margin:0}
   .rc-hero .rc-search-wrap .rc-search{margin:20px 16px 0}
 }

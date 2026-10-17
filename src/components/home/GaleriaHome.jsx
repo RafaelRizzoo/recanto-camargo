@@ -1,13 +1,9 @@
-import { useState } from "react";
 import PropTypes from "prop-types";
-import Lightbox from "../UI/Lightbox";
+import MosaicoFotos from "./MosaicoFotos";
 import { galeriaPorUnidade, unidades } from "../../data/conteudoSite";
 
 function GaleriaHome({ unidade, onMudarUnidade }) {
-  const [indiceAberto, setIndiceAberto] = useState(null);
-  const fotos = galeriaPorUnidade[unidade];
   const rotulo = unidades.find((u) => u.id === unidade)?.selo ?? "";
-  const midias = fotos.map((f) => ({ ...f, categoria: rotulo }));
 
   return (
     <section id="galeria" style={{ paddingTop: 20 }}>
@@ -31,30 +27,8 @@ function GaleriaHome({ unidade, onMudarUnidade }) {
           </div>
         </div>
 
-        <div className="rc-gal-wrap rc-rv">
-          <div className="rc-gal" role="list">
-            {fotos.map((f, i) => (
-              <button
-                type="button"
-                role="listitem"
-                key={`${unidade}-${f.alt}`}
-                onClick={() => setIndiceAberto(i)}
-                aria-label={`Ampliar foto: ${f.alt}, ${rotulo}`}
-              >
-                <img src={f.src} alt={`${f.alt} do ${rotulo}`} loading="lazy" decoding="async" />
-                <span className="rc-cap">{f.alt} · {rotulo}</span>
-              </button>
-            ))}
-          </div>
-          <button type="button" className="rc-btn rc-btn-light rc-galmore" onClick={() => setIndiceAberto(0)}>
-            <i className="bi bi-grid-3x3-gap" aria-hidden="true" /> Ver todas as fotos
-          </button>
-        </div>
+        <MosaicoFotos className="rc-rv" fotos={galeriaPorUnidade[unidade]} rotulo={rotulo} />
       </div>
-
-      {indiceAberto !== null && (
-        <Lightbox midias={midias} indiceInicial={indiceAberto} aoFechar={() => setIndiceAberto(null)} />
-      )}
     </section>
   );
 }
