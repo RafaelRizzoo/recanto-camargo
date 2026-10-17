@@ -1,9 +1,9 @@
 .grupo-entrada {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.9rem;
 }
 
 .grupo-entrada-animado {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.9rem;
   animation: slideIn 0.5s ease-out;
 }
 
@@ -26,13 +26,13 @@
 
 .form-controle-custom {
   border-radius: 50px;
-  padding: 1rem 3rem 1rem 3rem;
+  padding: 0.75rem 3rem;
   border: 0;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
   width: 100%;
-  font-size: 1rem;
-  height: 55px;
+  font-size: 0.95rem;
+  height: 48px;
   background: rgba(255, 255, 255, 0.95);
 }
 

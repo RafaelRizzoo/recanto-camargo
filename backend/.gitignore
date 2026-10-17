@@ -1,0 +1,22 @@
+# Node.js
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Variáveis de Ambiente e Cofres de Senhas (EXTREMAMENTE CRÍTICO)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+.env.keys
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.temp

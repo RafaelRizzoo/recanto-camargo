@@ -1,13 +1,15 @@
-import { useState } from 'react';
-import { Container, Row, Col, Form, Modal } from 'react-bootstrap';
+import { useState, useEffect } from 'react';
+import { Container, Row, Col, Form, Button } from 'react-bootstrap';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import Botao from '../components/UI/Botao';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { imagensCarrosselHome, comodidades, depoimentos } from '../data/conteudoSite';
+import CalendarioCustom from '../components/UI/CalendarioCustom';
+import Lightbox from '../components/UI/Lightbox';
+import { API_BASE } from '../utils/api';
 
 const DIARIA = 270;
 const TAXA_LIMPEZA = 80;
-const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 const WHATSAPP_NUMERO = '5512996297452';
 const MAPS_URL = 'https://www.google.com/maps?q=Recanto+Camargo+Aparecida+SP';
 
@@ -25,22 +27,6 @@ function formatarData(iso) {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
-}
-
-function verificarConflito(checkin, checkout) {
-  try {
-    const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
-    const entrada = new Date(checkin);
-    const saida = new Date(checkout);
-    return reservas.some(r => {
-      if (r.status === 'cancelada') return false;
-      const rEntrada = new Date(r.checkin);
-      const rSaida = new Date(r.checkout);
-      return entrada < rSaida && saida > rEntrada;
-    });
-  } catch {
-    return false;
-  }
 }
 
 function Estrelas({ total = 5 }) {
@@ -106,40 +92,152 @@ function Reserva() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const hoje = new Date().toISOString().split('T')[0];
-
   const [datas, setDatas] = useState({
     checkin: searchParams.get('checkin') || '',
     checkout: searchParams.get('checkout') || '',
   });
   const [observacoes, setObservacoes] = useState('');
+  const [hospedes, setHospedes] = useState(searchParams.get('hospedes') || '');
   const [erros, setErros] = useState({});
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
   const [fotoAtiva, setFotoAtiva] = useState(0);
   const [modalFotoAberta, setModalFotoAberta] = useState(false);
-  const [enviado, setEnviado] = useState(false);
-  const [reservaConfirmada, setReservaConfirmada] = useState(null);
+  
+  const [cupomInput, setCupomInput] = useState('');
+  const [cupomAplicado, setCupomAplicado] = useState(null);
+  const [erroCupom, setErroCupom] = useState('');
+  const [validandoCupom, setValidandoCupom] = useState(false);
 
   const imagens = imagensCarrosselHome.filter(img => !img.ehVideo);
   const noites = calcularNoites(datas.checkin, datas.checkout);
   const subtotal = noites * DIARIA;
-  const total = noites > 0 ? subtotal + TAXA_LIMPEZA : 0;
+
+  // Apenas PREVIEW para o usuário; o valor definitivo é sempre recalculado no servidor.
+  const valorBasePreview = subtotal + TAXA_LIMPEZA;
+  let desconto = 0;
+  if (cupomAplicado) {
+    if (cupomAplicado.tipoDesconto === 'PERCENTUAL') {
+      desconto = valorBasePreview * (cupomAplicado.valorDesconto / 100);
+    } else if (cupomAplicado.tipoDesconto === 'FIXO') {
+      desconto = cupomAplicado.valorDesconto;
+    }
+  }
+
+  desconto = Math.min(valorBasePreview, Math.max(0, desconto));
+  const total = noites > 0 ? Math.max(0, valorBasePreview - desconto) : 0;
+
+  // Validação dinâmica: se as datas mudarem após aplicar cupom e violarem o mínimo de noites ou valor
+  useEffect(() => {
+    if (cupomAplicado && noites > 0) {
+      if (cupomAplicado.minimoNoites > 1 && noites < cupomAplicado.minimoNoites) {
+        setErroCupom(`O cupom ${cupomAplicado.codigo} exige no mínimo ${cupomAplicado.minimoNoites} noites e foi removido.`);
+        setCupomAplicado(null);
+      } else if (cupomAplicado.valorMinimo > 0 && valorBasePreview < cupomAplicado.valorMinimo) {
+        setErroCupom(`O cupom ${cupomAplicado.codigo} exige um valor mínimo de R$ ${cupomAplicado.valorMinimo.toFixed(2)} e foi removido.`);
+        setCupomAplicado(null);
+      }
+    }
+  }, [noites, valorBasePreview, cupomAplicado]);
+
+  async function aplicarCupom() {
+    setErroCupom('');
+    const codigo = cupomInput.trim();
+    if (!codigo) {
+      setErroCupom('Informe um código de cupom.');
+      return;
+    }
+    if (noites <= 0) {
+      setErroCupom('Selecione as datas de check-in e check-out antes de aplicar o cupom.');
+      return;
+    }
+
+    setValidandoCupom(true);
+
+    try {
+      const resposta = await fetch(`${API_BASE}/api/cupons/validar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          codigo,
+          noites,
+          subtotal: valorBasePreview
+        }),
+      });
+      const dados = await resposta.json().catch(() => null);
+
+      if (!resposta.ok) {
+        throw new Error(dados?.error || 'Erro ao validar cupom.');
+      }
+      if (!dados || !Number.isSafeInteger(Number(dados.cupomId)) || Number(dados.cupomId) <= 0
+        || !['PERCENTUAL', 'FIXO'].includes(dados.tipoDesconto)) {
+        throw new Error('Resposta inválida ao validar cupom.');
+      }
+
+      const valorDesconto = Number(dados.valorDesconto);
+      if (!Number.isFinite(valorDesconto) || valorDesconto < 0) {
+        throw new Error('Resposta inválida ao validar cupom.');
+      }
+
+      const minNoites = Number(dados.minimoNoites || 1);
+      const valMin = Number(dados.valorMinimo || 0);
+
+      if (minNoites > 1 && noites < minNoites) {
+        throw new Error(`Este cupom exige uma estadia mínima de ${minNoites} noites.`);
+      }
+      if (valMin > 0 && valorBasePreview < valMin) {
+        throw new Error(`Este cupom exige um valor mínimo de R$ ${valMin.toFixed(2)}.`);
+      }
+
+      setCupomAplicado({
+        cupomId: Number(dados.cupomId),
+        codigo: dados.codigo,
+        tipoDesconto: dados.tipoDesconto,
+        valorDesconto,
+        minimoNoites: minNoites,
+        valorMinimo: valMin,
+      });
+      setCupomInput('');
+    } catch (erro) {
+      setCupomAplicado(null);
+      setErroCupom(erro.message || 'Erro ao validar cupom.');
+    } finally {
+      setValidandoCupom(false);
+    }
+  }
+
+  function removerCupom() {
+    setCupomAplicado(null);
+    setErroCupom('');
+  }
 
   function abrirFoto(indice) {
     setFotoAtiva(indice);
     setModalFotoAberta(true);
   }
 
-  function handleData(e) {
-    const { name, value } = e.target;
-    setDatas(d => ({ ...d, [name]: value }));
-    setErros(er => ({ ...er, [name]: undefined, conflito: undefined }));
+  function handleCalendarChange(range) {
+    if (Array.isArray(range) && range[0] && range[1]) {
+      const start = range[0];
+      const end = range[1];
+      
+      const startIso = new Date(start.getTime() - start.getTimezoneOffset() * 60000);
+      const checkinStr = startIso.toISOString().split('T')[0];
+      
+      const endIso = new Date(end.getTime() - end.getTimezoneOffset() * 60000);
+      const checkoutStr = endIso.toISOString().split('T')[0];
+      
+      setDatas({ checkin: checkinStr, checkout: checkoutStr });
+      setErros(er => ({ ...er, checkin: undefined, checkout: undefined, conflito: undefined }));
+      setMostrarCalendario(false);
+    }
   }
 
   function irParaLogin() {
     navigate('/Login', { state: { from: location.pathname + location.search } });
   }
 
-  function handleSubmit(evt) {
+  async function handleSubmit(evt) {
     evt.preventDefault();
     const errosNovos = {};
     if (!datas.checkin) errosNovos.checkin = 'Selecione a data de check-in.';
@@ -147,128 +245,72 @@ function Reserva() {
     if (datas.checkin && datas.checkout && noites <= 0) {
       errosNovos.checkout = 'O check-out deve ser depois do check-in.';
     }
+    if (!hospedes || hospedes < 1 || hospedes > 10) {
+      errosNovos.hospedes = 'Informe um número válido de hóspedes (1 a 10).';
+    }
     if (Object.keys(errosNovos).length > 0) {
       setErros(errosNovos);
       return;
     }
-    if (verificarConflito(datas.checkin, datas.checkout)) {
-      setErros({ conflito: 'Este período já está reservado. Escolha outras datas.' });
-      return;
-    }
-
-    const reserva = {
-      id: Date.now(),
-      usuarioId: usuario.id,
-      nome: usuario.nome,
-      email: usuario.email,
-      telefone: usuario.telefone || '',
-      checkin: datas.checkin,
-      checkout: datas.checkout,
-      observacoes,
-      noites,
-      diaria: DIARIA,
-      subtotal,
-      taxa: TAXA_LIMPEZA,
-      total,
-      status: 'pendente',
-      criadaEm: new Date().toISOString(),
-    };
 
     try {
-      const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
-      reservas.push(reserva);
-      localStorage.setItem(CHAVE_RESERVAS, JSON.stringify(reservas));
-      setReservaConfirmada(reserva);
-      setEnviado(true);
-    } catch {
-      setErros({ geral: 'Erro ao salvar reserva. Tente novamente.' });
+      // 1. Enviar para o nosso Back-end de verdade (MySQL)
+      const resposta = await fetch(`${API_BASE}/api/reservas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // ESSENCIAL: Envia o Cookie JWT do usuário!
+        body: JSON.stringify({
+          checkin: datas.checkin + ' 14:00:00', // Check-in a partir das 14h
+          checkout: datas.checkout + ' 11:00:00', // Check-out até as 11h
+          hospedes: parseInt(hospedes, 10),
+          observacoes,
+          ...(cupomAplicado ? { cupomId: cupomAplicado.cupomId } : {}),
+        })
+      });
+
+      if (!resposta.ok) {
+        const errorData = await resposta.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao comunicar com a API');
+      }
+
+      const dadosAPI = await resposta.json();
+      console.log('✅ Retorno da API:', dadosAPI);
+
+      navigate('/ReservaConcluida/' + dadosAPI.reservaId);
+    } catch (erro) {
+      console.error(erro);
+      setErros({ geral: erro.message || 'Erro ao salvar reserva no Banco de Dados.' });
     }
   }
 
-  function gerarLinkWhatsApp(r) {
-    const msg = encodeURIComponent(
-      `Olá! Gostaria de confirmar minha reserva no Recanto Camargo.\n\n` +
-      `*Nome:* ${r.nome}\n` +
-      `*Check-in:* ${formatarData(r.checkin)}\n` +
-      `*Check-out:* ${formatarData(r.checkout)}\n` +
-      `*Noites:* ${r.noites}\n` +
-      `*Total:* ${formatarMoeda(r.total)}\n` +
-      (r.observacoes ? `*Observações:* ${r.observacoes}` : '')
-    );
-    return `https://wa.me/${WHATSAPP_NUMERO}?text=${msg}`;
-  }
-
-  if (enviado && reservaConfirmada) {
-    return (
-      <div className="reserva-page py-5">
-        <Container>
-          <div className="reserva-sucesso-card mx-auto">
-            <div className="text-center mb-4">
-              <div className="reserva-sucesso-icone">
-                <i className="bi bi-check-lg" />
-              </div>
-              <h2 className="titulo-secao-azul mt-4">Solicitação Enviada!</h2>
-              <p className="text-muted">Sua reserva foi registrada com sucesso</p>
-            </div>
-
-            <div className="reserva-sucesso-resumo">
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Código</span>
-                <strong>#{reservaConfirmada.id}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Check-in</span>
-                <strong>{formatarData(reservaConfirmada.checkin)}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Check-out</span>
-                <strong>{formatarData(reservaConfirmada.checkout)}</strong>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span className="text-muted">Noites</span>
-                <strong>{reservaConfirmada.noites}</strong>
-              </div>
-              <hr />
-              <div className="d-flex justify-content-between fw-bold fs-5">
-                <span>Total</span>
-                <span className="text-orange">{formatarMoeda(reservaConfirmada.total)}</span>
-              </div>
-            </div>
-
-            <p className="text-muted small text-center mt-3 mb-4">
-              Entre em contato pelo WhatsApp para confirmar e combinar o pagamento.
-            </p>
-
-            <a
-              href={gerarLinkWhatsApp(reservaConfirmada)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-success w-100 py-3 fs-5 fw-bold"
-              style={{ borderRadius: '12px' }}
-            >
-              <i className="bi bi-whatsapp me-2" />
-              Confirmar pelo WhatsApp
-            </a>
-
-            <button
-              type="button"
-              className="btn btn-link w-100 mt-3 text-muted text-decoration-none"
-              onClick={() => navigate('/')}
-            >
-              Voltar para a página inicial
-            </button>
-          </div>
-        </Container>
-      </div>
-    );
-  }
 
   return (
     <div className="reserva-page">
       <Container className="reserva-conteudo py-5">
 
+        <div className="reserva-header-info mb-4">
+          <h1 className="reserva-titulo-imovel">Recanto Camargo</h1>
+          <div className="d-flex align-items-center gap-3 flex-wrap mt-2">
+            <div className="d-flex align-items-center gap-1">
+              <Estrelas />
+              <span className="fw-bold ms-1">4,98</span>
+              <span className="text-muted">(9 avaliações)</span>
+            </div>
+            <span className="text-muted">·</span>
+            <a
+              href={MAPS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="reserva-link-local"
+            >
+              <i className="bi bi-geo-alt-fill me-1" />
+              Ponte Alta, Aparecida - SP
+            </a>
+          </div>
+        </div>
+
         {/* ── HERO ROW: galeria + widget ── */}
-        <Row className="g-0 g-lg-5 reserva-hero-row">
+        <Row className="g-4 reserva-hero-row align-items-start">
 
           {/* Col esquerda: galeria */}
           <Col lg={7}>
@@ -277,26 +319,6 @@ function Reserva() {
 
           {/* Col direita: título + widget de reserva */}
           <Col lg={5}>
-            <div className="reserva-header-info mb-3">
-              <h1 className="reserva-titulo-imovel">Recanto Camargo</h1>
-              <div className="d-flex align-items-center gap-3 flex-wrap mt-2">
-                <div className="d-flex align-items-center gap-1">
-                  <Estrelas />
-                  <span className="fw-bold ms-1">4,98</span>
-                  <span className="text-muted">(9 avaliações)</span>
-                </div>
-                <span className="text-muted">·</span>
-                <a
-                  href={MAPS_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="reserva-link-local"
-                >
-                  <i className="bi bi-geo-alt-fill me-1" />
-                  Ponte Alta, Aparecida - SP
-                </a>
-              </div>
-            </div>
 
             <div className="reserva-widget-sticky">
               <div className="reserva-widget shadow-lg bg-white p-4">
@@ -306,27 +328,73 @@ function Reserva() {
                   <span className="text-muted"> / noite</span>
                 </div>
 
-                <div className="reserva-datas-grid mb-2">
-                  <div className={`reserva-data-campo${erros.checkin ? ' is-invalid' : ''}`}>
-                    <label>CHECK-IN</label>
-                    <input
-                      type="date"
-                      name="checkin"
-                      value={datas.checkin}
-                      onChange={handleData}
-                      min={hoje}
-                    />
+                <div className="position-relative">
+                  <div className="reserva-datas-grid mb-2">
+                    <div 
+                      className={`reserva-data-campo${erros.checkin ? ' is-invalid' : ''}`}
+                      onClick={() => setMostrarCalendario(!mostrarCalendario)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <label>CHECK-IN</label>
+                      <div className="fw-semibold text-azul mt-1">
+                        {datas.checkin ? formatarData(datas.checkin) : 'Selecionar'}
+                      </div>
+                    </div>
+                    <div 
+                      className={`reserva-data-campo${erros.checkout ? ' is-invalid' : ''}`}
+                      onClick={() => setMostrarCalendario(!mostrarCalendario)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <label>CHECK-OUT</label>
+                      <div className="fw-semibold text-azul mt-1">
+                        {datas.checkout ? formatarData(datas.checkout) : 'Selecionar'}
+                      </div>
+                    </div>
                   </div>
-                  <div className={`reserva-data-campo${erros.checkout ? ' is-invalid' : ''}`}>
-                    <label>CHECK-OUT</label>
-                    <input
-                      type="date"
-                      name="checkout"
-                      value={datas.checkout}
-                      onChange={handleData}
-                      min={datas.checkin || hoje}
-                    />
-                  </div>
+
+                  {mostrarCalendario && (
+                    <div 
+                      className="position-absolute shadow-lg bg-white" 
+                      style={{ top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 10, padding: '1rem', borderRadius: '16px', marginTop: '10px', width: '100%', minWidth: '340px' }}
+                    >
+                      <div className="d-flex justify-content-between align-items-center mb-2">
+                        <span className="fw-bold text-azul fs-5">Selecione as datas</span>
+                        <button 
+                          type="button" 
+                          className="btn-close" 
+                          onClick={() => setMostrarCalendario(false)} 
+                        />
+                      </div>
+                      <CalendarioCustom
+                        onChange={handleCalendarChange}
+                        valor={(datas.checkin && datas.checkout) ? [new Date(datas.checkin + 'T12:00:00'), new Date(datas.checkout + 'T12:00:00')] : null}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="reserva-hospedes-container mb-3">
+                  <label className="small fw-bold text-azul mb-1">HÓSPEDES</label>
+                  <select 
+                    className={`form-select ${erros.hospedes ? 'is-invalid' : ''}`}
+                    value={hospedes}
+                    onChange={(e) => {
+                      setHospedes(e.target.value);
+                      setErros(er => ({ ...er, hospedes: undefined }));
+                    }}
+                    style={{ borderRadius: '8px', cursor: 'pointer', padding: '0.6rem 1rem' }}
+                  >
+                    <option value="">Quantidade de pessoas</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <option key={num} value={num}>{num} {num === 1 ? 'hóspede' : 'hóspedes'}</option>
+                    ))}
+                  </select>
+                  {erros.hospedes && (
+                    <div className="invalid-feedback d-block small">
+                      <i className="bi bi-exclamation-circle me-1" />
+                      {erros.hospedes}
+                    </div>
+                  )}
                 </div>
 
                 {(erros.checkin || erros.checkout) && (
@@ -353,11 +421,55 @@ function Reserva() {
                       <span>Taxa de limpeza</span>
                       <span>{formatarMoeda(TAXA_LIMPEZA)}</span>
                     </div>
+                    {cupomAplicado && (
+                      <div className="d-flex justify-content-between mb-3 text-success">
+                        <span>Desconto ({cupomAplicado.codigo})</span>
+                        <span>-{formatarMoeda(desconto)}</span>
+                      </div>
+                    )}
                     <hr className="my-2" />
                     <div className="d-flex justify-content-between fw-bold fs-5">
                       <span>Total</span>
                       <span className="text-orange">{formatarMoeda(total)}</span>
                     </div>
+                  </div>
+                )}
+
+                {autenticado && noites > 0 && (
+                  <div className="mb-4">
+                    {cupomAplicado ? (
+                      <div className="d-flex align-items-center justify-content-between p-2 rounded" style={{ backgroundColor: '#e8f5e9', border: '1px dashed #4caf50' }}>
+                        <div className="d-flex align-items-center gap-2">
+                          <i className="bi bi-tag-fill text-success" />
+                          <span className="text-success fw-bold">{cupomAplicado.codigo}</span>
+                        </div>
+                        <button type="button" className="btn btn-link text-danger p-0 m-0 text-decoration-none" onClick={removerCupom}>
+                          Remover
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="d-flex gap-2">
+                          <Form.Control
+                            type="text"
+                            placeholder="Cupom de desconto"
+                            value={cupomInput}
+                            onChange={(e) => setCupomInput(e.target.value)}
+                            disabled={validandoCupom}
+                            style={{ textTransform: 'uppercase' }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline-secondary"
+                            onClick={aplicarCupom}
+                            disabled={validandoCupom}
+                          >
+                            {validandoCupom ? 'Validando...' : 'Aplicar'}
+                          </Button>
+                        </div>
+                        {erroCupom && <div className="text-danger small mt-1"><i className="bi bi-exclamation-circle me-1" />{erroCupom}</div>}
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -381,7 +493,7 @@ function Reserva() {
 
                 {autenticado ? (
                   <Botao larguraTotal onClick={handleSubmit} tipo="button" className="py-3 fs-5">
-                    Confirmar Reserva
+                    Solicitar Reserva
                   </Botao>
                 ) : (
                   <>
@@ -515,42 +627,14 @@ function Reserva() {
 
       </Container>
 
-      {/* Lightbox de fotos */}
-      <Modal
-        show={modalFotoAberta}
-        onHide={() => setModalFotoAberta(false)}
-        size="xl"
-        centered
-        contentClassName="bg-dark border-0"
-      >
-        <Modal.Header closeButton closeVariant="white" className="border-0 pb-0" />
-        <Modal.Body className="text-center p-2 pb-4">
-          <img
-            src={imagens[fotoAtiva]?.src}
-            alt={imagens[fotoAtiva]?.alt}
-            style={{ maxHeight: '75vh', maxWidth: '100%', borderRadius: '12px', objectFit: 'contain' }}
-          />
-          <div className="d-flex justify-content-center align-items-center gap-4 mt-3">
-            <button
-              type="button"
-              className="btn btn-outline-light rounded-circle"
-              style={{ width: 40, height: 40 }}
-              onClick={() => setFotoAtiva(i => (i - 1 + imagens.length) % imagens.length)}
-            >
-              <i className="bi bi-chevron-left" />
-            </button>
-            <span className="text-white small">{fotoAtiva + 1} / {imagens.length}</span>
-            <button
-              type="button"
-              className="btn btn-outline-light rounded-circle"
-              style={{ width: 40, height: 40 }}
-              onClick={() => setFotoAtiva(i => (i + 1) % imagens.length)}
-            >
-              <i className="bi bi-chevron-right" />
-            </button>
-          </div>
-        </Modal.Body>
-      </Modal>
+      {/* Lightbox premium fullscreen */}
+      {modalFotoAberta && (
+        <Lightbox
+          midias={imagensCarrosselHome}
+          indiceInicial={fotoAtiva}
+          aoFechar={() => setModalFotoAberta(false)}
+        />
+      )}
     </div>
   );
 }

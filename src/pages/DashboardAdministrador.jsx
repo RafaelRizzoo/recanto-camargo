@@ -1,228 +1,2166 @@
 /**
  * DashboardAdministrador.jsx
+ * Painel Administrativo do Recanto Camargo - Sprint 2
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Row, Col, Card, Modal, Alert, Button } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import { useNotificacoes } from '../hooks/useNotificacoes';
 import Notificacoes from '../components/UI/Notificacoes';
+import { API_BASE } from '../utils/api';
 import 'react-calendar/dist/Calendar.css';
 import './DashboardAdministrador.css';
 
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-const RESERVAS_MOCK = [
-  { id:'R001', hospede:'Fernanda Lima',    email:'fernanda@email.com', telefone:'(12) 98765-4321', checkin:'2026-05-10', checkout:'2026-05-14', hospedes:4, status:'pendente', valorTotal:1080, observacao:'Preciso de berço para bebê de 8 meses.', criadaEm:'2026-04-20' },
-  { id:'R002', hospede:'Carlos Eduardo',   email:'carlos@email.com',   telefone:'(11) 99999-1234', checkin:'2026-05-17', checkout:'2026-05-19', hospedes:2, status:'pendente', valorTotal:580,  observacao:'', criadaEm:'2026-04-21' },
-  { id:'R003', hospede:'Mariana Souza',    email:'mariana@email.com',  telefone:'(12) 97777-8888', checkin:'2026-04-28', checkout:'2026-05-02', hospedes:6, status:'aprovada', valorTotal:1160, observacao:'Levaremos pet (cachorro pequeno).', criadaEm:'2026-04-10' },
-{ id:'R004', hospede:'Roberto Alves', email:'roberto@email.com', telefone:'(21) 98888-5555', checkin:'2026-04-15', checkout:'2026-04-17', hospedes:3, status:'recusada', valorTotal:580, observacao:'', criadaEm:'2026-04-05', motivoRecusa:'Datas já reservadas por outro hóspede.' },
-  { id:'R005', hospede:'Patricia Mendes',  email:'patricia@email.com', telefone:'(12) 96666-3333', checkin:'2026-06-01', checkout:'2026-06-07', hospedes:5, status:'aprovada', valorTotal:1740, observacao:'Aniversário de casamento.', criadaEm:'2026-04-22' },
-  { id:'R006', hospede:'Juliana Costa',    email:'juliana@email.com',  telefone:'(13) 94444-2222', checkin:'2026-05-23', checkout:'2026-05-25', hospedes:2, status:'pendente', valorTotal:580,  observacao:'Viagem de lua de mel.', criadaEm:'2026-04-23' },
-  { id:'R007', hospede:'André Oliveira',   email:'andre@email.com',    telefone:'(12) 95555-1111', checkin:'2026-07-04', checkout:'2026-07-08', hospedes:4, status:'aprovada', valorTotal:1160, observacao:'', criadaEm:'2026-04-25' },
-  { id:'R008', hospede:'Beatriz Santos',   email:'beatriz@email.com',  telefone:'(11) 96666-2222', checkin:'2026-07-18', checkout:'2026-07-21', hospedes:3, status:'pendente', valorTotal:870,  observacao:'', criadaEm:'2026-04-26' },
-];
+// ─── Constantes & Utilitários ────────────────────────────────────────────────
 
-const CHAVE_RESERVAS = 'recanto_camargo_reservas';
+const fmtData  = (s) => {
+  if (!s) return '—';
+  const str = String(s).slice(0, 10);
+  const [a, m, d] = str.split('-');
+  return (a && m && d) ? `${d}/${m}/${a}` : s;
+};
 
-function inicializarReservas() {
+const fmtDataHora = (s) => {
+  if (!s) return '—';
   try {
-    const raw = localStorage.getItem(CHAVE_RESERVAS);
-    return raw ? JSON.parse(raw) : (() => {
-      localStorage.setItem(CHAVE_RESERVAS, JSON.stringify(RESERVAS_MOCK));
-      return RESERVAS_MOCK;
-    })();
-  } catch { return RESERVAS_MOCK; }
-}
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return fmtData(s);
+    return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return fmtData(s);
+  }
+};
 
-// ─── Utilitários ─────────────────────────────────────────────────────────────
-const fmtData  = (s) => { if (!s) return '—'; const [a,m,d]=s.split('-'); return `${d}/${m}/${a}`; };
-const fmtMoeda = (v) => v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
-const noites   = (ci, co) => Math.round((new Date(co+'T00:00:00') - new Date(ci+'T00:00:00')) / 86400000);
+const fmtMoeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const fmtTelefone = (tel) => {
+  if (!tel) return '';
+  const digits = String(tel).replace(/\D/g, '');
+  const clean = (digits.startsWith('55') && digits.length > 11) ? digits.slice(2) : digits;
+  if (clean.length === 11) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 7)}-${clean.slice(7)}`;
+  }
+  if (clean.length === 10) {
+    return `(${clean.slice(0, 2)}) ${clean.slice(2, 6)}-${clean.slice(6)}`;
+  }
+  return tel;
+};
+
+const noites   = (ci, co) => {
+  if (!ci || !co) return 0;
+  return Math.max(1, Math.round((new Date(co + 'T00:00:00') - new Date(ci + 'T00:00:00')) / 86400000));
+};
 
 const STATUS_CFG = {
-  pendente: { label:'Pendente', bg:'#fff3cd', cor:'#856404' },
-  aprovada: { label:'Aprovada', bg:'#d1e7dd', cor:'#0f5132' },
-  recusada: { label:'Recusada', bg:'#f8d7da', cor:'#842029' },
+  pendente:  { label: 'Pendente',   bg: '#fff3cd', cor: '#856404' },
+  'pagamento pendente': { label: 'Pagamento Pendente', bg: '#fef3c7', cor: '#b45309' },
+  aprovada:  { label: 'Confirmada', bg: '#d1e7dd', cor: '#0f5132' },
+  recusada:  { label: 'Recusada',   bg: '#f8d7da', cor: '#842029' },
+  cancelada: { label: 'Cancelada',  bg: '#f8d7da', cor: '#842029' },
+  concluida: { label: 'Concluída',  bg: '#dbeafe', cor: '#1e40af' },
 };
 
-// ─── Ícones ───────────────────────────────────────────────────────────────────
+const PUBLICO_CFG = {
+  TODOS: {
+    label: 'Todos os Hóspedes',
+    classeBadge: 'badge-publico-todos',
+    icone: 'bi-people-fill',
+  },
+  PRIMEIRA_RESERVA: {
+    label: 'Cliente Novo (1ª Reserva)',
+    classeBadge: 'badge-publico-primeira',
+    icone: 'bi-person-plus-fill',
+  },
+  CLIENTE_RETORNANTE: {
+    label: 'Cliente Retornante',
+    classeBadge: 'badge-publico-retornante',
+    icone: 'bi-arrow-repeat',
+  },
+  CLIENTE_RECORRENTE: {
+    label: 'Cliente Recorrente',
+    classeBadge: 'badge-publico-recorrente',
+    icone: 'bi-award-fill',
+  },
+  CLIENTE_ESPECIFICO: {
+    label: 'Hóspede Específico',
+    classeBadge: 'badge-publico-especifico',
+    icone: 'bi-person-check-fill',
+  },
+};
+
+// ─── Ícones SVG Customizados ─────────────────────────────────────────────────
 const Ico = {
-  Dash:    ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
-  Reservas:()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>,
-  Cal:     ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
-  Previsao:()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
-  Config:  ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-  Voltar:  ()=><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-  Sair:    ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  Menu:    ()=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
-  Check:   ()=><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  X:       ()=><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  Dash:     () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  Reservas: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 2v4M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>,
+  Cal:      () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
+  Cupom:    () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg>,
+  Previsao: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  Estrela:  () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  Config:   () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  Voltar:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  Sair:     () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  Menu:     () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>,
+  Check:    () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  X:        () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  WhatsApp: () => <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm5.78 14.07c-.24.68-1.4 1.26-1.92 1.34-.51.08-1.17.11-3.79-.95-2.24-.91-3.68-3.18-3.79-3.33-.11-.15-.92-1.22-.92-2.33 0-1.11.58-1.65.79-1.88.21-.23.46-.29.61-.29.15 0 .31.01.44.01.14.01.33-.05.51.39.19.46.65 1.58.71 1.7.06.12.1.26.02.42-.08.15-.12.25-.24.39-.12.14-.25.31-.36.42-.12.12-.24.25-.1.5.14.24.62 1.02 1.33 1.65.91.81 1.68 1.06 1.92 1.18.24.12.38.1.52-.06.14-.17.6-.7.76-.94.16-.24.32-.2.53-.12.21.08 1.33.63 1.56.74.23.12.38.18.44.28.06.1.06.6-.18 1.28z"/></svg>,
 };
 
-// ─── Subcomponentes─────────────────────────────────────────────────────
+// ─── Subcomponentes Visuais ──────────────────────────────────────────────────
 function BadgeStatus({ status }) {
   const c = STATUS_CFG[status] || STATUS_CFG.pendente;
-  return <span className="badge-status-admin" style={{ background:c.bg, color:c.cor }}>{c.label}</span>;
+  return <span className="badge-status-admin" style={{ background: c.bg, color: c.cor }}>{c.label}</span>;
 }
 
-function CardResumo({ icone, titulo, valor, sub, cor='#3b6399' }) {
+function EstrelasAvaliacao({ nota, tamanho = '1rem' }) {
+  const valor = Math.min(5, Math.max(0, Number(nota) || 0));
   return (
-    <Card className="card-resumo-admin border-0 shadow-sm h-100">
-      <Card.Body className="p-4">
-        <div className="icone-resumo-admin mb-3" style={{ background:`${cor}1a`, color:cor }}>{icone}</div>
-        <div className="valor-resumo-admin">{valor}</div>
-        <div className="titulo-resumo-admin">{titulo}</div>
-        {sub && <div className="sub-resumo-admin mt-1">{sub}</div>}
+    <span className="avaliacao-admin-estrelas" role="img" aria-label={`${valor.toLocaleString('pt-BR')} de 5 estrelas`} style={{ fontSize: tamanho }}>
+      {[1, 2, 3, 4, 5].map(posicao => {
+        const classe = valor >= posicao
+          ? 'bi-star-fill'
+          : valor >= posicao - 0.5
+            ? 'bi-star-half'
+            : 'bi-star';
+        return <i key={posicao} className={`bi ${classe}`} aria-hidden="true" />;
+      })}
+    </span>
+  );
+}
+
+function CardKpiModerno({ icone, titulo, valor, badge, sub, cor = '#3b6399', barraProgresso = null }) {
+  return (
+    <Card className="card-kpi-moderno border-0 shadow-sm h-100">
+      <Card.Body className="p-4 d-flex flex-column justify-content-between">
+        <div>
+          <div className="d-flex align-items-center justify-content-between mb-2">
+            <span className="titulo-kpi-moderno">{titulo}</span>
+            <div className="icone-kpi-moderno" style={{ background: `${cor}1a`, color: cor }}>
+              {icone}
+            </div>
+          </div>
+          <div className="valor-kpi-moderno">{valor}</div>
+        </div>
+        <div className="mt-2">
+          {barraProgresso !== null && (
+            <div className="barra-progresso-kpi mb-2">
+              <div
+                className="barra-progresso-kpi-fill"
+                style={{ width: `${Math.min(100, Math.max(0, barraProgresso))}%`, backgroundColor: cor }}
+              />
+            </div>
+          )}
+          <div className="d-flex align-items-center gap-2 flex-wrap">
+            {badge}
+            {sub && <span className="sub-kpi-moderno">{sub}</span>}
+          </div>
+        </div>
       </Card.Body>
     </Card>
   );
 }
 
-// ─── Modal Detalhe ────────────────────────────────────────────────────────────
-function ModalReserva({ reserva, aoFechar, aoAprovar, aoRecusar }) {
-  if (!reserva) return null;
-  const n = noites(reserva.checkin, reserva.checkout);
+// ─── Gráfico SVG Moderno de Evolução de Faturamento (Últimos 6 Meses) ─────────
+function GraficoFaturamentoSVG({ reservas }) {
+  const [pontoAtivo, setPontoAtivo] = useState(null);
+
+  const meses = useMemo(() => {
+    const hoje = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(hoje.getFullYear(), hoje.getMonth() - (5 - i), 1);
+      const mesNum = d.getMonth();
+      const anoNum = d.getFullYear();
+      const label = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+
+      const receitaDoMes = reservas
+        .filter(r => (r.status === 'aprovada' || r.status === 'concluida'))
+        .filter(r => {
+          if (!r.checkin) return false;
+          const dt = new Date(r.checkin + 'T00:00:00');
+          return dt.getMonth() === mesNum && dt.getFullYear() === anoNum;
+        })
+        .reduce((sum, r) => sum + Number(r.total || r.valorTotal || 0), 0);
+
+      return {
+        id: `${anoNum}-${mesNum}`,
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        ano: anoNum,
+        valor: receitaDoMes,
+      };
+    });
+  }, [reservas]);
+
+  const totalPeriodo = useMemo(() => meses.reduce((a, b) => a + b.valor, 0), [meses]);
+  const maxValor = useMemo(() => Math.max(...meses.map(m => m.valor), 2500), [meses]);
+
+  const width = 640;
+  const height = 210;
+  const padding = { top: 25, right: 35, bottom: 35, left: 65 };
+  const innerWidth = width - padding.left - padding.right;
+  const innerHeight = height - padding.top - padding.bottom;
+
+  const points = useMemo(() => {
+    return meses.map((m, index) => {
+      const x = padding.left + (index / (meses.length - 1)) * innerWidth;
+      const y = padding.top + innerHeight - (m.valor / maxValor) * innerHeight;
+      return { x, y, ...m };
+    });
+  }, [meses, maxValor, innerWidth, innerHeight, padding]);
+
+  const { linePath, areaPath } = useMemo(() => {
+    if (points.length === 0) return { linePath: '', areaPath: '' };
+    let path = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < points.length - 1; i++) {
+      const current = points[i];
+      const next = points[i + 1];
+      const controlX = (current.x + next.x) / 2;
+      path += ` C ${controlX} ${current.y}, ${controlX} ${next.y}, ${next.x} ${next.y}`;
+    }
+    const area = `${path} L ${points[points.length - 1].x} ${padding.top + innerHeight} L ${points[0].x} ${padding.top + innerHeight} Z`;
+    return { linePath: path, areaPath: area };
+  }, [points, padding, innerHeight]);
 
   return (
-    <Modal show onHide={aoFechar} centered size="lg" className="modal-reserva-admin">
-      <Modal.Header closeButton className="modal-header-admin">
-        <Modal.Title>Reserva #{reserva.id}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body className="p-4">
-        <Row className="g-4">
-          <Col md={6}>
-            <p className="label-secao-modal">Hóspede</p>
-            <div className="info-hospede-modal">
-              <div className="avatar-hospede-modal">{reserva.hospede.charAt(0)}</div>
-              <div>
-                <div className="fw-bold">{reserva.hospede}</div>
-                <div className="text-muted small">{reserva.email}</div>
-                <div className="text-muted small">{reserva.telefone}</div>
-              </div>
-            </div>
-          </Col>
-          <Col md={6}>
-            <p className="label-secao-modal">Status</p>
-            <BadgeStatus status={reserva.status} />
-            <div className="text-muted small mt-2">Solicitada em {fmtData(reserva.criadaEm)}</div>
-          </Col>
-          <Col md={6}>
-            <p className="label-secao-modal">Período</p>
-            <div className="d-flex gap-3 flex-wrap">
-              {[['Check-in', fmtData(reserva.checkin)], ['Check-out', fmtData(reserva.checkout)], ['Noites', n]].map(([l,v]) => (
-                <div key={l} className="bloco-data-modal">
-                  <div className="label-data-modal">{l}</div>
-                  <div className="valor-data-modal">{v}</div>
-                </div>
-              ))}
-            </div>
-          </Col>
-          <Col md={6}>
-            <p className="label-secao-modal">Pessoas & Valor</p>
-            <div className="d-flex gap-3">
-              <div className="bloco-data-modal"><div className="label-data-modal">Pessoas</div><div className="valor-data-modal">{reserva.hospedes}</div></div>
-              <div className="bloco-data-modal" style={{background:'#f0fdf4'}}>
-                <div className="label-data-modal">Total</div>
-                <div className="valor-data-modal fw-bold" style={{color:'#198754'}}>{fmtMoeda(reserva.valorTotal)}</div>
-              </div>
-            </div>
-          </Col>
-          {reserva.observacao && (
-            <Col xs={12}>
-              <p className="label-secao-modal">Observações</p>
-              <div className="obs-modal">{reserva.observacao}</div>
-            </Col>
-          )}
-          {reserva.motivoRecusa && (
-            <Col xs={12}>
-              <p className="label-secao-modal">Motivo da Recusa</p>
-              <div className="obs-modal" style={{background:'#fff1f2',border:'1px solid #fecaca',color:'#9a3412'}}>{reserva.motivoRecusa}</div>
-            </Col>
-          )}
-        </Row>
-      </Modal.Body>
-      {reserva.status === 'pendente' && (
-        <Modal.Footer className="border-0 pt-0 gap-2">
-          <Button variant="outline-danger" className="btn-acao-modal" onClick={() => aoRecusar(reserva.id)}><Ico.X /> Recusar</Button>
-          <Button variant="success" className="btn-acao-modal" onClick={() => aoAprovar(reserva.id)}><Ico.Check /> Aprovar</Button>
-        </Modal.Footer>
-      )}
-    </Modal>
+    <div className="card-grafico-svg border-0 shadow-sm p-4 mb-4">
+      <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+        <div>
+          <h6 className="fw-bold mb-0" style={{ color: '#223a5e' }}>
+            <i className="bi bi-graph-up me-2 text-primary" />
+            Evolução do Faturamento
+          </h6>
+          <span className="text-muted small">Últimos 6 meses · Receita de estadias confirmadas e concluídas</span>
+        </div>
+        <div>
+          <span className="badge-total-6m">
+            Total do período: <strong>{fmtMoeda(totalPeriodo)}</strong>
+          </span>
+        </div>
+      </div>
+
+      <div className="grafico-svg-container position-relative">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-100" style={{ overflow: 'visible', maxHeight: '220px' }}>
+          <defs>
+            <linearGradient id="recantoGradienteFaturamento" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ff9211" stopOpacity="0.45" />
+              <stop offset="60%" stopColor="#3b6399" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="#223a5e" stopOpacity="0.0" />
+            </linearGradient>
+            <linearGradient id="recantoGradienteLinha" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#223a5e" />
+              <stop offset="50%" stopColor="#3b6399" />
+              <stop offset="100%" stopColor="#ff9211" />
+            </linearGradient>
+          </defs>
+
+          {/* Linhas de Grade e Valores Y */}
+          {[0, 0.5, 1].map((ratio) => {
+            const y = padding.top + innerHeight - ratio * innerHeight;
+            const valorY = ratio * maxValor;
+            return (
+              <g key={ratio}>
+                <line
+                  x1={padding.left}
+                  y1={y}
+                  x2={padding.left + innerWidth}
+                  y2={y}
+                  stroke="#f1f5f9"
+                  strokeDasharray="4 4"
+                  strokeWidth="1.2"
+                />
+                <text
+                  x={padding.left - 10}
+                  y={y + 4}
+                  textAnchor="end"
+                  fill="#94a3b8"
+                  fontSize="10"
+                  fontWeight="600"
+                >
+                  {fmtMoeda(valorY).replace('R$\u00a0', 'R$ ')}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Área preenchida */}
+          <path d={areaPath} fill="url(#recantoGradienteFaturamento)" />
+
+          {/* Linha principal com gradiente suave */}
+          <path
+            d={linePath}
+            fill="none"
+            stroke="url(#recantoGradienteLinha)"
+            strokeWidth="3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Marcadores Interativos */}
+          {points.map((p) => {
+            const isAtivo = pontoAtivo?.id === p.id;
+            return (
+              <g
+                key={p.id}
+                onMouseEnter={() => setPontoAtivo(p)}
+                onMouseLeave={() => setPontoAtivo(null)}
+                style={{ cursor: 'pointer' }}
+              >
+                <text
+                  x={p.x}
+                  y={padding.top + innerHeight + 20}
+                  textAnchor="middle"
+                  fill={isAtivo ? '#ff9211' : '#64748b'}
+                  fontSize="11"
+                  fontWeight={isAtivo ? '700' : '600'}
+                >
+                  {p.label}
+                </text>
+
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={isAtivo ? 9 : 6.5}
+                  fill="#ff9211"
+                  fillOpacity={isAtivo ? 0.35 : 0.15}
+                  style={{ transition: 'all 0.2s ease' }}
+                />
+
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={isAtivo ? 5 : 4}
+                  fill="#ffffff"
+                  stroke={isAtivo ? '#ff9211' : '#223a5e'}
+                  strokeWidth="2.5"
+                  style={{ transition: 'all 0.2s ease' }}
+                />
+              </g>
+            );
+          })}
+        </svg>
+
+        {pontoAtivo && (
+          <div
+            className="grafico-tooltip-flutuante shadow-sm"
+            style={{
+              left: `${(pontoAtivo.x / width) * 100}%`,
+              top: `${(pontoAtivo.y / height) * 100 - 15}%`,
+            }}
+          >
+            <strong>{pontoAtivo.label}/{pontoAtivo.ano}:</strong> {fmtMoeda(pontoAtivo.valor)}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-// ─── Modal Recusa ────────────────────────────────────────────────────────────
-function ModalRecusa({ reserva, aoFechar, aoConfirmar }) {
-  const [motivo, setMotivo] = useState('');
-  const podeRecusar = motivo.trim().length > 0;
+// ─── Card de Próximos Check-ins com Botão Direto de WhatsApp ──────────────────
+function CardProximosCheckins({ reservas }) {
+  const hoje = useMemo(() => {
+    const h = new Date();
+    h.setHours(0, 0, 0, 0);
+    return h;
+  }, []);
 
-  if (!reserva) return null;
+  const proximos = useMemo(() => {
+    return reservas
+      .filter(r => (r.status === 'aprovada' || r.status === 'concluida') && r.checkin)
+      .map(r => {
+        const dataCi = new Date(r.checkin + 'T00:00:00');
+        const diffDias = Math.round((dataCi - hoje) / 86400000);
+        return { ...r, diffDias };
+      })
+      .filter(r => r.diffDias >= 0)
+      .sort((a, b) => a.diffDias - b.diffDias)
+      .slice(0, 4);
+  }, [reservas, hoje]);
 
-  const handleConfirmar = () => {
-    if (!podeRecusar) return;
-    aoConfirmar(reserva.id, motivo.trim());
-    setMotivo('');
-  };
-
-  const handleFechar = () => {
-    setMotivo('');
-    aoFechar();
+  const gerarLinkWhats = (reserva) => {
+    const rawTel = String(reserva.telefone || '').replace(/\D/g, '');
+    const tel = rawTel.startsWith('55') ? rawTel : `55${rawTel}`;
+    const primeiroNome = (reserva.nome || reserva.hospede || 'Hóspede').trim().split(' ')[0];
+    const dataCheckin = fmtData(reserva.checkin);
+    const texto = `Olá ${primeiroNome}, tudo bem? Aqui é do Recanto Camargo em Aparecida-SP! Estamos preparando tudo com carinho para o seu check-in no dia ${dataCheckin} a partir das 14h. Caso precise de alguma informação ou tenha dúvidas sobre o trajeto, estou à disposição!`;
+    return `https://wa.me/${tel}?text=${encodeURIComponent(texto)}`;
   };
 
   return (
-    <Modal show onHide={handleFechar} centered className="modal-reserva-admin">
-      <Modal.Header closeButton className="modal-header-admin" style={{background:'linear-gradient(135deg, #7f1d1d, #dc2626)'}}>
-        <Modal.Title>Recusar Reserva #{reserva.id}</Modal.Title>
+    <div className="card-checkins-admin border-0 shadow-sm p-4 mb-4">
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <div>
+          <h6 className="fw-bold mb-0" style={{ color: '#223a5e' }}>
+            <i className="bi bi-person-check-fill me-2 text-warning" />
+            Próximos Check-ins
+          </h6>
+          <span className="text-muted small">Hóspedes confirmados com chegada nos próximos dias</span>
+        </div>
+        <span className="badge bg-light text-dark border">
+          {proximos.length} agendados
+        </span>
+      </div>
+
+      {proximos.length === 0 ? (
+        <div className="text-center py-4 text-muted">
+          <i className="bi bi-calendar-check fs-3 d-block mb-2 opacity-50" />
+          <p className="mb-0 small">Nenhum check-in previsto para os próximos dias.</p>
+        </div>
+      ) : (
+        <div className="lista-checkins-wrapper d-flex flex-column gap-3">
+          {proximos.map(r => (
+            <div key={r.id} className="item-checkin-card p-3 d-flex align-items-center justify-content-between flex-wrap gap-2">
+              <div className="d-flex align-items-center gap-3">
+                <div className="avatar-checkin">
+                  {(r.nome || r.hospede || '?').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="d-flex align-items-center gap-2">
+                    <span className="fw-bold" style={{ color: '#223a5e' }}>{r.nome || r.hospede}</span>
+                    <BadgeStatus status={r.status} />
+                  </div>
+                  <div className="text-muted small">
+                    <i className="bi bi-calendar3 me-1" />
+                    {fmtData(r.checkin)} → {fmtData(r.checkout)} ({noites(r.checkin, r.checkout)} noites · {r.hospedes} hóspedes)
+                  </div>
+                  <div className="small fw-semibold mt-1" style={{ color: r.diffDias === 0 ? '#16a34a' : '#223a5e' }}>
+                    {r.diffDias === 0 ? '✨ Entrada Hoje!' : r.diffDias === 1 ? '📅 Entrada Amanhã' : `⏳ Em ${r.diffDias} dias`}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <a
+                  href={gerarLinkWhats(r)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-whatsapp-checkin"
+                  title={`Abrir WhatsApp de ${r.nome || r.hospede}`}
+                >
+                  <Ico.WhatsApp />
+                  <span>WhatsApp</span>
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Modal Detalhe da Reserva ────────────────────────────────────────────────
+function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
+  const [motivo, setMotivo] = useState('');
+  const [erroDecisao, setErroDecisao] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const envioRef = useRef(false);
+
+  const [confirmandoConclusao, setConfirmandoConclusao] = useState(false);
+
+  useEffect(() => { setMotivo(''); setErroDecisao(''); setConfirmandoConclusao(false); }, [reserva?.id]);
+
+  async function decidir(acao) {
+    if (envioRef.current) return;
+    envioRef.current = true;
+    setEnviando(true);
+    setErroDecisao('');
+    try { await aoDecidir(reserva.id, acao, motivo); }
+    catch (erro) { setErroDecisao(erro.message || 'Não foi possível salvar a decisão.'); }
+    finally { envioRef.current = false; setEnviando(false); }
+  }
+
+  if (!reserva) return null;
+  const r = reserva;
+  const n = noites(reserva.checkin, reserva.checkout);
+
+  // Verificação de prazo para a trava de segurança da conclusão manual
+  const agora = new Date();
+  const checkinDt = r.checkin ? new Date(r.checkin + 'T14:00:00') : null;
+  const checkoutDt = r.checkout ? new Date(r.checkout + 'T11:00:00') : null;
+  const checkinNoFuturo = checkinDt ? agora < checkinDt : false;
+  const checkoutNoFuturo = checkoutDt ? agora < checkoutDt : false;
+
+  return (
+    <>
+      <Modal show onHide={() => !enviando && aoFechar()} centered scrollable size="lg" className="modal-reserva-admin">
+        <Modal.Header closeButton className="modal-header-admin py-2 px-3 px-md-4">
+          <Modal.Title style={{ fontSize: '1.2rem', fontWeight: 700 }} className="d-flex align-items-center gap-2">
+            <i className="bi bi-calendar2-check-fill" style={{ color: '#38bdf8' }}></i> Reserva #{reserva.id}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-3 px-md-4">
+          {erroDecisao && <Alert variant="danger" role="alert">{erroDecisao}</Alert>}
+          <Row className="g-3">
+            {/* Banner do Hóspede */}
+            <Col xs={12}>
+              <div className="info-hospede-modal d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="avatar-hospede-modal">{(r.nome || r.hospede || '?').charAt(0)}</div>
+                  <div>
+                    <div className="cli-bloco-valor" style={{ fontSize: '1.08rem' }}>{r.nome || r.hospede}</div>
+                    <div className="text-muted small mt-1">{r.email}</div>
+                    {r.telefone && (
+                      <div className="text-muted small mt-0.5">
+                        <i className="bi bi-telephone me-1" />{fmtTelefone(r.telefone)}
+                      </div>
+                    )}
+                    <div className="mt-1"><BadgeStatus status={r.status} /></div>
+                  </div>
+                </div>
+                {r.criadaEm && (
+                  <div className="text-md-end text-muted small ms-auto">
+                    <div className="label-data-modal mb-1" style={{ fontSize: '0.68rem' }}>Criada em</div>
+                    <strong style={{ color: '#334155', fontSize: '0.85rem' }}>{fmtDataHora(r.criadaEm)}</strong>
+                  </div>
+                )}
+              </div>
+            </Col>
+
+            {/* Coluna 1: Período */}
+            <Col md={6}>
+              <div className="p-3 rounded-3 border bg-white h-100">
+                <div className="label-secao-modal d-flex align-items-center gap-1 mb-2">
+                  <i className="bi bi-calendar3"></i> Período
+                </div>
+                <div className="d-flex gap-2">
+                  <div className="bloco-data-modal flex-fill">
+                    <div className="label-data-modal">Check-in</div>
+                    <div className="valor-data-modal">{fmtData(r.checkin)}</div>
+                  </div>
+                  <div className="bloco-data-modal flex-fill">
+                    <div className="label-data-modal">Check-out</div>
+                    <div className="valor-data-modal">{fmtData(r.checkout)}</div>
+                  </div>
+                  <div className="bloco-data-modal" style={{ minWidth: '60px' }}>
+                    <div className="label-data-modal">Noites</div>
+                    <div className="valor-data-modal">{n}</div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+
+            {/* Coluna 2: Pessoas & Valor */}
+            <Col md={6}>
+              <div className="p-3 rounded-3 border bg-white h-100">
+                <div className="label-secao-modal d-flex align-items-center gap-1 mb-2">
+                  <i className="bi bi-cash-stack"></i> Pessoas & Valor
+                </div>
+                <div className="d-flex gap-2">
+                  <div className="bloco-data-modal" style={{ minWidth: '70px' }}>
+                    <div className="label-data-modal">Pessoas</div>
+                    <div className="valor-data-modal">{r.hospedes}</div>
+                  </div>
+                  <div className="bloco-data-modal flex-fill" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                    <div className="label-data-modal">Total</div>
+                    <div className="valor-data-modal" style={{ color: '#16a34a' }}>{fmtMoeda(r.total || r.valorTotal)}</div>
+                  </div>
+                </div>
+              </div>
+            </Col>
+
+            {(r.observacoes || r.observacao) && (
+              <Col xs={12}>
+                <p className="label-secao-modal mb-1">Observações do Hóspede</p>
+                <div className="cli-obs-box py-2 px-3" style={{ fontSize: '0.88rem' }}>{r.observacoes || r.observacao}</div>
+              </Col>
+            )}
+
+            {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
+              <Col xs={12}>
+                <div className="obs-modal" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
+                  <i className="bi bi-arrow-counterclockwise me-2"></i>
+                  <strong>Estorno Realizado no Mercado Pago:</strong> {fmtMoeda(r.valorReembolsado)} devolvidos diretamente ao hóspede.
+                </div>
+              </Col>
+            )}
+
+            {(r.motivoRecusa || r.motivo) && (r.status === 'recusada' || r.status === 'cancelada') && (
+              <Col xs={12}>
+                <p className="label-secao-modal mb-1">
+                  {r.status === 'cancelada' ? 'Motivo do Cancelamento' : 'Motivo da Recusa'}
+                </p>
+                <div className="obs-modal" style={{ background: '#fff1f2', border: '1px solid #fecaca', color: '#9a3412', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
+                  <i className="bi bi-info-circle me-2"></i>
+                  {r.motivoRecusa || r.motivo}
+                </div>
+              </Col>
+            )}
+
+            {r.status === 'pagamento pendente' && (
+              <Col xs={12}>
+                <div className="obs-modal" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                  <div>
+                    <i className="bi bi-clock-history me-2"></i>
+                    <strong>Aguardando Pagamento do Hóspede:</strong> Esta reserva foi pré-aprovada e aguarda o pagamento via Mercado Pago pelo hóspede. O faturamento e confirmação definitiva ocorrerão automaticamente assim que o pagamento for aprovado.
+                  </div>
+                  {r.expiraEm && (
+                    <div className="mt-2 pt-2 border-top border-warning-subtle fw-semibold" style={{ color: '#78350f' }}>
+                      <i className="bi bi-hourglass-split me-1"></i>
+                      Prazo para pagamento: até <strong>{fmtDataHora(r.expiraEm)} (24 horas)</strong>. Caso o pagamento não ocorra até esse horário, a reserva será cancelada e as datas serão liberadas automaticamente no calendário.
+                    </div>
+                  )}
+                </div>
+              </Col>
+            )}
+
+            {r.status === 'pendente' && (
+              <Col xs={12}>
+                <div className="obs-modal" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                  <i className="bi bi-info-circle me-2"></i>
+                  <strong>Aguardando sua Decisão:</strong>
+                  {r.expiraEm ? (
+                    <span> Você tem até <strong>{fmtDataHora(r.expiraEm)} (48 horas da solicitação)</strong> para aprovar ou recusar esta reserva antes que ela expire e seja cancelada automaticamente pelo sistema.</span>
+                  ) : (
+                    <span> Responda em até 48 horas para evitar cancelamento automático.</span>
+                  )}
+                </div>
+              </Col>
+            )}
+          </Row>
+
+          {r.status === 'pendente' && (
+            <div className="mt-3">
+              <label htmlFor="motivo-recusa" className="form-label small fw-semibold text-muted">Motivo da recusa (opcional)</label>
+              <textarea id="motivo-recusa" className="form-control" rows={2} maxLength={250}
+                value={motivo} disabled={enviando} onChange={e => setMotivo(e.target.value)}
+                style={{ borderRadius: '10px', fontSize: '0.88rem' }} />
+            </div>
+          )}
+        </Modal.Body>
+        {r.status === 'pendente' && (
+          <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={enviando} onClick={aoFechar}>
+              Fechar
+            </Button>
+            <div className="d-flex align-items-center gap-2">
+              <Button variant="outline-danger" style={{ borderRadius: '50px', padding: '0.45rem 1.1rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => decidir('recusar')}>
+                <i className="bi bi-x-circle me-1" /> Recusar reserva
+              </Button>
+              <Button variant="success" style={{ borderRadius: '50px', fontWeight: 700, padding: '0.45rem 1.3rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => decidir('aprovar')}>
+                <i className="bi bi-check2-circle me-1" /> {enviando ? 'Salvando…' : 'Aprovar reserva'}
+              </Button>
+            </div>
+          </Modal.Footer>
+        )}
+        {r.status === 'aprovada' && (
+          <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={enviando} onClick={aoFechar}>
+              Fechar
+            </Button>
+            <div className="d-flex align-items-center gap-2 flex-wrap">
+              <Button variant="outline-danger" style={{ borderRadius: '50px', padding: '0.45rem 1.1rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => { aoFechar(); aoAbrirCancelamento && aoAbrirCancelamento(r); }}>
+                <i className="bi bi-x-circle me-1" /> Cancelar Reserva (Estorno)
+              </Button>
+              {checkinNoFuturo ? (
+                <div className="d-flex align-items-center gap-2">
+                  <span className="small text-muted" style={{ fontSize: '0.8rem' }}>
+                    <i className="bi bi-lock-fill text-secondary me-1" />
+                    Conclusão liberada após o check-in ({fmtData(r.checkin)} às 14h)
+                  </span>
+                  <Button variant="secondary" disabled style={{ opacity: 0.65, borderRadius: '50px' }}>
+                    <i className="bi bi-check2-circle me-1" /> Concluir Estadia
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="primary"
+                  disabled={enviando}
+                  onClick={() => setConfirmandoConclusao(true)}
+                  style={{ borderRadius: '50px', fontWeight: 600, padding: '0.45rem 1.25rem', fontSize: '0.88rem' }}
+                >
+                  <i className="bi bi-check2-circle me-1" /> Concluir Estadia
+                </Button>
+              )}
+            </div>
+          </Modal.Footer>
+        )}
+        {r.status !== 'pendente' && r.status !== 'aprovada' && (
+          <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-end align-items-center">
+            <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} onClick={aoFechar}>
+              Fechar
+            </Button>
+          </Modal.Footer>
+        )}
+      </Modal>
+
+      {/* Modal de Confirmação com Trava contra Cliques Acidentais */}
+      {confirmandoConclusao && (
+        <ModalConfirmarConclusao
+          show={confirmandoConclusao}
+          reserva={r}
+          checkoutNoFuturo={checkoutNoFuturo}
+          aoFechar={() => setConfirmandoConclusao(false)}
+          aoConfirmar={() => {
+            setConfirmandoConclusao(false);
+            decidir('concluir');
+          }}
+          enviando={enviando}
+        />
+      )}
+    </>
+  );
+}
+
+// ─── Modal Confirmação de Conclusão Manual de Estadia (Trava de Segurança) ────
+function ModalConfirmarConclusao({ show, reserva, checkoutNoFuturo, aoFechar, aoConfirmar, enviando }) {
+  if (!show || !reserva) return null;
+
+  return (
+    <Modal show onHide={aoFechar} centered backdrop={enviando ? 'static' : true}>
+      <Modal.Header closeButton={!enviando} style={{ background: checkoutNoFuturo ? '#fffbeb' : '#f0fdf4', borderBottom: '1px solid ' + (checkoutNoFuturo ? '#fde68a' : '#bbf7d0') }}>
+        <Modal.Title style={{ fontSize: '1.15rem', fontWeight: 700, color: checkoutNoFuturo ? '#92400e' : '#166534' }}>
+          <i className={`bi ${checkoutNoFuturo ? 'bi-exclamation-triangle-fill text-warning' : 'bi-check2-circle text-success'} me-2`} />
+          {checkoutNoFuturo ? 'Atenção: Conclusão Antecipada' : 'Confirmar Conclusão da Estadia'}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
-        <div className="obs-modal mb-3" style={{background:'#fff7ed',border:'1px solid #fdba74',color:'#9a3412'}}>
-          <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          Ao recusar esta reserva, o hóspede será notificado. Informe o motivo para que ele entenda a decisão.
-        </div>
-        <label className="label-secao-modal">Motivo da recusa <span className="text-danger">*</span></label>
-        <textarea
-          className="form-controle-config w-100"
-          rows={4}
-          placeholder="Informe o motivo da recusa (obrigatório)..."
-          value={motivo}
-          onChange={e => setMotivo(e.target.value)}
-          style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: motivo.trim().length === 0 && motivo.length > 0 ? '1px solid #dc2626' : '1px solid #e2e8f0', resize: 'vertical' }}
-        />
-        {!podeRecusar && motivo.length > 0 && (
-          <div className="text-danger small mt-2">
-            <i className="bi bi-exclamation-circle me-1"></i>É obrigatório informar o motivo da recusa.
+        {checkoutNoFuturo ? (
+          <div>
+            <div className="p-3 mb-3 rounded-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+              <div className="fw-bold mb-1" style={{ color: '#92400e' }}>
+                <i className="bi bi-hourglass-split me-1" />
+                O check-out oficial está previsto para {fmtData(reserva.checkout)} às 11:00.
+              </div>
+              <p className="small mb-0 text-muted">
+                O hóspede <strong>{reserva.nome || reserva.hospede}</strong> ainda está dentro do período regular da reserva contratada.
+              </p>
+            </div>
+            <p className="small text-muted mb-2">
+              Você confirma que o hóspede já liberou o chalé e realizou o <strong>check-out antecipado</strong>?
+            </p>
+            <div className="small text-muted border-start border-3 border-warning ps-2 py-1 mb-0" style={{ background: '#f8fafc' }}>
+              Ao confirmar, a reserva será concluída no sistema e um convite de avaliação será disparado para o hóspede.
+            </div>
           </div>
-        )}
-        {podeRecusar && (
-          <div className="text-success small mt-2">
-            <i className="bi bi-check-circle me-1"></i>Motivo informado.
+        ) : (
+          <div>
+            <p className="mb-2">
+              Deseja confirmar o encerramento da estadia da <strong>Reserva #{reserva.id}</strong>?
+            </p>
+            <div className="p-3 mb-3 rounded-3 border bg-light small">
+              <div><strong>Hóspede:</strong> {reserva.nome || reserva.hospede}</div>
+              <div><strong>Período:</strong> {fmtData(reserva.checkin)} às 14:00 até {fmtData(reserva.checkout)} às 11:00</div>
+            </div>
+            <p className="small text-muted mb-0">
+              Ao confirmar a conclusão, o hóspede receberá um convite por e-mail e pelo painel para avaliar a hospedagem no Recanto Camargo.
+            </p>
           </div>
         )}
       </Modal.Body>
       <Modal.Footer className="border-0 pt-0 gap-2">
-        <Button variant="outline-secondary" style={{borderRadius:'50px'}} onClick={handleFechar}>Voltar</Button>
-        <Button variant="danger" style={{borderRadius:'50px',padding:'0.55rem 1.5rem'}} onClick={handleConfirmar} disabled={!podeRecusar}>
-          <i className="bi bi-x-circle me-2"></i>Confirmar Recusa
+        <Button variant="outline-secondary" disabled={enviando} onClick={aoFechar} style={{ borderRadius: '50px' }}>
+          Voltar
+        </Button>
+        <Button
+          variant={checkoutNoFuturo ? 'warning' : 'primary'}
+          disabled={enviando}
+          onClick={aoConfirmar}
+          style={{ borderRadius: '50px', fontWeight: 600, padding: '0.55rem 1.4rem' }}
+        >
+          {enviando ? (
+            <>
+              <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+              Concluindo...
+            </>
+          ) : (
+            <>
+              <i className="bi bi-check2-circle me-1" />
+              {checkoutNoFuturo ? 'Sim, Concluir Antecipado' : 'Confirmar Conclusão'}
+            </>
+          )}
         </Button>
       </Modal.Footer>
     </Modal>
   );
 }
 
-// ─── Tabela ──────────────────────────────────────────────────
-function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFiltro, reservasGerais }) {
-  const baseContagem = reservasGerais || reservas;
+// ─── Modal Cancelar Reserva com Reembolso Automático (Mercado Pago) ───────────
+function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento }) {
+  const [simulacao, setSimulacao] = useState(null);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [cancelando, setCancelando] = useState(false);
 
+  useEffect(() => {
+    if (!reserva?.id) return;
+    let ativo = true;
+    setCarregando(true);
+    setErro('');
+
+    fetch(`${API_BASE}/api/proprietario/reservas/${reserva.id}/simular-cancelamento`, {
+      credentials: 'include'
+    })
+      .then(res => res.json())
+      .then(dados => {
+        if (!ativo) return;
+        if (dados.error) setErro(dados.error);
+        else setSimulacao(dados);
+      })
+      .catch(err => {
+        if (ativo) setErro(err.message || 'Erro ao calcular política de reembolso.');
+      })
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+
+    return () => { ativo = false; };
+  }, [reserva?.id]);
+
+  async function confirmar() {
+    if (cancelando) return;
+    setCancelando(true);
+    setErro('');
+    try {
+      await aoConfirmarCancelamento(reserva.id, motivo);
+      aoFechar();
+    } catch (err) {
+      setErro(err.message || 'Não foi possível processar o cancelamento.');
+    } finally {
+      setCancelando(false);
+    }
+  }
+
+  if (!reserva) return null;
+
+  return (
+    <Modal show onHide={() => !cancelando && aoFechar()} centered scrollable size="lg" className="modal-reserva-admin">
+      <Modal.Header closeButton className="modal-header-admin py-2 px-3 px-md-4" style={{ background: 'linear-gradient(135deg, #7f1d1d, #dc2626)', color: '#fff', borderBottom: 'none' }}>
+        <Modal.Title style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 700 }}>
+          <i className="bi bi-exclamation-triangle-fill me-2" />
+          Cancelar Reserva #{reserva.id}
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-4">
+        {erro && <Alert variant="danger" role="alert">{erro}</Alert>}
+
+        {carregando ? (
+          <div className="text-center py-5">
+            <div className="spinner-border text-danger" role="status" />
+            <p className="mt-3 text-muted">Consultando política e calculando reembolso no Mercado Pago...</p>
+          </div>
+        ) : simulacao ? (
+          <div>
+            <Row className="g-3 mb-3">
+              {/* Coluna 1: Informações e WhatsApp */}
+              <Col md={6} className="d-flex flex-column gap-3">
+                <div className="p-3 rounded-3 border bg-light h-100" style={{ fontSize: '0.88rem' }}>
+                  <div className="text-muted small text-uppercase fw-bold mb-2" style={{ letterSpacing: '0.5px' }}>Dados da Reserva</div>
+                  <div className="mb-2">
+                    <span className="text-muted">Hóspede: </span>
+                    <strong className="text-dark fs-6">{simulacao.hospedeNome}</strong>
+                    {simulacao.hospedeTelefone && <div className="text-muted small mt-1"><i className="bi bi-telephone me-1" />{fmtTelefone(simulacao.hospedeTelefone)}</div>}
+                  </div>
+                  <div className="text-muted small">
+                    <div>Check-in: <strong className="text-dark">{fmtData(simulacao.checkin)} às 14:00</strong></div>
+                    <div>Check-out: <strong className="text-dark">{fmtData(simulacao.checkout)} às 11:00</strong></div>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                  <div className="fw-bold text-success small d-flex align-items-center mb-1">
+                    <i className="bi bi-whatsapp me-2 fs-6" />
+                    Prefere propor uma remarcação de datas?
+                  </div>
+                  <div className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
+                    Converse com o hóspede pelo WhatsApp antes de cancelar e estornar o valor.
+                  </div>
+                  {simulacao.hospedeTelefone ? (
+                    <a
+                      href={`https://wa.me/55${simulacao.hospedeTelefone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá, ${simulacao.hospedeNome}! Aqui é o anfitrião do Recanto Camargo sobre a reserva #${reserva.id}. Gostaria de conversar com você sobre a possibilidade de remarcar a sua estadia.`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-success fw-semibold px-3 py-1 d-inline-flex align-items-center"
+                      style={{ borderRadius: '50px' }}
+                    >
+                      <i className="bi bi-whatsapp me-1" />
+                      Falar no WhatsApp
+                    </a>
+                  ) : (
+                    <span className="badge bg-secondary py-1 px-2" style={{ fontSize: '0.75rem' }}>Telefone não informado</span>
+                  )}
+                </div>
+              </Col>
+
+              {/* Coluna 2: Política e Estorno */}
+              <Col md={6}>
+                <div className="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                  <div>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="fw-bold" style={{ color: '#991b1b', fontSize: '0.9rem' }}>
+                        <i className="bi bi-shield-check me-1" />
+                        Cancelamento pelo Anfitrião
+                      </span>
+                      <span className="badge bg-danger px-2 py-1" style={{ fontSize: '0.75rem' }}>
+                        Reembolso 100%
+                      </span>
+                    </div>
+                    <p className="small text-muted mb-3" style={{ fontSize: '0.82rem' }}>
+                      Por regra dos Termos de Uso, cancelamentos pelo anfitrião exigem estorno integral de 100% do valor pago via Mercado Pago (retenção zero).
+                    </p>
+                  </div>
+
+                  <div className="pt-2 border-top" style={{ borderColor: '#fecaca', fontSize: '0.88rem' }}>
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="text-muted">Valor pago na reserva:</span>
+                      <span className="fw-semibold text-dark">{fmtMoeda(simulacao.calculo.valorTotal)}</span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center mb-1">
+                      <span className="fw-bold" style={{ color: '#991b1b' }}>
+                        <i className="bi bi-arrow-counterclockwise me-1" />
+                        Valor a Estornar (Mercado Pago):
+                      </span>
+                      <span className="fw-bold fs-5" style={{ color: '#991b1b' }}>
+                        {fmtMoeda(simulacao.calculo.valorReembolso)}
+                      </span>
+                    </div>
+                    <div className="d-flex justify-content-between align-items-center small text-muted">
+                      <span>Retenção do anfitrião:</span>
+                      <span>R$ 0,00 (0%)</span>
+                    </div>
+                  </div>
+                </div>
+              </Col>
+            </Row>
+
+            {/* Motivo */}
+            <div className="mb-2">
+              <label htmlFor="motivo-cancelamento" className="form-label small fw-semibold text-muted mb-1">
+                Motivo do cancelamento (opcional — será enviado no e-mail do hóspede)
+              </label>
+              <textarea
+                id="motivo-cancelamento"
+                className="form-control"
+                rows={2}
+                maxLength={250}
+                placeholder="Ex.: Manutenção urgente na estrutura do chalé."
+                value={motivo}
+                disabled={cancelando}
+                onChange={e => setMotivo(e.target.value)}
+                style={{ borderRadius: '10px', fontSize: '0.88rem', resize: 'vertical' }}
+              />
+            </div>
+          </div>
+        ) : null}
+      </Modal.Body>
+      <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
+        <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={cancelando} onClick={aoFechar}>
+          Voltar
+        </Button>
+        {simulacao && (
+          <Button
+            variant="danger"
+            style={{ borderRadius: '50px', padding: '0.45rem 1.4rem', fontSize: '0.88rem' }}
+            disabled={cancelando}
+            onClick={confirmar}
+          >
+            {cancelando ? (
+              <>
+                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
+                Estornando no MP...
+              </>
+            ) : (
+              <>
+                <i className="bi bi-x-circle me-1" />
+                Confirmar Estorno ({fmtMoeda(simulacao.calculo.valorReembolso)})
+              </>
+            )}
+          </Button>
+        )}
+      </Modal.Footer>
+    </Modal>
+  );
+}
+
+// ─── Modal Responder Avaliação com Nota Confidencial do Anfitrião ─────────────
+function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
+  const [notaProprietario, setNotaProprietario] = useState(5);
+  const [hoverNota, setHoverNota] = useState(0);
+  const [comentario, setComentario] = useState('');
+  const [erro, setErro] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    setNotaProprietario(5);
+    setHoverNota(0);
+    setComentario('');
+    setErro('');
+    setEnviando(false);
+  }, [avaliacao?.id]);
+
+  if (!avaliacao) return null;
+
+  const comentarioLimpo = comentario.trim();
+  const formularioValido = comentarioLimpo.length <= 255;
+
+  const fechar = () => {
+    if (!enviando) aoFechar();
+  };
+
+  const enviarResposta = async (evento) => {
+    evento.preventDefault();
+    if (!formularioValido || enviando) return;
+
+    setEnviando(true);
+    setErro('');
+
+    try {
+      const resposta = await fetch(`${API_BASE}/api/proprietario/avaliacoes/${avaliacao.id}/responder`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          nota: Number(notaProprietario),
+          Ava_NotaPropietario: Number(notaProprietario),
+          comentario: comentarioLimpo,
+          resposta: comentarioLimpo,
+        }),
+      });
+      const dados = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok) {
+        throw new Error(dados.error || 'Não foi possível enviar a resposta. Tente novamente.');
+      }
+
+      aoResponder(avaliacao.id, dados.respostaProprietario || comentarioLimpo);
+    } catch (falha) {
+      setErro(falha.message || 'Não foi possível enviar a resposta. Tente novamente.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal
+      show
+      onHide={fechar}
+      centered
+      className="modal-reserva-admin"
+      backdrop={enviando ? 'static' : true}
+      keyboard={!enviando}
+    >
+      <form onSubmit={enviarResposta}>
+        <Modal.Header closeButton={!enviando} className="modal-header-admin">
+          <Modal.Title>Responder Avaliação & Avaliar Hóspede</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          <div className="avaliacao-modal-contexto mb-3">
+            <div className="mini-avatar">{(avaliacao.hospede?.nome || '?').charAt(0)}</div>
+            <div>
+              <div className="fw-bold" style={{ color: '#223a5e' }}>{avaliacao.hospede?.nome}</div>
+              <div className="text-muted small">
+                Reserva #{avaliacao.reserva?.id} · {avaliacao.imovel?.nome || 'Recanto Camargo'}
+              </div>
+            </div>
+          </div>
+
+          <div className="avaliacao-original-admin mb-4">
+            <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+              <EstrelasAvaliacao nota={avaliacao.nota} tamanho="1.15rem" />
+              <span className="text-muted small">{fmtData(avaliacao.data)}</span>
+            </div>
+            <p className="mb-0">“{avaliacao.comentario}”</p>
+          </div>
+
+          {/* Nota do Proprietário ao Hóspede com Aviso de Confidencialidade */}
+          <div className="mb-3">
+            <label className="label-secao-modal d-block mb-1">
+              Sua avaliação sobre este hóspede:
+            </label>
+            <div className="d-flex align-items-center gap-2 mb-2">
+              {[1, 2, 3, 4, 5].map((estrela) => {
+                const ativo = (hoverNota || notaProprietario) >= estrela;
+                return (
+                  <button
+                    key={estrela}
+                    type="button"
+                    className="btn-estrela-picker"
+                    onClick={() => setNotaProprietario(estrela)}
+                    onMouseEnter={() => setHoverNota(estrela)}
+                    onMouseLeave={() => setHoverNota(0)}
+                    disabled={enviando}
+                    aria-label={`Atribuir ${estrela} estrelas ao hóspede`}
+                  >
+                    <i
+                      className={`bi ${ativo ? 'bi-star-fill text-warning' : 'bi-star text-muted'}`}
+                      style={{ fontSize: '1.7rem' }}
+                    />
+                  </button>
+                );
+              })}
+              <span className="fw-bold ms-2" style={{ color: '#223a5e', fontSize: '1.1rem' }}>
+                {(hoverNota || notaProprietario)} / 5 estrelas
+              </span>
+            </div>
+
+            {/* Aviso Explicativo Obrigatório */}
+            <div className="alerta-nota-confidencial mb-3">
+              <div className="d-flex align-items-center gap-2">
+                <i className="bi bi-shield-lock-fill text-primary fs-5" />
+                <span className="small text-muted">
+                  <strong>Esta nota é confidencial</strong> e compõe a reputação interna do hóspede no sistema.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Campo de Resposta Pública */}
+          <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
+            <label htmlFor="comentario-proprietario" className="label-secao-modal mb-0">
+              Resposta Pública ao Hóspede
+            </label>
+            <span className={`avaliacao-contador${comentario.length >= 240 ? ' limite' : ''}`}>
+              {comentario.length}/255
+            </span>
+          </div>
+          <textarea
+            id="comentario-proprietario"
+            className="form-control"
+            rows={4}
+            maxLength={255}
+            placeholder="Agradeça a preferência ou envie uma mensagem acolhedora que será exibida publicamente..."
+            value={comentario}
+            onChange={evento => setComentario(evento.target.value)}
+            disabled={enviando}
+            
+            style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid #cbd5e1', resize: 'vertical' }}
+          />
+
+          {erro && (
+            <Alert variant="danger" className="border-0 mt-3 mb-0" role="alert">
+              <i className="bi bi-exclamation-circle me-2" aria-hidden="true" />{erro}
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="border-0 pt-0 gap-2">
+          <Button variant="outline-secondary" type="button" onClick={fechar} disabled={enviando} style={{ borderRadius: '50px' }}>
+            Cancelar
+          </Button>
+          <Button variant="primary" type="submit" disabled={!formularioValido || enviando} className="btn-acao-modal">
+            {enviando ? (
+              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> Enviando...</>
+            ) : (
+              <><i className="bi bi-send me-1" aria-hidden="true" /> Enviar resposta</>
+            )}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
+  );
+}
+
+// ─── Modal Bloquear Datas (Manutenção / Proprietário) ─────────────────────────
+function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [], bloqueiosExistentes = [] }) {
+  const hojeStr = new Date().toISOString().slice(0, 10);
+  const [dataInicio, setDataInicio] = useState(hojeStr);
+  const [dataFim, setDataFim] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().slice(0, 10);
+  });
+  const [motivo, setMotivo] = useState('Manutenção preventiva e reparos gerais');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  // Detecção de Conflitos em Tempo Real
+  const conflitoDetectado = useMemo(() => {
+    if (!dataInicio || !dataFim || dataInicio > dataFim) return null;
+
+    const fimComp = dataInicio === dataFim
+      ? new Date(new Date(dataInicio + 'T00:00:00').getTime() + 86400000).toISOString().slice(0, 10)
+      : dataFim;
+
+    // Conflito com reservas
+    const reservaConflitante = reservasExistentes.find(r => {
+      if (r.status !== 'aprovada' && r.status !== 'concluida' && r.status !== 'pendente' && r.status !== 'pagamento pendente') return false;
+      return r.checkin < fimComp && r.checkout > dataInicio;
+    });
+
+    if (reservaConflitante) {
+      return {
+        tipo: 'reserva',
+        mensagem: `Conflito com Reserva #${reservaConflitante.id} (${fmtData(reservaConflitante.checkin)} a ${fmtData(reservaConflitante.checkout)})`,
+      };
+    }
+
+    // Conflito com outros bloqueios
+    const bloqueioConflitante = bloqueiosExistentes.find(b => {
+      const bData = b.data ? String(b.data).slice(0, 10) : null;
+      if (bData) return bData >= dataInicio && bData < fimComp;
+      return b.dataInicio < fimComp && b.dataFim > dataInicio;
+    });
+
+    if (bloqueioConflitante) {
+      return {
+        tipo: 'bloqueio',
+        mensagem: `Conflito com Bloqueio existente (${fmtData(bloqueioConflitante.data || bloqueioConflitante.dataInicio)}): ${bloqueioConflitante.motivo}`,
+      };
+    }
+
+    return null;
+  }, [dataInicio, dataFim, reservasExistentes, bloqueiosExistentes]);
+
+  const submeter = async (e) => {
+    e.preventDefault();
+    if (!dataInicio || !dataFim || conflitoDetectado || enviando) return;
+    setEnviando(true);
+    setErro('');
+
+    try {
+      await aoSalvar({ dataInicio, dataFim, motivo: motivo.trim() || 'Bloqueio para manutenção' });
+      aoFechar();
+    } catch (err) {
+      setErro(err.message || 'Não foi possível salvar o bloqueio.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal show={show} onHide={aoFechar} centered backdrop={enviando ? 'static' : true}>
+      <form onSubmit={submeter}>
+        <Modal.Header closeButton={!enviando} className="modal-header-admin">
+          <Modal.Title><i className="bi bi-shield-slash me-2" /> Bloquear Datas para Manutenção</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          {erro && <Alert variant="danger">{erro}</Alert>}
+
+          <Row className="g-3 mb-3">
+            <Col sm={6}>
+              <label htmlFor="bloq-inicio" className="form-label fw-semibold small text-muted">Data de Entrada (Início)</label>
+              <input
+                id="bloq-inicio"
+                type="date"
+                className="form-control"
+                value={dataInicio}
+                min={hojeStr}
+                onChange={e => setDataInicio(e.target.value)}
+                required
+              />
+            </Col>
+            <Col sm={6}>
+              <label htmlFor="bloq-fim" className="form-label fw-semibold small text-muted">Data de Saída (Fim / Desocupação)</label>
+              <input
+                id="bloq-fim"
+                type="date"
+                className="form-control"
+                value={dataFim}
+                min={dataInicio || hojeStr}
+                onChange={e => setDataFim(e.target.value)}
+                required
+              />
+            </Col>
+          </Row>
+
+          <div className="mb-3">
+            <label htmlFor="bloq-motivo" className="form-label fw-semibold small text-muted">
+              Motivo do Bloqueio <span className="fw-normal text-muted">(opcional — apenas para seu controle)</span>
+            </label>
+            <textarea
+              id="bloq-motivo"
+              rows={3}
+              className="form-control"
+              placeholder="Ex.: Conflito com Airbnb, uso pessoal da família, reparos..."
+              value={motivo}
+              onChange={e => setMotivo(e.target.value)}
+            />
+            <small className="text-muted d-block mt-1">Este motivo é privado e serve como log interno para sua gestão.</small>
+          </div>
+
+          {dataInicio && dataFim && dataInicio <= dataFim && !conflitoDetectado && (
+            <div className="alert alert-light border py-2 px-3 small d-flex align-items-center gap-2 mb-3 text-muted">
+              <i className="bi bi-info-circle text-primary fs-6" />
+              <span>
+                {dataInicio === dataFim 
+                  ? `Bloqueio de 1 diária (${fmtData(dataInicio)}).`
+                  : `Bloqueio de ${noites(dataInicio, dataFim)} diária(s) (${fmtData(dataInicio)} a ${fmtData(dataFim)} — imóvel liberado no check-out em ${fmtData(dataFim)}).`}
+              </span>
+            </div>
+          )}
+
+          {conflitoDetectado && (
+            <Alert variant="warning" className="border-0 shadow-sm d-flex align-items-center gap-2 mb-0">
+              <i className="bi bi-exclamation-triangle-fill fs-5 text-warning" />
+              <div className="small">
+                <strong>Atenção:</strong> {conflitoDetectado.mensagem}. Selecione outro período.
+              </div>
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={aoFechar} disabled={enviando} style={{ borderRadius: '50px' }}>
+            Cancelar
+          </Button>
+          <Button
+            variant="warning"
+            type="submit"
+            className="fw-bold"
+            disabled={!dataInicio || !dataFim || !!conflitoDetectado || enviando}
+            style={{ borderRadius: '50px' }}
+          >
+            {enviando ? 'Bloqueando…' : 'Confirmar Bloqueio'}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
+  );
+}
+
+// ─── Calendário de Ocupação com 2 Meses Lado a Lado ───────────────────────────
+function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBloqueio }) {
+  const [mesBase, setMesBase] = useState(() => new Date());
+  const [showModalBloqueio, setShowModalBloqueio] = useState(false);
+
+  const mesSeguinte = useMemo(() => {
+    return new Date(mesBase.getFullYear(), mesBase.getMonth() + 1, 1);
+  }, [mesBase]);
+
+  // Mapeamento de reservas para cores do calendário
+  const mapaStatus = useMemo(() => reservas.reduce((acc, r) => {
+    if (r.status !== 'aprovada' && r.status !== 'pendente' && r.status !== 'pagamento pendente') return acc;
+    const ini = new Date(r.checkin + 'T00:00:00');
+    const fim = new Date(r.checkout + 'T00:00:00');
+    for (let d = new Date(ini); d < fim; d = new Date(d.getTime() + 86400000)) {
+      const k = d.toISOString().slice(0, 10);
+      const st = (r.status === 'pagamento pendente' || r.status === 'pendente') ? 'pendente' : 'aprovada';
+      if (!acc[k] || st === 'aprovada') acc[k] = st;
+    }
+    return acc;
+  }, {}), [reservas]);
+
+  // Mapeamento de bloqueios para hachura listrada amarela/âmbar
+  const mapaBloqueios = useMemo(() => bloqueios.reduce((acc, b) => {
+    // Nova arquitetura: blocos atômicos dia a dia
+    if (b.data) {
+      acc[String(b.data).slice(0, 10)] = b;
+    } 
+    // Fallback caso ainda exista algum dado na estrutura velha (range)
+    else if (b.dataInicio && b.dataFim) {
+      const ini = new Date(b.dataInicio + 'T00:00:00');
+      const fim = new Date(b.dataFim + 'T00:00:00');
+      for (let d = new Date(ini); d < fim; d = new Date(d.getTime() + 86400000)) {
+        acc[d.toISOString().slice(0, 10)] = b;
+      }
+    }
+    return acc;
+  }, {}), [bloqueios]);
+
+  const getIso = (d) => {
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().split('T')[0];
+  };
+
+  const tileClassName = ({ date, view }) => {
+    if (view !== 'month') return null;
+    const dStr = getIso(date);
+
+    const dtAnt = new Date(date);
+    dtAnt.setDate(dtAnt.getDate() - 1);
+    const dAntStr = getIso(dtAnt);
+
+    const normalizarStatus = (status) => {
+      if (status === 'pagamento pendente') return 'pendente';
+      return status;
+    };
+
+    const statusValidos = ['aprovada', 'pendente', 'pagamento pendente'];
+
+    // Verificações para MANHÃ (Check-out)
+    const resCheckout = reservas.find(r => statusValidos.includes(r.status) && r.checkout === dStr);
+    const resMeio = reservas.find(r => statusValidos.includes(r.status) && r.checkin < dStr && r.checkout > dStr);
+    const bloqAnterior = !!mapaBloqueios[dAntStr];
+    const bloqAtual = !!mapaBloqueios[dStr];
+
+    let manha = 'livre';
+    if (resCheckout) manha = normalizarStatus(resCheckout.status);
+    else if (resMeio) manha = normalizarStatus(resMeio.status);
+    else if (bloqAnterior) manha = 'bloqueado';
+
+    // Verificações para TARDE (Check-in / Pernoite)
+    let tarde = 'livre';
+    if (bloqAtual) {
+      tarde = 'bloqueado';
+    } else {
+      const resTarde = reservas.find(r => statusValidos.includes(r.status) && r.checkin <= dStr && r.checkout > dStr);
+      if (resTarde) tarde = normalizarStatus(resTarde.status);
+    }
+
+    // Se ambos os períodos forem iguais
+    if (manha === tarde) {
+      if (manha === 'aprovada') return 'dia-aprovado';
+      if (manha === 'pendente') return 'dia-pendente';
+      if (manha === 'bloqueado') return 'dia-bloqueado-manutencao';
+      return null;
+    }
+
+    // Casos combinados (metade e metade)
+    // 1. Reserva Aprovada e Bloqueio
+    if (manha === 'aprovada' && tarde === 'bloqueado') return 'dia-split-reserva-bloqueio';
+    if (manha === 'bloqueado' && tarde === 'aprovada') return 'dia-split-bloqueio-reserva';
+
+    // 2. Reserva Pendente e Bloqueio
+    if (manha === 'pendente' && tarde === 'bloqueado') return 'dia-split-pendente-bloqueio';
+    if (manha === 'bloqueado' && tarde === 'pendente') return 'dia-split-bloqueio-pendente';
+
+    // 3. Reserva Aprovada e Livre (Entrada / Saída)
+    if (manha === 'aprovada' && tarde === 'livre') return 'dia-split-reserva-livre';
+    if (manha === 'livre' && tarde === 'aprovada') return 'dia-split-livre-reserva';
+
+    // 4. Reserva Pendente e Livre (Entrada / Saída)
+    if (manha === 'pendente' && tarde === 'livre') return 'dia-split-pendente-livre';
+    if (manha === 'livre' && tarde === 'pendente') return 'dia-split-livre-pendente';
+
+    // 5. Bloqueio e Livre (Entrada / Saída)
+    if (manha === 'bloqueado' && tarde === 'livre') return 'dia-split-bloqueio-livre';
+    if (manha === 'livre' && tarde === 'bloqueado') return 'dia-split-livre-bloqueio';
+
+    // 6. Reserva Aprovada e Reserva Pendente
+    if (manha === 'aprovada' && tarde === 'pendente') return 'dia-split-reserva-pendente';
+    if (manha === 'pendente' && tarde === 'aprovada') return 'dia-split-pendente-reserva';
+
+    return null;
+  };
+
+  const mudarMes = (delta) => {
+    setMesBase(prev => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
+  };
+
+  return (
+    <div className="calendario-duplo-wrapper">
+      {/* Topo com Ações e Legenda */}
+      <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+          <h5 className="mb-0 fw-bold" style={{ color: '#223a5e' }}>Calendário de Ocupação & Manutenção</h5>
+          <span className="text-muted small">Visualização de 2 meses simultâneos</span>
+        </div>
+
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="d-flex gap-1 me-2">
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              style={{ borderRadius: '50px' }}
+              onClick={() => mudarMes(-1)}
+              title="Mês Anterior"
+            >
+              ‹ Anterior
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm"
+              style={{ borderRadius: '50px' }}
+              onClick={() => setMesBase(new Date())}
+              title="Voltar para Hoje"
+            >
+              Hoje
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm"
+              style={{ borderRadius: '50px' }}
+              onClick={() => mudarMes(1)}
+              title="Próximo Mês"
+            >
+              Próximo ›
+            </button>
+          </div>
+
+          <Button
+            className="fw-bold d-inline-flex align-items-center gap-2 btn-bloquear-datas-admin"
+            style={{ borderRadius: '50px' }}
+            onClick={() => setShowModalBloqueio(true)}
+          >
+            <i className="bi bi-shield-slash" /> Bloquear Datas
+          </Button>
+        </div>
+      </div>
+
+      {/* Legenda das Cores */}
+      <div className="legenda-calendario mb-3 p-2 bg-light rounded-3 d-flex align-items-center gap-3 flex-wrap">
+        <span className="legenda-item"><span className="dot dot-aprovada" /> Reserva Confirmada</span>
+        <span className="legenda-item"><span className="dot dot-pendente" /> Reserva Pendente</span>
+        <span className="legenda-item"><span className="dot dot-bloqueado" /> Bloqueio Manual (Hachura)</span>
+        <span className="legenda-item text-muted small"><i className="bi bi-circle-half me-1" /> Metade dividida: Saída (manhã) / Entrada (tarde)</span>
+      </div>
+
+      {/* Grid de 2 Meses Lado a Lado */}
+      <div className="calendario-duplo-grid">
+        <div className="calendario-mes-coluna">
+          <div className="calendario-mes-titulo">
+            {mesBase.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+          </div>
+          <Calendar
+            locale="pt-BR"
+            activeStartDate={mesBase}
+            onActiveStartDateChange={({ activeStartDate }) => setMesBase(activeStartDate || new Date())}
+            tileClassName={tileClassName}
+            className="calendario-admin-custom w-100"
+            showNavigation={false}
+          />
+        </div>
+
+        <div className="calendario-mes-coluna">
+          <div className="calendario-mes-titulo">
+            {mesSeguinte.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+          </div>
+          <Calendar
+            locale="pt-BR"
+            activeStartDate={mesSeguinte}
+            tileClassName={tileClassName}
+            className="calendario-admin-custom w-100"
+            showNavigation={false}
+          />
+        </div>
+      </div>
+
+      {/* Lista de Bloqueios Ativos */}
+      <div className="lista-bloqueios-wrapper">
+        <div className="d-flex align-items-center justify-content-between mb-3">
+          <h6 className="fw-bold mb-0" style={{ color: '#223a5e' }}>
+            <i className="bi bi-cone-striped me-2 text-warning" />
+            Datas Bloqueadas (Manuais/Externas) ({bloqueios.length})
+          </h6>
+        </div>
+
+        {bloqueios.length === 0 ? (
+          <p className="text-muted small mb-0">Nenhum bloqueio cadastrado. Todas as datas livres estão disponíveis para reservas.</p>
+        ) : (
+          <div className="d-flex flex-column gap-2">
+            {bloqueios.map(b => (
+              <div key={b.id} className="item-bloqueio-card">
+                <div className="d-flex align-items-center gap-3">
+                  <div className="avatar-checkin" style={{ background: '#f59e0b', width: 36, height: 36, fontSize: '0.9rem' }}>
+                    <i className="bi bi-tools" />
+                  </div>
+                  <div>
+                    <div className="fw-bold" style={{ color: '#78350f' }}>{b.motivo}</div>
+                    <div className="text-muted small">
+                      <i className="bi bi-calendar-event me-1" />
+                      {fmtData(b.data || b.dataInicio)} (1 dia bloqueado)
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline-danger"
+                  size="sm"
+                  style={{ borderRadius: '50px' }}
+                  onClick={() => aoRemoverBloqueio(b.id)}
+                  title="Remover bloqueio e liberar datas"
+                >
+                  <i className="bi bi-trash3 me-1" /> Desbloquear
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal para Bloquear Datas */}
+      <ModalBloquearDatas
+        show={showModalBloqueio}
+        aoFechar={() => setShowModalBloqueio(false)}
+        aoSalvar={aoCriarBloqueio}
+        reservasExistentes={reservas}
+        bloqueiosExistentes={bloqueios}
+      />
+    </div>
+  );
+}
+
+// ─── Modal Criar Novo Cupom ──────────────────────────────────────────────────
+function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
+  const [codigo, setCodigo] = useState('');
+  const [tipo, setTipo] = useState('PERCENTUAL');
+  const [valor, setValor] = useState('');
+  const [publico, setPublico] = useState('TODOS');
+  
+  // Hóspede específico (busca + seleção com abinha/dropdown)
+  const [buscaHospede, setBuscaHospede] = useState('');
+  const [hospedeSelecionado, setHospedeSelecionado] = useState(null);
+  const [sugestoesHospedes, setSugestoesHospedes] = useState([]);
+  const [carregandoSugestoes, setCarregandoSugestoes] = useState(false);
+  const [mostrarDropdown, setMostrarDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const [minimoNoites, setMinimoNoites] = useState(1);
+  const [valorMinimo, setValorMinimo] = useState('');
+  const [limiteUso, setLimiteUso] = useState('');
+  const [validade, setValidade] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 3);
+    return d.toISOString().slice(0, 10);
+  });
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+
+  // Fecha dropdown ao clicar fora
+  useEffect(() => {
+    const handleClickFora = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setMostrarDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickFora);
+    return () => document.removeEventListener('mousedown', handleClickFora);
+  }, []);
+
+  // Busca hóspedes na API quando o público for CLIENTE_ESPECIFICO
+  useEffect(() => {
+    if (!show || publico !== 'CLIENTE_ESPECIFICO' || hospedeSelecionado) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCarregandoSugestoes(true);
+      try {
+        const queryParam = encodeURIComponent(buscaHospede.trim());
+        const res = await fetch(`${API_BASE}/api/proprietario/hospedes/buscar?q=${queryParam}`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const dados = await res.json();
+          setSugestoesHospedes(dados || []);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar sugestões de hóspedes:', err);
+      } finally {
+        setCarregandoSugestoes(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [show, publico, buscaHospede, hospedeSelecionado]);
+
+  // Reseta campos quando o modal abre ou fecha
+  useEffect(() => {
+    if (!show) {
+      setCodigo('');
+      setTipo('PERCENTUAL');
+      setValor('');
+      setPublico('TODOS');
+      setBuscaHospede('');
+      setHospedeSelecionado(null);
+      setSugestoesHospedes([]);
+      setMostrarDropdown(false);
+      setMinimoNoites(1);
+      setValorMinimo('');
+      setLimiteUso('');
+      setErro('');
+    }
+  }, [show]);
+
+  const submeter = async (e) => {
+    e.preventDefault();
+    if (!codigo.trim() || !valor || !validade || enviando) return;
+
+    if (publico === 'CLIENTE_ESPECIFICO' && !hospedeSelecionado && !buscaHospede.trim()) {
+      setErro('Por favor, selecione um hóspede da lista para este cupom específico.');
+      return;
+    }
+
+    setEnviando(true);
+    setErro('');
+
+    try {
+      await aoSalvar({
+        codigo: codigo.trim().toUpperCase(),
+        tipoDesconto: tipo,
+        valorDesconto: Number(valor),
+        publicoAlvo: publico,
+        clienteId: publico === 'CLIENTE_ESPECIFICO'
+          ? (hospedeSelecionado ? hospedeSelecionado.id : buscaHospede.trim())
+          : null,
+        minimoNoites: Number(minimoNoites) || 1,
+        valorMinimo: Number(valorMinimo) || 0,
+        limiteUso: limiteUso && Number(limiteUso) > 0 ? Number(limiteUso) : (publico === 'CLIENTE_ESPECIFICO' ? 1 : null),
+        validoAte: validade,
+        ativo: true,
+      });
+      aoFechar();
+    } catch (err) {
+      setErro(err.message || 'Erro ao criar cupom.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  return (
+    <Modal show={show} onHide={aoFechar} centered backdrop={enviando ? 'static' : true}>
+      <form onSubmit={submeter}>
+        <Modal.Header closeButton={!enviando} className="modal-header-admin">
+          <Modal.Title><i className="bi bi-tag-fill me-2" /> Criar Novo Cupom de Desconto</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-4">
+          {erro && <Alert variant="danger">{erro}</Alert>}
+
+          <Row className="g-3 mb-3">
+            <Col sm={6}>
+              <label htmlFor="cupom-codigo" className="form-label fw-semibold small text-muted">Código do Cupom *</label>
+              <input
+                id="cupom-codigo"
+                type="text"
+                className="form-control text-uppercase fw-bold"
+                placeholder="Ex.: PEREGRINO10"
+                value={codigo}
+                onChange={e => setCodigo(e.target.value.toUpperCase())}
+                required
+              />
+            </Col>
+            <Col sm={6}>
+              <label htmlFor="cupom-tipo" className="form-label fw-semibold small text-muted">Tipo de Desconto *</label>
+              <select
+                id="cupom-tipo"
+                className="form-select"
+                value={tipo}
+                onChange={e => setTipo(e.target.value)}
+              >
+                <option value="PERCENTUAL">Percentual (%)</option>
+                <option value="FIXO">Valor Fixo (R$)</option>
+              </select>
+            </Col>
+          </Row>
+
+          <Row className="g-3 mb-3">
+            <Col sm={6}>
+              <label htmlFor="cupom-valor" className="form-label fw-semibold small text-muted">
+                Valor do Desconto {tipo === 'PERCENTUAL' ? '(%)' : '(R$)'} *
+              </label>
+              <input
+                id="cupom-valor"
+                type="number"
+                step="any"
+                min="1"
+                className="form-control"
+                placeholder={tipo === 'PERCENTUAL' ? 'Ex.: 10' : 'Ex.: 50'}
+                value={valor}
+                onChange={e => setValor(e.target.value)}
+                required
+              />
+            </Col>
+            <Col sm={6}>
+              <label htmlFor="cupom-publico" className="form-label fw-semibold small text-muted">Público-Alvo & Elegibilidade *</label>
+              <select
+                id="cupom-publico"
+                className="form-select"
+                value={publico}
+                onChange={e => {
+                  const val = e.target.value;
+                  setPublico(val);
+                  if (val === 'CLIENTE_ESPECIFICO') {
+                    setLimiteUso('1');
+                  } else if (limiteUso === '1') {
+                    setLimiteUso('');
+                  }
+                  if (val !== 'CLIENTE_ESPECIFICO') {
+                    setHospedeSelecionado(null);
+                    setBuscaHospede('');
+                  }
+                }}
+              >
+                <option value="TODOS">🌐 Todos os Clientes (Geral)</option>
+                <option value="PRIMEIRA_RESERVA">🎉 Cliente Novo (1ª Reserva)</option>
+                <option value="CLIENTE_RETORNANTE">🔄 Cliente Retornante (&gt; 6 meses sem reserva)</option>
+                <option value="CLIENTE_RECORRENTE">⭐ Cliente Recorrente (2+ reservas)</option>
+                <option value="CLIENTE_ESPECIFICO">🎯 Hóspede Específico (Fidelidade)</option>
+              </select>
+            </Col>
+          </Row>
+
+          {publico === 'CLIENTE_ESPECIFICO' && (
+            <div className="mb-3 position-relative" ref={dropdownRef}>
+              <label htmlFor="cupom-cliente" className="form-label fw-semibold small text-muted d-flex justify-content-between">
+                <span>Hóspede Específico *</span>
+                <span className="text-primary fw-normal" style={{ fontSize: '0.78rem' }}>
+                  <i className="bi bi-person-check me-1" /> Selecione da lista abaixo
+                </span>
+              </label>
+
+              {hospedeSelecionado ? (
+                <div className="p-2 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between shadow-sm" style={{ borderColor: '#bbf7d0' }}>
+                  <div className="d-flex align-items-center gap-2">
+                    <div className="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 34, height: 34, fontSize: '0.85rem' }}>
+                      {hospedeSelecionado.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="fw-bold text-dark" style={{ fontSize: '0.9rem' }}>
+                        {hospedeSelecionado.nome}
+                        <span className="badge bg-success-subtle text-success border border-success-subtle ms-2" style={{ fontSize: '0.72rem' }}>
+                          ✓ Selecionado
+                        </span>
+                      </div>
+                      <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                        {hospedeSelecionado.email}
+                        {hospedeSelecionado.telefone ? ` • ${fmtTelefone(hospedeSelecionado.telefone)}` : ''}
+                        {hospedeSelecionado.totalReservas > 0 ? ` • ${hospedeSelecionado.totalReservas} reserva(s)` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline-secondary"
+                    size="sm"
+                    className="py-1 px-2"
+                    style={{ fontSize: '0.78rem', borderRadius: '20px' }}
+                    onClick={() => {
+                      setHospedeSelecionado(null);
+                      setBuscaHospede('');
+                      setMostrarDropdown(true);
+                    }}
+                  >
+                    <i className="bi bi-arrow-repeat me-1" /> Trocar
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="input-group">
+                    <span className="input-group-text bg-white border-end-0 text-muted">
+                      <i className="bi bi-search" />
+                    </span>
+                    <input
+                      id="cupom-cliente"
+                      type="text"
+                      className="form-control border-start-0"
+                      placeholder="Digite o nome ou e-mail (ex.: Felipe)..."
+                      value={buscaHospede}
+                      onChange={e => {
+                        setBuscaHospede(e.target.value);
+                        setMostrarDropdown(true);
+                      }}
+                      onFocus={() => setMostrarDropdown(true)}
+                      autoComplete="off"
+                      required
+                    />
+                    {buscaHospede && (
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary border-start-0"
+                        onClick={() => {
+                          setBuscaHospede('');
+                          setMostrarDropdown(true);
+                        }}
+                      >
+                        <i className="bi bi-x-lg" style={{ fontSize: '0.8rem' }} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dropdown de sugestões flutuante */}
+                  {mostrarDropdown && (
+                    <div
+                      className="position-absolute w-100 bg-white border rounded-3 shadow-lg mt-1"
+                      style={{ zIndex: 1050, maxHeight: '220px', overflowY: 'auto' }}
+                    >
+                      {carregandoSugestoes ? (
+                        <div className="p-3 text-center text-muted small">
+                          <span className="spinner-border spinner-border-sm me-2" /> Buscando hóspedes...
+                        </div>
+                      ) : sugestoesHospedes.length > 0 ? (
+                        <div className="py-1">
+                          <div className="px-3 py-1 bg-light border-bottom text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>
+                            {buscaHospede ? `Hóspedes encontrados (${sugestoesHospedes.length})` : 'Hóspedes no sistema (clique para escolher)'}
+                          </div>
+                          {sugestoesHospedes.map(h => (
+                            <div
+                              key={h.id}
+                              className="px-3 py-2 btn-sugestao-hospede d-flex align-items-center justify-content-between"
+                              style={{ cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                              onClick={() => {
+                                setHospedeSelecionado(h);
+                                setBuscaHospede(h.nome);
+                                setMostrarDropdown(false);
+                                setErro('');
+                              }}
+                            >
+                              <div className="d-flex align-items-center gap-2">
+                                <div className="rounded-circle bg-primary-subtle text-primary fw-bold d-flex align-items-center justify-content-center" style={{ width: 32, height: 32, fontSize: '0.8rem' }}>
+                                  {h.nome.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="fw-semibold text-dark" style={{ fontSize: '0.88rem' }}>
+                                    {h.nome}
+                                  </div>
+                                  <div className="text-muted" style={{ fontSize: '0.78rem' }}>
+                                    {h.email} {h.telefone ? `• ${fmtTelefone(h.telefone)}` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="badge bg-light text-secondary border" style={{ fontSize: '0.72rem' }}>
+                                {h.totalReservas} reserva(s)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-3 text-center text-muted small">
+                          <i className="bi bi-person-x me-1 text-danger" /> Nenhum hóspede cadastrado encontrado para "{buscaHospede}".
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+
+          <Row className="g-3 mb-3">
+            <Col sm={6}>
+              <label htmlFor="cupom-noites" className="form-label fw-semibold small text-muted">Mínimo de Noites</label>
+              <input
+                id="cupom-noites"
+                type="number"
+                min="1"
+                className="form-control"
+                value={minimoNoites}
+                onChange={e => setMinimoNoites(e.target.value)}
+              />
+            </Col>
+            <Col sm={6}>
+              <label htmlFor="cupom-valormin" className="form-label fw-semibold small text-muted">Valor Mínimo Reserva (R$)</label>
+              <input
+                id="cupom-valormin"
+                type="number"
+                step="any"
+                min="0"
+                className="form-control"
+                placeholder="Opcional"
+                value={valorMinimo}
+                onChange={e => setValorMinimo(e.target.value)}
+              />
+            </Col>
+          </Row>
+
+          <Row className="g-3 mb-2">
+            <Col sm={6}>
+              <label htmlFor="cupom-validade" className="form-label fw-semibold small text-muted">Data de Validade *</label>
+              <input
+                id="cupom-validade"
+                type="date"
+                className="form-control"
+                value={validade}
+                onChange={e => setValidade(e.target.value)}
+                required
+              />
+            </Col>
+            <Col sm={6}>
+              <label htmlFor="cupom-limite" className="form-label fw-semibold small text-muted">Quantidade de Usos</label>
+              <input
+                id="cupom-limite"
+                type="number"
+                min="1"
+                className="form-control"
+                placeholder={publico === 'CLIENTE_ESPECIFICO' ? '1 (Exclusivo)' : 'Opcional (Ilimitado)'}
+                value={limiteUso}
+                onChange={e => setLimiteUso(e.target.value)}
+              />
+            </Col>
+          </Row>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={aoFechar} disabled={enviando} style={{ borderRadius: '50px' }}>
+            Cancelar
+          </Button>
+          <Button variant="primary" type="submit" disabled={enviando} style={{ borderRadius: '50px' }}>
+            {enviando ? 'Criando…' : 'Salvar Cupom'}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
+  );
+}
+
+// ─── Aba de Gestão de Cupons ─────────────────────────────────────────────────
+function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
+  const [copiadoId, setCopiadoId] = useState(null);
+  const [showModal, setShowModal] = useState(false);
+
+  const copiarCodigo = (codigo, id) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(codigo);
+      setCopiadoId(id);
+      setTimeout(() => setCopiadoId(null), 2500);
+    }
+  };
+
+  return (
+    <div>
+      <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <div>
+          <h5 className="mb-0 fw-bold" style={{ color: '#223a5e' }}>Cupons Promocionais de Desconto</h5>
+          <span className="text-muted small">Crie e gerencie vouchers especiais para os peregrinos</span>
+        </div>
+        <Button
+          variant="primary"
+          className="d-inline-flex align-items-center gap-2 fw-semibold"
+          style={{ borderRadius: '50px', background: '#ff9211', borderColor: '#ff9211' }}
+          onClick={() => setShowModal(true)}
+        >
+          <i className="bi bi-plus-lg" /> Criar Novo Cupom
+        </Button>
+      </div>
+
+      {cupons.length === 0 ? (
+        <div className="text-center py-5 bg-white rounded-4 shadow-sm border p-4">
+          <i className="bi bi-ticket-perforated fs-1 text-muted opacity-50 d-block mb-3" />
+          <h5 className="fw-bold" style={{ color: '#223a5e' }}>Nenhum cupom ativo no momento</h5>
+          <p className="text-muted small mb-3">Crie um cupom para incentivar reservas de peregrinos e famílias.</p>
+          <Button variant="primary" onClick={() => setShowModal(true)} style={{ borderRadius: '50px' }}>
+            Criar Primeiro Cupom
+          </Button>
+        </div>
+      ) : (
+        <div className="cupons-grid-admin">
+          {cupons.map(c => {
+            const publicoCfg = PUBLICO_CFG[c.publicoAlvo] || PUBLICO_CFG.TODOS;
+            const esgotado = Boolean(c.limiteUso && c.limiteUso < 999999 && c.totalUsos >= c.limiteUso);
+            return (
+              <div key={c.id} className={`card-cupom-moderno ${c.expirado ? 'inativo opacity-75' : esgotado ? 'inativo opacity-75' : (!c.ativo ? 'inativo' : '')}`}>
+                <div>
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <span className={publicoCfg.classeBadge}>
+                      <i className={`bi ${publicoCfg.icone} me-1`} />
+                      {publicoCfg.label}
+                    </span>
+                    <div className="d-flex gap-1 align-items-center">
+                      {c.expirado ? (
+                        <span className="badge bg-danger-subtle text-danger border border-danger-subtle small">
+                          Vencido
+                        </span>
+                      ) : esgotado ? (
+                        <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">
+                          {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? 'Utilizado' : 'Esgotado'}
+                        </span>
+                      ) : null}
+                      <span className="badge bg-light text-muted border small">
+                        {c.tipoDesconto === 'PERCENTUAL' ? 'Desconto %' : 'Desconto R$'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="cupom-valor-destaque mb-1">
+                    {c.tipoDesconto === 'PERCENTUAL' ? `${c.valorDesconto}% OFF` : `${fmtMoeda(c.valorDesconto)} OFF`}
+                  </div>
+
+                  {(c.clienteNome || c.clienteId) && (
+                    <div
+                      className="text-muted small mb-2 text-truncate"
+                      title={c.clienteEmail ? `${c.clienteNome || 'Hóspede'} (${c.clienteEmail})` : (c.clienteNome || undefined)}
+                    >
+                      <i className="bi bi-person me-1" />
+                      Para: <strong>{c.clienteNome || c.clienteEmail || `Hóspede #${c.clienteId}`}</strong>
+                    </div>
+                  )}
+
+                  <div className="cupom-codigo-box">
+                    <span className="cupom-codigo-texto">{c.codigo}</span>
+                    <button
+                      type="button"
+                      className="btn-copiar-cupom"
+                      onClick={() => copiarCodigo(c.codigo, c.id)}
+                    >
+                      {copiadoId === c.id ? (
+                        <><i className="bi bi-check2 text-success" /> Copiado!</>
+                      ) : (
+                        <><i className="bi bi-clipboard" /> Copiar</>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="d-flex flex-column gap-1 text-muted small mt-2">
+                    <span>
+                      <i className="bi bi-moon-stars me-1 text-primary" />
+                      {c.minimoNoites > 1 ? `Mínimo de ${c.minimoNoites} noites` : 'Sem mínimo de noites'}
+                    </span>
+                    {c.valorMinimo > 0 && (
+                      <span>
+                        <i className="bi bi-cash me-1 text-success" />
+                        Em reservas a partir de {fmtMoeda(c.valorMinimo)}
+                      </span>
+                    )}
+                    <span>
+                      <i className="bi bi-ticket-perforated me-1 text-primary" />
+                      {c.limiteUso && c.limiteUso < 999999
+                        ? `Limite: ${c.limiteUso} ${c.limiteUso === 1 ? 'uso' : 'usos'} (Utilizado: ${c.totalUsos})`
+                        : `Utilizações: ${c.totalUsos} (Ilimitado)`
+                      }
+                    </span>
+                    <span>
+                      <i className={`bi bi-calendar3 me-1 ${c.expirado ? 'text-danger' : 'text-warning'}`} />
+                      Válido até: <strong className={c.expirado ? 'text-danger' : ''}>{fmtData(c.validoAte)} {c.expirado && '(Expirado)'}</strong>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="d-flex align-items-center justify-content-between pt-3 border-top mt-3">
+                  {c.expirado ? (
+                    <span className="fw-semibold small text-danger">
+                      <i className="bi bi-x-circle-fill me-1" style={{ fontSize: '0.55rem' }} />
+                      Cupom Expirado
+                    </span>
+                  ) : esgotado ? (
+                    <span className="fw-semibold small text-secondary">
+                      <i className="bi bi-check-circle-fill me-1 text-secondary" style={{ fontSize: '0.65rem' }} />
+                      {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? `Já Utilizado (${c.totalUsos}/${c.limiteUso})` : `Esgotado (${c.totalUsos}/${c.limiteUso})`}
+                    </span>
+                  ) : (
+                    <span className={`fw-semibold small ${c.ativo ? 'text-success' : 'text-muted'}`}>
+                      <i className={`bi bi-circle-fill me-1 ${c.ativo ? 'text-success' : 'text-secondary'}`} style={{ fontSize: '0.45rem' }} />
+                      {c.ativo ? 'Cupom Ativo' : 'Cupom Pausado'}
+                    </span>
+                  )}
+                  <div
+                    className="form-check form-switch m-0"
+                    title={
+                      c.expirado
+                        ? 'Cupom expirado pela data de validade'
+                        : esgotado
+                        ? 'Cupom já atingiu o limite de utilizações'
+                        : ''
+                    }
+                  >
+                    <input
+                      className="form-check-input switch-cupom-input"
+                      type="checkbox"
+                      role="switch"
+                      checked={c.ativo && !c.expirado && !esgotado}
+                      disabled={c.expirado || esgotado}
+                      onChange={() => aoAlternarStatus(c.id, c.ativo)}
+                      aria-label={
+                        c.expirado
+                          ? `Cupom ${c.codigo} expirado`
+                          : esgotado
+                          ? `Cupom ${c.codigo} esgotado`
+                          : `Ativar ou pausar cupom ${c.codigo}`
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <ModalCriarCupom
+        show={showModal}
+        aoFechar={() => setShowModal(false)}
+        aoSalvar={aoCriarCupom}
+      />
+    </div>
+  );
+}
+
+// ─── Tabela de Gerenciamento de Reservas ───────────────────────────────────────
+function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reservasGerais }) {
+  const baseContagem = reservasGerais || reservas;
   const lista = filtro === 'todas' ? reservas : reservas.filter(r => r.status === filtro);
   const cnt   = s => s === 'todas' ? baseContagem.length : baseContagem.filter(r => r.status === s).length;
 
   return (
-    <div className="tabela-wrapper-admin">
+    <div className="tabela-wrapper-admin mb-4">
       <div className="tabela-header-admin">
-        <h5 className="mb-0 fw-bold" style={{color:'#223a5e'}}>Gerenciar Reservas</h5>
+        <h5 className="mb-0 fw-bold" style={{ color: '#223a5e' }}>Gerenciar Reservas</h5>
         <div className="filtros-status-admin">
-          {['todas','pendente','aprovada','recusada'].map(f => (
+          {['todas', 'pendente', 'pagamento pendente', 'aprovada', 'concluida', 'recusada', 'cancelada'].map(f => (
             <button
               key={f}
               type="button"
@@ -235,7 +2173,7 @@ function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFilt
           ))}
         </div>
       </div>
-      
+
       <div className="table-responsive">
         <table className="tabela-admin">
           <thead>
@@ -248,32 +2186,42 @@ function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFilt
           <tbody>
             {lista.length === 0 ? (
               <tr><td colSpan={8} className="text-center py-5 text-muted">
-                <i className="bi bi-calendar-x fs-2 d-block mb-2 opacity-50"></i>Nenhuma reserva encontrada
+                <i className="bi bi-calendar-x fs-2 d-block mb-2 opacity-50" />Nenhuma reserva encontrada
               </td></tr>
             ) : lista.map(r => (
               <tr key={r.id} className="linha-tabela-admin">
                 <td><span className="id-reserva">#{r.id}</span></td>
                 <td>
                   <div className="d-flex align-items-center gap-2">
-                    <div className="mini-avatar">{r.hospede.charAt(0)}</div>
+                    <div className="mini-avatar">{(r.nome || r.hospede || '?').charAt(0)}</div>
                     <div>
-                      <div className="fw-semibold" style={{fontSize:'0.875rem'}}>{r.hospede}</div>
-                      <div className="text-muted" style={{fontSize:'0.75rem'}}>{r.hospedes} pessoa(s)</div>
+                      <div className="fw-semibold" style={{ fontSize: '0.875rem' }}>{r.nome || r.hospede}</div>
+                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{r.hospedes} pessoa(s)</div>
                     </div>
                   </div>
                 </td>
-                <td style={{fontSize:'0.875rem'}}>{fmtData(r.checkin)}</td>
-                <td style={{fontSize:'0.875rem'}}>{fmtData(r.checkout)}</td>
-                <td className="d-none d-md-table-cell text-center" style={{fontSize:'0.875rem'}}>{noites(r.checkin,r.checkout)}</td>
-                <td className="fw-bold" style={{color:'#198754',fontSize:'0.875rem'}}>{fmtMoeda(r.valorTotal)}</td>
-                <td><BadgeStatus status={r.status}/></td>
+                <td style={{ fontSize: '0.875rem' }}>{fmtData(r.checkin)}</td>
+                <td style={{ fontSize: '0.875rem' }}>{fmtData(r.checkout)}</td>
+                <td className="d-none d-md-table-cell text-center" style={{ fontSize: '0.875rem' }}>{noites(r.checkin, r.checkout)}</td>
+                <td className="fw-bold" style={{ color: '#198754', fontSize: '0.875rem' }}>{fmtMoeda(r.total || r.valorTotal)}</td>
+                <td>
+                  <BadgeStatus status={r.status} />
+                  {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
+                    <div className="small fw-semibold text-success mt-1" style={{ fontSize: '0.72rem' }}>
+                      <i className="bi bi-arrow-counterclockwise me-1" />
+                      Estorno: {fmtMoeda(r.valorReembolsado)}
+                    </div>
+                  )}
+                </td>
                 <td>
                   <div className="acoes-tabela">
-                    <button className="btn-acao-tabela ver" onClick={() => onVer(r)} title="Ver detalhes"><i className="bi bi-eye"></i></button>
-                    {r.status === 'pendente' && <>
-                      <button className="btn-acao-tabela aprovar" onClick={() => onAprovar(r.id)} title="Aprovar"><Ico.Check/></button>
-                      <button className="btn-acao-tabela recusar" onClick={() => onRecusar(r.id)} title="Recusar"><Ico.X/></button>
-                    </>}
+                    <button className="btn-acao-tabela ver" onClick={() => onVer(r)} title="Ver detalhes"><i className="bi bi-eye" /></button>
+                    {r.status === 'aprovada' && (
+                      <>
+                        <button className="btn-acao-tabela text-danger" onClick={() => onCancelar && onCancelar(r)} title="Cancelar com Estorno"><i className="bi bi-x-circle" /></button>
+                        <button className="btn-acao-tabela concluir text-primary" onClick={() => onVer(r)} title="Concluir Estadia"><i className="bi bi-check2-circle" /></button>
+                      </>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -285,84 +2233,106 @@ function TabelaReservas({ reservas, onVer, onAprovar, onRecusar, filtro, setFilt
   );
 }
 
-// ─── Calendário ───────────────────────────────────────────────────────────────
-function CalendarioOcupacao({ reservas }) {
-  const [mesAtivo, setMesAtivo] = useState(new Date());
-  const mapaStatus = useMemo(() => reservas.reduce((acc, r) => {
-    if (r.status !== 'aprovada' && r.status !== 'pendente') return acc;
-    const ini = new Date(r.checkin + 'T00:00:00');
-    const fim = new Date(r.checkout + 'T00:00:00');
-    for (let d = new Date(ini); d < fim; d = new Date(d.getTime() + 86400000)) {
-      const k = d.toISOString().slice(0,10);
-      if (!acc[k] || r.status === 'aprovada') acc[k] = r.status;
-    }
-    return acc;
-  }, {}), [reservas]);
+// ─── Painel de Avaliações ────────────────────────────────────────────────────
+function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoResponder }) {
+  if (carregando) {
+    return (
+      <div className="estado-avaliacoes-admin" role="status" aria-live="polite">
+        <span className="spinner-border text-primary" aria-hidden="true" />
+        <span>Carregando avaliações...</span>
+      </div>
+    );
+  }
 
-  const reservasDoMes = useMemo(() => reservas.filter(r => {
-    if (r.status !== 'aprovada' && r.status !== 'pendente') return false;
-    const ini = new Date(r.checkin + 'T00:00:00');
-    const fim = new Date(r.checkout + 'T00:00:00');
-    const p1  = new Date(mesAtivo.getFullYear(), mesAtivo.getMonth(), 1);
-    const p2  = new Date(mesAtivo.getFullYear(), mesAtivo.getMonth() + 1, 0);
-    return ini <= p2 && fim > p1;
-  }), [reservas, mesAtivo]);
+  if (erro) {
+    return (
+      <div className="estado-avaliacoes-admin erro" role="alert">
+        <i className="bi bi-exclamation-triangle" aria-hidden="true" />
+        <h5>Não foi possível carregar as avaliações</h5>
+        <p>{erro}</p>
+        <Button variant="outline-primary" onClick={aoTentarNovamente}>Tentar novamente</Button>
+      </div>
+    );
+  }
 
-  const tileClassName = ({ date, view }) => {
-    if (view !== 'month') return null;
-    const k = date.toISOString().slice(0,10);
-    if (mapaStatus[k] === 'aprovada') return 'dia-aprovado';
-    if (mapaStatus[k] === 'pendente') return 'dia-pendente';
-    return null;
-  };
+  if (avaliacoes.length === 0) {
+    return (
+      <div className="estado-avaliacoes-admin">
+        <i className="bi bi-chat-square-heart" aria-hidden="true" />
+        <h5>Nenhuma avaliação aguardando resposta</h5>
+        <p>Quando um hóspede avaliar uma estadia concluída, ela aparecerá aqui para você responder.</p>
+      </div>
+    );
+  }
+
+  const media = avaliacoes.reduce((total, item) => total + Number(item.nota || 0), 0) / avaliacoes.length;
 
   return (
-    <div className="calendario-wrapper-admin">
-      <div className="calendario-header-admin">
-        <h5 className="mb-0 fw-bold" style={{color:'#223a5e'}}>Calendário de Ocupação</h5>
-        <div className="legenda-calendario">
-          <span className="legenda-item"><span className="dot dot-aprovada"></span>Aprovada</span>
-          <span className="legenda-item"><span className="dot dot-pendente"></span>Pendente</span>
-        </div>
-      </div>
-      <div className="react-calendar-container">
-        <Calendar
-          locale="pt-BR"
-          tileClassName={tileClassName}
-          onActiveStartDateChange={({ activeStartDate }) => setMesAtivo(activeStartDate || new Date())}
-          className="calendario-admin-custom"
-          prevLabel="‹" nextLabel="›" prev2Label="«" next2Label="»"
-        />
-      </div>
-      <div className="reservas-mes-lista mt-4">
-        <h6 className="label-lista-mes">
-          Reservas em {mesAtivo.toLocaleString('pt-BR', { month:'long', year:'numeric' })}
-        </h6>
-        {reservasDoMes.length === 0
-          ? <p className="text-muted small mb-0">Nenhuma reserva ativa neste mês.</p>
-          : reservasDoMes.map(r => (
-            <div key={r.id} className="item-reserva-mes">
-              <div className={`dot-inline ${r.status === 'aprovada' ? 'dot-aprovada' : 'dot-pendente'}`}></div>
-              <div className="flex-grow-1">
-                <span className="fw-semibold" style={{fontSize:'0.875rem'}}>{r.hospede}</span>
-                <span className="text-muted ms-2" style={{fontSize:'0.78rem'}}>{fmtData(r.checkin)} → {fmtData(r.checkout)}</span>
+    <>
+      <Row className="g-3 mb-4">
+        <Col xs={12} sm={6} xl={4}>
+          <CardKpiModerno
+            icone={<i className="bi bi-chat-square-dots fs-4" aria-hidden="true" />}
+            titulo="Aguardando Resposta"
+            valor={avaliacoes.length}
+            sub="avaliações pendentes"
+            cor="#f59e0b"
+          />
+        </Col>
+        <Col xs={12} sm={6} xl={4}>
+          <CardKpiModerno
+            icone={<i className="bi bi-star-fill fs-4" aria-hidden="true" />}
+            titulo="Média Recebida"
+            valor={media.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+            sub="entre as pendentes"
+            cor="#f37321"
+          />
+        </Col>
+      </Row>
+
+      <div className="avaliacoes-admin-grid">
+        {avaliacoes.map(avaliacao => (
+          <article key={avaliacao.id} className="card-avaliacao-admin">
+            <div className="card-avaliacao-admin-topo">
+              <div className="d-flex align-items-center gap-2">
+                <div className="avatar-avaliacao-admin">{(avaliacao.hospede?.nome || '?').charAt(0)}</div>
+                <div>
+                  <div className="fw-bold" style={{ color: '#223a5e' }}>{avaliacao.hospede?.nome}</div>
+                  <div className="text-muted small">Reserva #{avaliacao.reserva?.id}</div>
+                </div>
               </div>
-              <BadgeStatus status={r.status}/>
+              <span className="badge-resposta-pendente">A responder</span>
             </div>
-          ))
-        }
+
+            <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap my-3">
+              <EstrelasAvaliacao nota={avaliacao.nota} tamanho="1.05rem" />
+              <span className="text-muted small">{fmtData(avaliacao.data)}</span>
+            </div>
+
+            <p className="comentario-avaliacao-admin">“{avaliacao.comentario}”</p>
+
+            <div className="meta-avaliacao-admin">
+              <span><i className="bi bi-house me-1" aria-hidden="true" />{avaliacao.imovel?.nome || 'Recanto Camargo'}</span>
+              <span><i className="bi bi-calendar3 me-1" aria-hidden="true" />{fmtData(avaliacao.reserva?.checkin)} → {fmtData(avaliacao.reserva?.checkout)}</span>
+            </div>
+
+            <button type="button" className="btn-responder-avaliacao" onClick={() => aoResponder(avaliacao)}>
+              <i className="bi bi-reply me-2" aria-hidden="true" />Responder & Avaliar Hóspede
+            </button>
+          </article>
+        ))}
       </div>
-    </div>
+    </>
   );
 }
 
-// ─── Previsão de Receita ──────────────────────────────────────────────────────
+// ─── Previsão de Receita (Aba dedicada) ───────────────────────────────────────
 function PrevisaoReceita({ reservas }) {
   const hoje = new Date();
   const meses = Array.from({ length: 4 }, (_, i) => {
     const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
     return {
-      label: d.toLocaleString('pt-BR', { month:'short' }).replace('.',''),
+      label: d.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''),
       ano: d.getFullYear(),
       mes: d.getMonth(),
     };
@@ -373,37 +2343,23 @@ function PrevisaoReceita({ reservas }) {
       const ini = new Date(r.checkin + 'T00:00:00');
       return ini.getFullYear() === ano && ini.getMonth() === mes;
     });
-    const confirmada = doMes.filter(r => r.status === 'aprovada').reduce((a,r) => a + r.valorTotal, 0);
-    const potencial  = doMes.filter(r => r.status === 'pendente').reduce((a,r) => a + r.valorTotal, 0);
+    const confirmada = doMes.filter(r => r.status === 'aprovada' || r.status === 'concluida').reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
+    const potencial  = doMes.filter(r => r.status === 'pendente' || r.status === 'pagamento pendente').reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
     return { label, confirmada, potencial, total: confirmada + potencial };
   });
 
   const maxValor = Math.max(...dadosMeses.map(d => d.total), 1);
-
-  const em30dias = new Date(hoje.getTime() + 30 * 86400000);
-  const proximasEntradas = reservas
-    .filter(r => {
-      const ci = new Date(r.checkin + 'T00:00:00');
-      return (r.status === 'aprovada' || r.status === 'pendente') && ci >= hoje && ci <= em30dias;
-    })
-    .sort((a, b) => new Date(a.checkin) - new Date(b.checkin));
-
-  const totalDecididas = reservas.filter(r => r.status === 'aprovada' || r.status === 'recusada').length;
-  const taxaAprovacao  = totalDecididas > 0
-    ? Math.round((reservas.filter(r => r.status === 'aprovada').length / totalDecididas) * 100)
-    : 0;
-
   const receitaPrevista = reservas
-    .filter(r => r.status === 'aprovada' || r.status === 'pendente')
-    .reduce((a, r) => a + r.valorTotal, 0);
+    .filter(r => r.status === 'aprovada' || r.status === 'concluida' || r.status === 'pendente' || r.status === 'pagamento pendente')
+    .reduce((a, r) => a + (r.total || r.valorTotal || 0), 0);
 
   return (
     <div className="previsao-wrapper">
       <Row className="g-3 mb-4">
         <Col xs={12} md={4}>
           <div className="card-previsao-mini">
-            <div className="card-previsao-icone" style={{background:'#dbeafe', color:'#1e40af'}}>
-              <i className="bi bi-graph-up-arrow fs-5"></i>
+            <div className="card-previsao-icone" style={{ background: '#dbeafe', color: '#1e40af' }}>
+              <i className="bi bi-graph-up-arrow fs-5" />
             </div>
             <div>
               <div className="card-previsao-valor">{fmtMoeda(receitaPrevista)}</div>
@@ -411,47 +2367,25 @@ function PrevisaoReceita({ reservas }) {
             </div>
           </div>
         </Col>
-        <Col xs={6} md={4}>
-          <div className="card-previsao-mini">
-            <div className="card-previsao-icone" style={{background:'#d1fae5', color:'#065f46'}}>
-              <i className="bi bi-calendar-check fs-5"></i>
-            </div>
-            <div>
-              <div className="card-previsao-valor">{proximasEntradas.length}</div>
-              <div className="card-previsao-label">Check-ins nos próx. 30 dias</div>
-            </div>
-          </div>
-        </Col>
-        <Col xs={6} md={4}>
-          <div className="card-previsao-mini">
-            <div className="card-previsao-icone" style={{background:'#fef3c7', color:'#92400e'}}>
-              <i className="bi bi-percent fs-5"></i>
-            </div>
-            <div>
-              <div className="card-previsao-valor">{taxaAprovacao}%</div>
-              <div className="card-previsao-label">Taxa de aprovação histórica</div>
-            </div>
-          </div>
-        </Col>
       </Row>
 
       <div className="grafico-wrapper-admin">
         <div className="grafico-header-admin">
-          <h6 className="fw-bold mb-0" style={{color:'#223a5e', fontSize:'0.9rem'}}>Receita por Mês (próx. 4 meses)</h6>
+          <h6 className="fw-bold mb-0" style={{ color: '#223a5e', fontSize: '0.9rem' }}>Receita por Mês (próx. 4 meses)</h6>
           <div className="legenda-grafico">
-            <span className="legenda-item"><span className="dot" style={{background:'#3b6399'}}></span>Confirmada</span>
-            <span className="legenda-item"><span className="dot" style={{background:'#fbbf24'}}></span>Potencial (pendente)</span>
+            <span className="legenda-item"><span className="dot" style={{ background: '#3b6399' }} />Confirmada (paga)</span>
+            <span className="legenda-item"><span className="dot" style={{ background: '#fbbf24' }} />Potencial (pendente/aguardando pgto)</span>
           </div>
         </div>
         <div className="grafico-barras">
           {dadosMeses.map(({ label, confirmada, potencial, total }) => (
             <div key={label} className="grafico-coluna">
-              <div className="grafico-valor-topo">{total > 0 ? fmtMoeda(total).replace('R$\u00a0','R$ ') : '—'}</div>
+              <div className="grafico-valor-topo">{total > 0 ? fmtMoeda(total).replace('R$\u00a0', 'R$ ') : '—'}</div>
               <div className="grafico-barra-container">
                 <div className="grafico-barra-stack">
-                  <div className="grafico-barra confirmada" style={{ height: `${(confirmada / maxValor) * 160}px` }} title={`Confirmada: ${fmtMoeda(confirmada)}`}></div>
+                  <div className="grafico-barra confirmada" style={{ height: `${(confirmada / maxValor) * 100}%` }} title={`Confirmada: ${fmtMoeda(confirmada)}`} />
                   {potencial > 0 && (
-                    <div className="grafico-barra potencial" style={{ height: `${(potencial / maxValor) * 160}px` }} title={`Potencial: ${fmtMoeda(potencial)}`}></div>
+                    <div className="grafico-barra potencial" style={{ height: `${(potencial / maxValor) * 100}%` }} title={`Potencial: ${fmtMoeda(potencial)}`} />
                   )}
                 </div>
               </div>
@@ -460,48 +2394,69 @@ function PrevisaoReceita({ reservas }) {
           ))}
         </div>
       </div>
-
-      {proximasEntradas.length > 0 && (
-        <div className="proximas-entradas-wrapper mt-4">
-          <h6 className="label-lista-mes mb-3">Próximas Entradas (30 dias)</h6>
-          {proximasEntradas.map(r => {
-            const diasAte = Math.round((new Date(r.checkin + 'T00:00:00') - hoje) / 86400000);
-            return (
-              <div key={r.id} className="item-proxima-entrada">
-                <div className={`dot-inline ${r.status === 'aprovada' ? 'dot-aprovada' : 'dot-pendente'}`}></div>
-                <div className="mini-avatar" style={{width:28,height:28,fontSize:'0.75rem'}}>{r.hospede.charAt(0)}</div>
-                <div className="flex-grow-1">
-                  <div className="fw-semibold" style={{fontSize:'0.85rem'}}>{r.hospede}</div>
-                  <div className="text-muted" style={{fontSize:'0.75rem'}}>{fmtData(r.checkin)} • {noites(r.checkin, r.checkout)} noite(s) • {r.hospedes} pessoa(s)</div>
-                </div>
-                <div className="text-end">
-                  <div className="dias-ate-badge">em {diasAte === 0 ? 'hoje' : `${diasAte}d`}</div>
-                  <BadgeStatus status={r.status}/>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
 
-// ─── Dashboard Principal ──────────────────────────────────────────────────────
+// ─── Componente Principal DashboardAdministrador ──────────────────────────────
 function DashboardAdministrador() {
   const { usuario, tipo, logout } = useAutenticacao();
-  const { adicionar } = useNotificacoes();
   const navigate = useNavigate();
+  const usuarioId = usuario?.id ?? null;
+  const sessaoReservasRef = useRef(null);
 
   const [sidebarAberta, setSidebarAberta] = useState(() => window.innerWidth >= 992);
-  const [abaAtiva,    setAbaAtiva]    = useState('visao-geral');
-  const [reservas,    setReservas]    = useState([]);
+  const [abaAtiva, setAbaAtiva] = useState('visao-geral');
+  const [reservas, setReservas] = useState([]);
   const [selecionada, setSelecionada] = useState(null);
+  const [reservaParaCancelar, setReservaParaCancelar] = useState(null);
   const [filtro, setFiltro] = useState('todas');
-  const [feedback, setFeedback] = useState({ tipo:'', msg:'' });
-  const [modalRecusa, setModalRecusa] = useState(null);
+  const [feedback, setFeedback] = useState({ tipo: '', msg: '' });
 
-  useEffect(() => { if (tipo !== 'admin') navigate('/'); }, [tipo, navigate]);
+  const tratarCliqueNotificacao = useCallback((notificacao) => {
+    if (!notificacao) return;
+    const texto = `${notificacao.titulo || ''} ${notificacao.mensagem || ''}`.toLowerCase();
+    const matchReserva = texto.match(/#(\d+)/);
+    const reservaId = matchReserva ? matchReserva[1] : null;
+
+    if (texto.includes('avaliação') || texto.includes('avaliacao') || texto.includes('avaliou')) {
+      setAbaAtiva('avaliacoes');
+    } else if (texto.includes('cupom') || texto.includes('cupons')) {
+      setAbaAtiva('cupons');
+    } else if (texto.includes('bloqueio') || texto.includes('calendário') || texto.includes('calendario')) {
+      setAbaAtiva('calendario');
+    } else if (texto.includes('reserva')) {
+      setAbaAtiva('reservas');
+      if (texto.includes('aguarda') || texto.includes('aprovação') || texto.includes('aprovacao') || texto.includes('nova reserva') || texto.includes('pendente')) {
+        setFiltro('pendente');
+      }
+      if (reservaId) {
+        const rEncontrada = reservas.find(res => String(res.id) === String(reservaId));
+        if (rEncontrada) {
+          setSelecionada(rEncontrada);
+        }
+      }
+    }
+  }, [reservas]);
+
+  // Avaliações
+  const [avaliacoesPendentes, setAvaliacoesPendentes] = useState([]);
+  const [carregandoAvaliacoes, setCarregandoAvaliacoes] = useState(true);
+  const [erroAvaliacoes, setErroAvaliacoes] = useState('');
+  const [avaliacaoSelecionada, setAvaliacaoSelecionada] = useState(null);
+
+  // Bloqueios de Calendário
+  const [bloqueios, setBloqueios] = useState([]);
+
+  // Cupons Promocionais
+  const [cupons, setCupons] = useState([]);
+
+  // Avaliações Públicas e Nota Média do Imóvel (Opção B)
+  const [avaliacoesPublicas, setAvaliacoesPublicas] = useState([]);
+
+  useEffect(() => {
+    if (tipo !== 'proprietario') navigate('/');
+  }, [tipo, navigate]);
 
   useEffect(() => {
     const onResize = () => setSidebarAberta(window.innerWidth >= 992);
@@ -509,56 +2464,299 @@ function DashboardAdministrador() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  useEffect(() => { setReservas(inicializarReservas()); }, []);
-
-  const salvar = (novas) => {
-    localStorage.setItem(CHAVE_RESERVAS, JSON.stringify(novas));
-    setReservas(novas);
+  const fb = (tipoAlerta, msg) => {
+    setFeedback({ tipo: tipoAlerta, msg });
+    setTimeout(() => setFeedback({ tipo: '', msg: '' }), 3500);
   };
 
-  const fb = (tipo, msg) => {
-    setFeedback({ tipo, msg });
-    setTimeout(() => setFeedback({ tipo:'', msg:'' }), 3500);
+  // Buscar Reservas
+  const buscarReservas = useCallback(async () => {
+    const sessao = sessaoReservasRef.current;
+    if (!sessao?.ativa || sessao.usuarioId !== usuarioId || tipo !== 'proprietario') return;
+    if (sessao.promessa) {
+      sessao.recarregar = true;
+      return sessao.promessa;
+    }
+    const atual = () => sessao.ativa && sessaoReservasRef.current === sessao;
+    sessao.promessa = (async () => {
+      do {
+        sessao.recarregar = false;
+        const controlador = new AbortController();
+        sessao.controlador = controlador;
+        const timeout = window.setTimeout(() => controlador.abort(), 10_000);
+        try {
+          const resposta = await fetch(`${API_BASE}/api/proprietario/reservas`, {
+            credentials: 'include', cache: 'no-store', signal: controlador.signal,
+          });
+          const dados = await resposta.json().catch(() => null);
+          if (!atual() || controlador.signal.aborted) return;
+          if (resposta.status === 401 || resposta.status === 403) {
+            sessao.ativa = false;
+            setReservas([]);
+            setSelecionada(null);
+            return;
+          }
+          if (!resposta.ok || !Array.isArray(dados)) throw new Error('Resposta inválida.');
+          setReservas(dados);
+        } catch (erro) {
+          if (atual() && erro.name !== 'AbortError') {
+            console.error('Não foi possível atualizar as reservas do painel.');
+          }
+        } finally {
+          window.clearTimeout(timeout);
+          if (sessao.controlador === controlador) sessao.controlador = null;
+        }
+      } while (atual() && sessao.recarregar);
+    })().finally(() => { sessao.promessa = null; });
+    return sessao.promessa;
+  }, [usuarioId, tipo]);
+
+  useEffect(() => {
+    const sessao = { usuarioId, ativa: !!usuarioId && tipo === 'proprietario', recarregar: false, promessa: null, controlador: null };
+    sessaoReservasRef.current = sessao;
+    setReservas([]);
+    setSelecionada(null);
+    buscarReservas();
+    return () => {
+      sessao.ativa = false;
+      sessao.controlador?.abort();
+    };
+  }, [usuarioId, tipo, buscarReservas]);
+
+  // Buscar Bloqueios
+  const buscarBloqueios = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/bloqueios`, { credentials: 'include' });
+      if (res.ok) {
+        const dados = await res.json();
+        if (Array.isArray(dados)) setBloqueios(dados);
+      }
+    } catch {
+      // Mantém estado fallback inicial se offline
+    }
+  }, []);
+
+  // Buscar Cupons
+  const buscarCupons = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/cupons`, { credentials: 'include' });
+      if (res.ok) {
+        const dados = await res.json();
+        if (Array.isArray(dados)) setCupons(dados);
+      }
+    } catch {
+      // Mantém estado fallback inicial se offline
+    }
+  }, []);
+
+  useEffect(() => {
+    buscarBloqueios();
+    buscarCupons();
+  }, [buscarBloqueios, buscarCupons]);
+
+  // Criar Bloqueio
+  const criarBloqueio = async (novo) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/bloqueios`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(novo),
+      });
+      if (res.ok) {
+        await buscarBloqueios();
+        fb('sucesso', 'Datas bloqueadas para manutenção com sucesso.');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao registrar bloqueio no servidor.');
+      }
+    } catch (erro) {
+      throw erro; // Repassa para o Modal não fechar sozinho
+    }
   };
 
-  const aprovar = useCallback((id) => {
-    const r = reservas.find(x => x.id === id);
-    salvar(reservas.map(x => x.id === id ? { ...x, status:'aprovada' } : x));
-    setSelecionada(null);
-    fb('sucesso', `Reserva #${id} aprovada!`);
-    adicionar({
-      titulo: 'Reserva Aprovada ✅',
-      mensagem: `Reserva de ${r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi aprovada.`,
-      tipo: 'sucesso',
-      icone: 'bi-check-circle-fill',
+  // Remover Bloqueio
+  const removerBloqueio = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/bloqueios/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) throw new Error('Erro ao remover bloqueio.');
+      setBloqueios(prev => prev.filter(b => b.id !== id));
+      fb('sucesso', 'Bloqueio de datas removido com sucesso.');
+    } catch (erro) {
+      fb('erro', erro.message);
+    }
+  };
+
+  // Alternar Status do Cupom (Ativar / Desativar)
+  const alternarStatusCupom = async (id, statusAtual) => {
+    const novoStatus = !statusAtual;
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/cupons/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ativo: novoStatus }),
+      });
+      if (!res.ok) throw new Error('Falha ao atualizar status do cupom no servidor.');
+      setCupons(prev => prev.map(c => c.id === id ? { ...c, ativo: novoStatus } : c));
+      fb('sucesso', `Cupom ${novoStatus ? 'ativado' : 'pausado'} com sucesso.`);
+    } catch (erro) {
+      fb('erro', erro.message);
+    }
+  };
+
+  // Criar Novo Cupom
+  const criarCupom = async (novo) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/cupons`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(novo),
+      });
+      if (res.ok) {
+        // Recarrega do servidor para garantir que o ID real e todos os campos batam
+        await buscarCupons();
+        fb('sucesso', `Cupom criado com sucesso!`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao registrar cupom no banco de dados.');
+      }
+    } catch (err) {
+      // Re-throw para o modal mostrar a mensagem de erro vermelha
+      throw err;
+    }
+  };
+
+  // Decidir Reserva
+  async function decidirReserva(id, acao, motivo) {
+    const sessao = sessaoReservasRef.current;
+    if (!sessao?.ativa) throw new Error('Faça login novamente para decidir a reserva.');
+    const resposta = await fetch(`${API_BASE}/api/proprietario/reservas/${id}/${acao}`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(acao === 'recusar' ? { motivo } : {}),
+      signal: AbortSignal.timeout(10_000),
     });
-  }, [reservas, adicionar]);
-
-  const recusar = useCallback((id) => {
-    const r = reservas.find(x => x.id === id);
-    setModalRecusa(r);
-  }, [reservas]);
-
-  const confirmarRecusa = useCallback((id, motivo) => {
-    const r = reservas.find(x => x.id === id);
-    salvar(reservas.map(x => x.id === id ? { ...x, status:'recusada', motivoRecusa: motivo } : x));
+    const dados = await resposta.json().catch(() => ({}));
+    if (!sessao.ativa || sessaoReservasRef.current !== sessao) return;
+    if (!resposta.ok) throw new Error(dados.error || 'Não foi possível salvar a decisão.');
+    const statusSalvo = dados.status === 'CONFIRMADA'
+      ? 'aprovada'
+      : (dados.status === 'PAGAMENTO_PENDENTE'
+        ? 'pagamento pendente'
+        : (dados.status === 'CONCLUIDA' ? 'concluida' : 'recusada'));
+    setReservas(atuais => atuais.map(r => String(r.id) === String(id) ? { ...r, status: statusSalvo } : r));
     setSelecionada(null);
-    setModalRecusa(null);
-    fb('erro', `Reserva #${id} recusada.`);
-    adicionar({
-      titulo: 'Reserva Recusada ❌',
-      mensagem: `Reserva de ${r?.hospede} (${fmtData(r?.checkin)} → ${fmtData(r?.checkout)}) foi recusada.`,
-      tipo: 'erro',
-      icone: 'bi-x-circle-fill',
-    });
-  }, [reservas, adicionar]);
+    fb('sucesso', dados.message || 'Decisão salva com sucesso.');
+    await buscarReservas();
+  }
 
-  const pendentes    = reservas.filter(r => r.status === 'pendente').length;
-  const aprovadas    = reservas.filter(r => r.status === 'aprovada').length;
-  const receita      = reservas.filter(r => r.status === 'aprovada').reduce((a,r) => a + r.valorTotal, 0);
-  const hoje         = new Date();
-  const diasNoMes    = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
-  const diasOcupados = reservas.filter(r => r.status === 'aprovada').reduce((acc, r) => {
+  // Cancelar Reserva com Estorno Automático
+  async function cancelarReservaComEstorno(id, motivo) {
+    const sessao = sessaoReservasRef.current;
+    if (!sessao?.ativa) throw new Error('Faça login novamente para cancelar a reserva.');
+    const resposta = await fetch(`${API_BASE}/api/proprietario/reservas/${id}/cancelar`, {
+      method: 'PATCH', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const dados = await resposta.json().catch(() => ({}));
+    if (!sessao.ativa || sessaoReservasRef.current !== sessao) return;
+    if (!resposta.ok) throw new Error(dados.error || 'Não foi possível cancelar a reserva.');
+    setSelecionada(null);
+    setReservaParaCancelar(null);
+    fb('sucesso', dados.message || 'Reserva cancelada e estorno processado.');
+    await buscarReservas();
+    return dados;
+  }
+
+  // Buscar Avaliações Pendentes
+  const buscarAvaliacoesPendentes = useCallback(async (signal) => {
+    setCarregandoAvaliacoes(true);
+    setErroAvaliacoes('');
+    try {
+      const resposta = await fetch(`${API_BASE}/api/proprietario/avaliacoes/pendentes`, {
+        credentials: 'include',
+        signal,
+      });
+      const dados = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) throw new Error(dados.error || 'Não foi possível carregar as avaliações.');
+      if (!Array.isArray(dados)) throw new Error('Formato inválido retornado pelo servidor.');
+      setAvaliacoesPendentes(dados);
+    } catch (falha) {
+      if (falha.name !== 'AbortError') {
+        setErroAvaliacoes(falha.message || 'Não foi possível carregar as avaliações.');
+      }
+    } finally {
+      if (!signal?.aborted) setCarregandoAvaliacoes(false);
+    }
+  }, []);
+
+  // Buscar Avaliações Públicas e Nota Real do Imóvel (Opção B)
+  const buscarAvaliacoesPublicas = useCallback(async (signal) => {
+    try {
+      const resposta = await fetch(`${API_BASE}/api/avaliacoes/imovel/1`, { signal });
+      const dados = await resposta.json().catch(() => []);
+      if (Array.isArray(dados)) {
+        setAvaliacoesPublicas(dados);
+      }
+    } catch {
+      // Ignora falha de conexão se offline
+    }
+  }, []);
+
+  useEffect(() => {
+    const controlador = new AbortController();
+    buscarAvaliacoesPendentes(controlador.signal);
+    buscarAvaliacoesPublicas(controlador.signal);
+    return () => controlador.abort();
+  }, [buscarAvaliacoesPendentes, buscarAvaliacoesPublicas]);
+
+  const confirmarRespostaAvaliacao = useCallback((id) => {
+    setAvaliacoesPendentes(atuais => atuais.filter(item => item.id !== id));
+    setAvaliacaoSelecionada(null);
+    buscarAvaliacoesPublicas();
+    fb('sucesso', 'Resposta e avaliação interna do hóspede enviadas com sucesso.');
+  }, [buscarAvaliacoesPublicas]);
+
+  // Cálculos do Dashboard
+  const hoje = new Date();
+  const mesAtualIdx = hoje.getMonth();
+  const anoAtual = hoje.getFullYear();
+
+  const mesAnteriorDate = new Date(anoAtual, mesAtualIdx - 1, 1);
+  const mesAnteriorIdx = mesAnteriorDate.getMonth();
+  const anoAnterior = mesAnteriorDate.getFullYear();
+
+  const getReceitaMes = (mes, ano) => {
+    return reservas
+      .filter(r => (r.status === 'aprovada' || r.status === 'concluida'))
+      .filter(r => {
+        if (!r.checkin) return false;
+        const d = new Date(r.checkin + 'T00:00:00');
+        return d.getMonth() === mes && d.getFullYear() === ano;
+      })
+      .reduce((acc, r) => acc + Number(r.total || r.valorTotal || 0), 0);
+  };
+
+  const faturamentoMesAtual = getReceitaMes(mesAtualIdx, anoAtual);
+  const faturamentoMesAnterior = getReceitaMes(mesAnteriorIdx, anoAnterior);
+
+  let variacaoPerc = 0;
+  if (faturamentoMesAnterior > 0) {
+    variacaoPerc = ((faturamentoMesAtual - faturamentoMesAnterior) / faturamentoMesAnterior) * 100;
+  } else if (faturamentoMesAtual > 0) {
+    variacaoPerc = 100;
+  }
+
+  const aprovadas = reservas.filter(r => r.status === 'aprovada' || r.status === 'concluida').length;
+  const diasNoMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0).getDate();
+  const diasOcupados = reservas.filter(r => r.status === 'aprovada' || r.status === 'concluida').reduce((acc, r) => {
     const ini = new Date(r.checkin + 'T00:00:00');
     const fim = new Date(r.checkout + 'T00:00:00');
     for (let d = new Date(ini); d < fim; d = new Date(d.getTime() + 86400000)) {
@@ -568,11 +2766,20 @@ function DashboardAdministrador() {
   }, 0);
   const ocupacao = Math.min(100, Math.round((diasOcupados / diasNoMes) * 100));
 
+  // Opção B: Nota 5.0 inicial de estreia quando total de avaliações = 0, ou média real calculada
+  const totalAvaliacoesPublicas = avaliacoesPublicas.length;
+  const notaMediaReal = totalAvaliacoesPublicas > 0
+    ? (avaliacoesPublicas.reduce((acc, a) => acc + Number(a.nota || 0), 0) / totalAvaliacoesPublicas)
+    : 5.0;
+
+  // Abas do Painel
   const abas = [
-    { id:'visao-geral', label:'Visão Geral', icone:<Ico.Dash/>  },
-    { id:'reservas',    label:'Reservas',    icone:<Ico.Reservas/>},
-    { id:'calendario',  label:'Calendário',  icone:<Ico.Cal/>    },
-    { id:'previsao',    label:'Previsão',    icone:<Ico.Previsao/>},
+    { id: 'visao-geral', label: 'Visão Geral', icone: <Ico.Dash /> },
+    { id: 'reservas',    label: 'Reservas',    icone: <Ico.Reservas /> },
+    { id: 'calendario',  label: 'Calendário',  icone: <Ico.Cal /> },
+    { id: 'cupons',      label: 'Cupons',      icone: <Ico.Cupom /> },
+    { id: 'previsao',    label: 'Previsão',    icone: <Ico.Previsao /> },
+    { id: 'avaliacoes',  label: 'Avaliações',  icone: <Ico.Estrela /> },
   ];
 
   const irAba = (id) => {
@@ -585,58 +2792,151 @@ function DashboardAdministrador() {
       case 'visao-geral': {
         const reservasFiltradas = filtro === 'todas' ? reservas : reservas.filter(r => r.status === filtro);
         const ultimasReservas = reservasFiltradas.slice(0, 10);
-        
+
         return (
           <>
-            <p className="dash-section-label">Resumo Geral</p>
+            <p className="dash-section-label">Indicadores Principais (KPIs)</p>
             <Row className="g-3 mb-4">
-              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-calendar-check fs-4"></i>} titulo="Total de Reservas" valor={reservas.length} sub="desde o início" cor="#3b6399"/></Col>
-              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-hourglass-split fs-4"></i>} titulo="Aguardando Aprovação" valor={pendentes} sub={pendentes > 0 ? 'requer atenção' : 'tudo em dia'} cor="#f59e0b"/></Col>
-              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-house-check fs-4"></i>} titulo="Ocupação no Mês" valor={`${ocupacao}%`} sub={`${diasOcupados}/${diasNoMes} dias`} cor="#198754"/></Col>
-              <Col xs={6} xl={3}><CardResumo icone={<i className="bi bi-cash-coin fs-4"></i>} titulo="Receita Confirmada" valor={fmtMoeda(receita)} sub={`${aprovadas} aprovadas`} cor="#0d6efd"/></Col>
-            </Row>
-            
-            {pendentes > 0 && (
-              <div className="alerta-pendentes-admin mb-4" role="button" onClick={() => { setAbaAtiva('reservas'); setFiltro('pendente'); }}>
-                <i className="bi bi-bell-fill me-2"></i>
-                <strong>{pendentes} reserva{pendentes > 1 ? 's' : ''} aguardando aprovação.</strong>
-                <span className="ms-2" style={{textDecoration:'underline'}}>Ver agora →</span>
-              </div>
-            )}
+              {/* 1. Faturamento Mensal com badge de variação vs mês anterior */}
+              <Col xs={12} sm={6} xl={3}>
+                <CardKpiModerno
+                  icone={<i className="bi bi-currency-dollar fs-4" />}
+                  titulo="Faturamento Mensal"
+                  valor={fmtMoeda(faturamentoMesAtual)}
+                  badge={
+                    (faturamentoMesAtual === 0 && faturamentoMesAnterior === 0) ? null : (
+                      <span className={`kpi-badge-variacao ${variacaoPerc > 0 ? 'positiva' : (variacaoPerc < 0 ? 'negativa' : 'neutra')}`}>
+                        <i className={`bi ${variacaoPerc > 0 ? 'bi-arrow-up-right' : (variacaoPerc < 0 ? 'bi-arrow-down-right' : 'bi-dash')} me-1`} />
+                        {variacaoPerc > 0 ? `+${variacaoPerc.toFixed(1)}%` : `${variacaoPerc.toFixed(1)}%`}
+                      </span>
+                    )
+                  }
+                  sub={(faturamentoMesAtual === 0 && faturamentoMesAnterior === 0) ? 'Sem faturamento no período' : 'vs mês anterior'}
+                  cor="#ff9211"
+                />
+              </Col>
 
-            <p className="dash-section-label">Últimas Reservas</p>
-            
-            <TabelaReservas 
-              reservas={ultimasReservas} 
-              reservasGerais={reservas} 
+              {/* 2. Taxa de Ocupação no Mês */}
+              <Col xs={12} sm={6} xl={3}>
+                <CardKpiModerno
+                  icone={<i className="bi bi-house-check fs-4" />}
+                  titulo="Ocupação no Mês"
+                  valor={`${ocupacao}%`}
+                  barraProgresso={ocupacao}
+                  sub={`${diasOcupados} de ${diasNoMes} diárias reservadas`}
+                  cor="#ff9211"
+                />
+              </Col>
+
+              {/* 3. Avaliação Média (Opção B: 5.0 inicial de estreia, real quando houver avaliações) */}
+              <Col xs={12} sm={6} xl={3}>
+                <CardKpiModerno
+                  icone={<i className="bi bi-star-fill fs-4" />}
+                  titulo="Avaliação Média"
+                  valor={
+                    <span className="d-flex align-items-center gap-2">
+                      {notaMediaReal.toFixed(1)}
+                      <EstrelasAvaliacao nota={notaMediaReal} tamanho="1.15rem" />
+                    </span>
+                  }
+                  sub={totalAvaliacoesPublicas === 0
+                    ? 'Nota inicial de estreia'
+                    : `${totalAvaliacoesPublicas} ${totalAvaliacoesPublicas === 1 ? 'avaliação de hóspede' : 'avaliações de hóspedes'}`
+                  }
+                  cor="#f59e0b"
+                />
+              </Col>
+
+              {/* 4. Total de Reservas */}
+              <Col xs={12} sm={6} xl={3}>
+                <CardKpiModerno
+                  icone={<i className="bi bi-calendar-check fs-4" />}
+                  titulo="Total de Reservas"
+                  valor={reservas.length}
+                  sub={`${aprovadas} confirmadas · ${reservas.filter(r => r.status === 'pendente' || r.status === 'pagamento pendente').length} pendentes`}
+                  cor="#223a5e"
+                />
+              </Col>
+            </Row>
+
+            {/* Gráfico SVG Moderno de Evolução dos Últimos 6 Meses */}
+            <p className="dash-section-label">Desempenho Financeiro Recente</p>
+            <GraficoFaturamentoSVG reservas={reservas} />
+
+            {/* Card de Próximos Check-ins com botão direto de WhatsApp */}
+            <p className="dash-section-label">Operação & Acolhimento</p>
+            <CardProximosCheckins reservas={reservas} />
+
+            {/* Tabela de Reservas Mantida com Filtros */}
+            <p className="dash-section-label">Gerenciamento de Reservas</p>
+            <TabelaReservas
+              reservas={ultimasReservas}
+              reservasGerais={reservas}
               onVer={setSelecionada}
-              onAprovar={aprovar} 
-              onRecusar={recusar} 
-              filtro={filtro} 
+              onCancelar={setReservaParaCancelar}
+              filtro={filtro}
               setFiltro={setFiltro}
             />
           </>
         );
       }
+
       case 'reservas': return (
         <>
           <p className="dash-section-label">Gerenciamento de Reservas</p>
-          <TabelaReservas reservas={reservas} onVer={setSelecionada}
-            onAprovar={aprovar} onRecusar={recusar} filtro={filtro} setFiltro={setFiltro}/>
+          <TabelaReservas
+            reservas={reservas}
+            onVer={setSelecionada}
+            onCancelar={setReservaParaCancelar}
+            filtro={filtro}
+            setFiltro={setFiltro}
+          />
         </>
       );
+
       case 'calendario': return (
         <>
-          <p className="dash-section-label">Calendário de Ocupação</p>
-          <CalendarioOcupacao reservas={reservas}/>
+          <p className="dash-section-label">Calendário de Ocupação & Manutenção</p>
+          <CalendarioOcupacao
+            reservas={reservas}
+            bloqueios={bloqueios}
+            aoCriarBloqueio={criarBloqueio}
+            aoRemoverBloqueio={removerBloqueio}
+          />
         </>
       );
+
+      case 'cupons': return (
+        <>
+          <p className="dash-section-label">Gestão de Cupons Promocionais</p>
+          <PainelCupons
+            cupons={cupons}
+            aoAlternarStatus={alternarStatusCupom}
+            aoCriarCupom={criarCupom}
+          />
+        </>
+      );
+
       case 'previsao': return (
         <>
           <p className="dash-section-label">Previsão de Receita</p>
-          <PrevisaoReceita reservas={reservas}/>
+          <PrevisaoReceita reservas={reservas} />
         </>
       );
+
+      case 'avaliacoes': return (
+        <>
+          <p className="dash-section-label">Avaliações dos Hóspedes</p>
+          <PainelAvaliacoes
+            avaliacoes={avaliacoesPendentes}
+            carregando={carregandoAvaliacoes}
+            erro={erroAvaliacoes}
+            aoTentarNovamente={() => buscarAvaliacoesPendentes()}
+            aoResponder={setAvaliacaoSelecionada}
+          />
+        </>
+      );
+
       default: return null;
     }
   };
@@ -644,18 +2944,23 @@ function DashboardAdministrador() {
   return (
     <div className="dashboard-admin-shell">
       {sidebarAberta && window.innerWidth < 992 && (
-        <div className="sidebar-overlay" onClick={() => setSidebarAberta(false)}/>
+        <div className="sidebar-overlay" onClick={() => setSidebarAberta(false)} />
       )}
+
+      {/* Sidebar de Navegação */}
       <aside className={`sidebar-admin ${sidebarAberta ? 'aberta' : 'colapsada'}`}>
         <div className="sidebar-topo">
-          {/* <button className="btn-toggle-sidebar" onClick={() => setSidebarAberta(s => !s)} aria-label="Toggle menu">
-            <Ico.Menu/>
-          </button> */}
           {sidebarAberta && <span className="sidebar-marca">Recanto Admin</span>}
         </div>
         <nav className="sidebar-nav">
           {abas.map(a => (
-            <button key={a.id} type="button" className={`sidebar-item${abaAtiva === a.id ? ' ativo' : ''}`} onClick={() => irAba(a.id)} title={!sidebarAberta ? a.label : ''}>
+            <button
+              key={a.id}
+              type="button"
+              className={`sidebar-item${abaAtiva === a.id ? ' ativo' : ''}`}
+              onClick={() => irAba(a.id)}
+              title={!sidebarAberta ? a.label : ''}
+            >
               <span className="sidebar-icone">{a.icone}</span>
               {sidebarAberta && <span className="sidebar-label">{a.label}</span>}
             </button>
@@ -663,48 +2968,79 @@ function DashboardAdministrador() {
         </nav>
         <div className="sidebar-rodape">
           <Link to="/" className="sidebar-item sidebar-item-link" title={!sidebarAberta ? 'Voltar ao site' : ''}>
-            <span className="sidebar-icone"><Ico.Voltar/></span>
+            <span className="sidebar-icone"><Ico.Voltar /></span>
             {sidebarAberta && <span className="sidebar-label">Voltar ao site</span>}
           </Link>
           <button type="button" className="sidebar-item" onClick={() => navigate('/Configuracoes')} title={!sidebarAberta ? 'Configurações' : ''}>
-            <span className="sidebar-icone"><Ico.Config/></span>
+            <span className="sidebar-icone"><Ico.Config /></span>
             {sidebarAberta && <span className="sidebar-label">Configurações</span>}
           </button>
           <button type="button" className="sidebar-item sair" onClick={() => { logout(); navigate('/'); }} title={!sidebarAberta ? 'Sair' : ''}>
-            <span className="sidebar-icone"><Ico.Sair/></span>
+            <span className="sidebar-icone"><Ico.Sair /></span>
             {sidebarAberta && <span className="sidebar-label">Sair</span>}
           </button>
         </div>
       </aside>
+
+      {/* Área Principal */}
       <main className="dashboard-admin-main">
         <div className="topbar-admin">
           <div className="topbar-esquerda">
-            <button type="button" className="btn-menu-topbar me-3"
-         onClick={() => setSidebarAberta(s => !s)}
-        aria-label="Toggle menu"
-           >
-      <Ico.Menu/>
-      </button>
+            <button
+              type="button"
+              className="btn-menu-topbar me-3"
+              onClick={() => setSidebarAberta(s => !s)}
+              aria-label="Alternar menu"
+            >
+              <Ico.Menu />
+            </button>
             <div>
               <h4 className="topbar-titulo mb-0">{abas.find(a => a.id === abaAtiva)?.label}</h4>
-              <span className="topbar-sub">Olá, {usuario?.nome?.split(' ')[0]}!</span>
+              <span className="topbar-sub">Olá, {usuario?.nome?.split(' ')[0] || 'Anfitrião'}!</span>
             </div>
           </div>
           <div className="topbar-direita">
-            <Notificacoes/>
-            <div className="topbar-avatar" title={usuario?.nome}>{usuario?.nome?.charAt(0)}</div>
+            <Notificacoes aoNovaNotificacao={buscarReservas} aoClicarNotificacao={tratarCliqueNotificacao} />
+            <div className="topbar-avatar" title={usuario?.nome}>
+              {usuario?.nome?.charAt(0) || 'R'}
+            </div>
           </div>
         </div>
+
         {feedback.msg && (
-          <Alert variant={feedback.tipo === 'sucesso' ? 'success' : 'danger'} className="alert-feedback-admin border-0 shadow-sm mx-4 mt-3">
-            <i className={`bi ${feedback.tipo === 'sucesso' ? 'bi-check-circle' : 'bi-x-circle'} me-2`}></i>
+          <Alert
+            variant={feedback.tipo === 'sucesso' ? 'success' : 'danger'}
+            className="alert-feedback-admin border-0 shadow-sm mx-4 mt-3"
+          >
+            <i className={`bi ${feedback.tipo === 'sucesso' ? 'bi-check-circle' : 'bi-x-circle'} me-2`} />
             {feedback.msg}
           </Alert>
         )}
+
         <div className="dashboard-admin-conteudo">{renderConteudo()}</div>
       </main>
-      <ModalReserva reserva={selecionada} aoFechar={() => setSelecionada(null)} aoAprovar={aprovar} aoRecusar={recusar}/>
-      <ModalRecusa reserva={modalRecusa} aoFechar={() => setModalRecusa(null)} aoConfirmar={confirmarRecusa}/>
+
+      {/* Modais Globais */}
+      <ModalReserva
+        reserva={selecionada}
+        aoFechar={() => setSelecionada(null)}
+        aoDecidir={decidirReserva}
+        aoAbrirCancelamento={r => setReservaParaCancelar(r)}
+      />
+
+      {reservaParaCancelar && (
+        <ModalCancelarReservaAdmin
+          reserva={reservaParaCancelar}
+          aoFechar={() => setReservaParaCancelar(null)}
+          aoConfirmarCancelamento={cancelarReservaComEstorno}
+        />
+      )}
+
+      <ModalResponderAvaliacao
+        avaliacao={avaliacaoSelecionada}
+        aoFechar={() => setAvaliacaoSelecionada(null)}
+        aoResponder={confirmarRespostaAvaliacao}
+      />
     </div>
   );
 }

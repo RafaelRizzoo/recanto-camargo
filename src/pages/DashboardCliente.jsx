@@ -6,162 +6,121 @@ import { Row, Col, Card, Modal, Button, Alert } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+import Notificacoes from '../components/UI/Notificacoes';
+import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 import './DashboardCliente.css';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const RESERVAS_CLIENTE_MOCK = [
-  {
-    id: 'RC001',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-05-20',
-    checkout: '2026-05-24',
-    hospedes: 4,
-    valorTotal: 1080.00,
-    valorDiaria: 270.00,
-    status: 'aprovada',
-    criadaEm: '2026-04-20',
-    observacao: 'Preciso de berço para bebê de 8 meses.',
-    formaPagamento: 'PIX',
-    avaliacao: null,
-  },
-  {
-    id: 'RC002',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-06-10',
-    checkout: '2026-06-14',
-    hospedes: 2,
-    valorTotal: 1080.00,
-    valorDiaria: 270.00,
-    status: 'pendente',
-    criadaEm: '2026-04-25',
-    observacao: 'Viagem de aniversário.',
-    formaPagamento: 'Cartão de Crédito',
-    avaliacao: null,
-  },
-  {
-    id: 'RC003',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-03-10',
-    checkout: '2026-03-13',
-    hospedes: 3,
-    valorTotal: 810.00,
-    valorDiaria: 270.00,
-    status: 'concluida',
-    criadaEm: '2026-02-15',
-    observacao: '',
-    formaPagamento: 'PIX',
-    avaliacao: {
-      nota: 5,
-      comentario: 'Lugar maravilhoso! Voltaremos com certeza.',
-      data: '2026-03-15',
-    },
-  },
-  {
-    id: 'RC004',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-01-05',
-    checkout: '2026-01-08',
-    hospedes: 5,
-    valorTotal: 810.00,
-    valorDiaria: 270.00,
-    status: 'concluida',
-    criadaEm: '2025-12-10',
-    observacao: 'Levarei meu pet.',
-    formaPagamento: 'PIX',
-    avaliacao: null,
-  },
-  {
-    id: 'RC005',
-    imovel: 'Recanto Camargo',
-    localizacao: 'Aparecida - SP',
-    checkin: '2026-02-20',
-    checkout: '2026-02-23',
-    hospedes: 3,
-    valorTotal: 810.00,
-    valorDiaria: 270.00,
-    status: 'recusada',
-    criadaEm: '2026-01-15',
-    observacao: '',
-    formaPagamento: 'PIX',
-    avaliacao: null,
-    motivoRecusa: 'Não podemos aceitar reservas na data devido a uma manutenção na casa. Pedimos desculpas pelo inconveniente.',
-  },
-];
-
-const CUPONS_MOCK = [
-  {
-    id: 'CUP001',
-    codigo: 'RECANTO10',
-    descricao: '10% de desconto na próxima reserva',
-    validoAte: '2026-12-31',
-    usado: false,
-    ativo: true,
-    icone: '🎁',
-  },
-  {
-    id: 'CUP002',
-    codigo: 'PRIMEIRA15',
-    descricao: '15% na primeira reserva direta',
-    validoAte: '2026-06-30',
-    usado: false,
-    ativo: true,
-    icone: '⭐',
-  },
-  {
-    id: 'CUP003',
-    codigo: 'FIDELIDADE5',
-    descricao: 'R$ 50 de desconto — cliente fiel',
-    validoAte: '2026-03-01',
-    usado: false,
-    ativo: false,
-    icone: '🏆',
-  },
-];
-
 const CHAVE_RESERVAS_CLIENTE = 'recanto_reservas_cliente';
-const CHAVE_CUPONS           = 'recanto_cupons_cliente';
-
-function inicializarDados() {
-  try {
-    const res = localStorage.getItem(CHAVE_RESERVAS_CLIENTE);
-    if (!res) localStorage.setItem(CHAVE_RESERVAS_CLIENTE, JSON.stringify(RESERVAS_CLIENTE_MOCK));
-
-    const cup = localStorage.getItem(CHAVE_CUPONS);
-    if (!cup) localStorage.setItem(CHAVE_CUPONS, JSON.stringify(CUPONS_MOCK));
-
-    return {
-      reservas: res ? JSON.parse(res) : RESERVAS_CLIENTE_MOCK,
-      cupons:   cup ? JSON.parse(cup) : CUPONS_MOCK,
-    };
-  } catch {
-    return { reservas: RESERVAS_CLIENTE_MOCK, cupons: CUPONS_MOCK };
-  }
-}
 
 // ─── Utilitários ──────────────────────────────────────────────────────────────
 const fmtData = (s) => {
   if (!s) return '—';
-  const [a, m, d] = s.split('-');
-  return `${d}/${m}/${a}`;
+  const str = String(s).slice(0, 10);
+  const [a, m, d] = str.split('-');
+  return (a && m && d) ? `${d}/${m}/${a}` : s;
+};
+
+const fmtDataHora = (s) => {
+  if (!s) return '—';
+  try {
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return fmtData(s);
+    return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return fmtData(s);
+  }
 };
 
 const fmtMoeda = (v) =>
-  Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const normalizarCupom = (cupom) => {
+  const tipoDesconto = String(cupom.tipoDesconto || '').toUpperCase();
+  const valorDesconto = Number(cupom.valorDesconto);
+  const valorPercentual = valorDesconto.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+
+  return {
+    id: cupom.cupomId,
+    codigo: cupom.codigo,
+    tipoDesconto,
+    valorDesconto,
+    validoAte: cupom.validoAte,
+    descricao: tipoDesconto === 'PERCENTUAL'
+      ? `${valorPercentual}% de desconto na próxima reserva`
+      : `${fmtMoeda(valorDesconto)} de desconto na próxima reserva`,
+    icone: tipoDesconto === 'PERCENTUAL' ? '🎁' : '🏷️',
+    ativo: true,
+    usado: Boolean(cupom.usado),
+  };
+};
+
+const normalizarDataAvaliacao = (data) => {
+  const valor = String(data || '');
+  const dataIso = valor.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(dataIso) ? dataIso : '';
+};
+
+const normalizarRespostaProprietario = (resposta) => {
+  if (!resposta || typeof resposta !== 'object') return null;
+
+  const nota = Number(resposta.nota ?? resposta.Ava_NotaPropietario);
+  if (!Number.isFinite(nota) || nota < 1 || nota > 5 || !Number.isInteger(nota * 2)) return null;
+
+  return {
+    nota,
+    comentario: String(resposta.comentario ?? resposta.Ava_ComentarioPropietario ?? ''),
+    data: normalizarDataAvaliacao(resposta.data ?? resposta.Ava_DataPropietario),
+  };
+};
+
+const normalizarAvaliacao = (avaliacao) => {
+  if (!avaliacao || typeof avaliacao !== 'object') return null;
+
+  const nota = Number(avaliacao.nota ?? avaliacao.Ava_Nota);
+  const data = normalizarDataAvaliacao(avaliacao.data ?? avaliacao.Ava_Data);
+  if (!Number.isFinite(nota) || nota < 1 || nota > 5 || !Number.isInteger(nota * 2) || !data) return null;
+
+  return {
+    id: avaliacao.id ?? avaliacao.avaliacaoId ?? avaliacao.Ava_Id,
+    nota,
+    comentario: String(avaliacao.comentario ?? avaliacao.Ava_Comentario ?? ''),
+    data,
+    respostaProprietario: normalizarRespostaProprietario(
+      avaliacao.respostaProprietario ?? avaliacao.resposta
+    ),
+  };
+};
 
 const calcNoites = (ci, co) =>
   Math.round((new Date(co + 'T00:00:00') - new Date(ci + 'T00:00:00')) / 86400000);
 
-const diasAteCheckin = (ci) =>
-  Math.round((new Date(ci + 'T00:00:00') - new Date()) / 86400000);
+const diasAteCheckin = (ci) => {
+  if (!ci) return 0;
+  const dataCi = new Date(ci + 'T00:00:00');
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  return Math.round((dataCi - hoje) / 86400000);
+};
 
-const podeCancelar = (ci) => diasAteCheckin(ci) > 7;
+const podeCancelar = (reservaOuCheckin, checkout) => {
+  if (!reservaOuCheckin) return false;
+  if (typeof reservaOuCheckin === 'object') {
+    const r = reservaOuCheckin;
+    const statusValido = ['aprovada', 'pendente', 'pagamento pendente'].includes(r.status);
+    if (!statusValido) return false;
+    const dataRef = r.checkout || r.checkin;
+    if (!dataRef) return true;
+    const fim = new Date(dataRef + 'T11:00:00');
+    return new Date() <= fim;
+  }
+  const dataRef = checkout || reservaOuCheckin;
+  const fim = new Date(dataRef + 'T11:00:00');
+  return new Date() <= fim;
+};
 
 const STATUS_CFG = {
   pendente:  { label: 'Pendente',   bg: '#fff3cd', cor: '#856404', icone: 'bi-hourglass-split' },
+  'pagamento pendente': { label: 'Pagamento Pendente', bg: '#fef3c7', cor: '#b45309', icone: 'bi-credit-card-2-front' },
   aprovada:  { label: 'Aprovada',   bg: '#d1fae5', cor: '#0f5132', icone: 'bi-check-circle'    },
   cancelada: { label: 'Cancelada',  bg: '#f8d7da', cor: '#842029', icone: 'bi-x-circle'        },
   concluida: { label: 'Concluída',  bg: '#e0e7ff', cor: '#3730a3', icone: 'bi-award'           },
@@ -192,122 +151,218 @@ function BadgeStatus({ status }) {
 }
 BadgeStatus.propTypes = { status: PropTypes.string.isRequired };
 
-function Estrelas({ nota, interativa = false, onSelecionar }) {
-  const [hover, setHover] = useState(0);
+function Estrelas({ nota, tamanho = '1.1rem' }) {
   return (
-    <div className="cli-estrelas">
-      {[1, 2, 3, 4, 5].map(n => (
-        <i
-          key={n}
-          className={`bi ${(interativa ? (hover || nota) : nota) >= n ? 'bi-star-fill' : 'bi-star'}`}
-          style={{ color: '#f59e0b', cursor: interativa ? 'pointer' : 'default', fontSize: '1.1rem' }}
-          onClick={() => interativa && onSelecionar?.(n)}
-          onMouseEnter={() => interativa && setHover(n)}
-          onMouseLeave={() => interativa && setHover(0)}
-        />
-      ))}
+    <div className="cli-estrelas" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map(n => {
+        const icone = nota >= n ? 'bi-star-fill' : nota >= n - 0.5 ? 'bi-star-half' : 'bi-star';
+        return <i key={n} className={`bi ${icone}`} style={{ color: '#f59e0b', fontSize: tamanho }} />;
+      })}
     </div>
   );
 }
 Estrelas.propTypes = {
   nota: PropTypes.number.isRequired,
-  interativa: PropTypes.bool,
-  onSelecionar: PropTypes.func,
+  tamanho: PropTypes.string,
 };
 
 // ─── Modal Detalhe da Reserva ─────────────────────────────────────────────────
-function ModalDetalheReserva({ reserva, aoFechar }) {
+function ModalDetalheReserva({ reserva, aoFechar, aoCancelar, aoPagar, pagando = false }) {
   if (!reserva) return null;
   const n = calcNoites(reserva.checkin, reserva.checkout);
+  const podeCanc = podeCancelar(reserva);
   return (
-    <Modal show onHide={aoFechar} centered size="lg" className="cli-modal">
-      <Modal.Header closeButton className="cli-modal-header">
-        <Modal.Title>Reserva #{reserva.id}</Modal.Title>
+    <Modal show onHide={aoFechar} centered scrollable size="lg" className="cli-modal">
+      <Modal.Header closeButton className="cli-modal-header py-2 px-3 px-md-4">
+        <Modal.Title style={{ fontSize: '1.2rem', fontWeight: 700 }} className="d-flex align-items-center gap-2">
+          <i className="bi bi-calendar2-check-fill" style={{ color: '#38bdf8' }}></i> Reserva #{reserva.id}
+        </Modal.Title>
       </Modal.Header>
-      <Modal.Body className="p-4">
-        <Row className="g-4">
+      <Modal.Body className="p-3 px-md-4">
+        <Row className="g-3">
+          {/* Banner do Imóvel + Data de Solicitação */}
           <Col xs={12}>
-            <div className="cli-modal-imovel">
-              <div className="cli-modal-imovel-img">
-                <i className="bi bi-house-heart"></i>
-              </div>
-              <div>
-                <div className="fw-bold" style={{ fontSize: '1.1rem', color: '#223a5e' }}>{reserva.imovel}</div>
-                <div className="text-muted small"><i className="bi bi-geo-alt me-1"></i>{reserva.localizacao}</div>
-                <BadgeStatus status={reserva.status} />
-              </div>
-            </div>
-          </Col>
-          <Col md={6}>
-            <p className="cli-label-secao">Período</p>
-            <div className="d-flex gap-3 flex-wrap">
-              {[['Check-in', fmtData(reserva.checkin)], ['Check-out', fmtData(reserva.checkout)], ['Noites', n]].map(([l, v]) => (
-                <div key={l} className="cli-bloco-dado">
-                  <div className="cli-bloco-label">{l}</div>
-                  <div className="cli-bloco-valor">{v}</div>
+            <div className="cli-modal-imovel d-flex justify-content-between align-items-center flex-wrap gap-2">
+              <div className="d-flex align-items-center gap-3">
+                <div className="cli-modal-imovel-img">
+                  <i className="bi bi-house-heart"></i>
                 </div>
-              ))}
+                <div>
+                  <div className="fw-bold" style={{ fontSize: '1.08rem', color: '#1e3a5f', lineHeight: 1.2 }}>{reserva.imovel}</div>
+                  <div className="text-muted small mt-1" style={{ fontSize: '0.82rem' }}>
+                    <i className="bi bi-geo-alt-fill text-danger me-1"></i>{reserva.localizacao}
+                  </div>
+                  <div className="mt-1"><BadgeStatus status={reserva.status} /></div>
+                </div>
+              </div>
+              {reserva.criadaEm && (
+                <div className="text-md-end text-muted small ms-auto">
+                  <div className="cli-bloco-label mb-1" style={{ fontSize: '0.68rem' }}>Solicitada em</div>
+                  <strong style={{ color: '#334155', fontSize: '0.85rem' }}>{fmtDataHora(reserva.criadaEm)}</strong>
+                </div>
+              )}
             </div>
           </Col>
+
+          {/* Coluna 1: Período & Hóspedes */}
           <Col md={6}>
-            <p className="cli-label-secao">Valores</p>
-            <div className="d-flex gap-3 flex-wrap">
-              <div className="cli-bloco-dado">
-                <div className="cli-bloco-label">Diária</div>
-                <div className="cli-bloco-valor">{fmtMoeda(reserva.valorDiaria)}</div>
+            <div className="p-3 rounded-3 border bg-white h-100 d-flex flex-column gap-2">
+              <div className="cli-label-secao d-flex align-items-center gap-1 mb-1">
+                <i className="bi bi-calendar3"></i> Período & Hóspedes
               </div>
-              <div className="cli-bloco-dado" style={{ background: '#f0fdf4' }}>
-                <div className="cli-bloco-label">Total</div>
-                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a' }}>{fmtMoeda(reserva.valorTotal)}</div>
+              <div className="d-flex gap-2">
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Check-in</div>
+                  <div className="cli-bloco-valor">{fmtData(reserva.checkin)}</div>
+                </div>
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Check-out</div>
+                  <div className="cli-bloco-valor">{fmtData(reserva.checkout)}</div>
+                </div>
+              </div>
+              <div className="d-flex gap-2">
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Duração</div>
+                  <div className="cli-bloco-valor">{n} noites</div>
+                </div>
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Hóspedes</div>
+                  <div className="cli-bloco-valor">{reserva.hospedes} pessoas</div>
+                </div>
               </div>
             </div>
           </Col>
+
+          {/* Coluna 2: Valores & Pagamento */}
           <Col md={6}>
-            <p className="cli-label-secao">Hóspedes & Pagamento</p>
-            <div className="d-flex gap-3">
-              <div className="cli-bloco-dado">
-                <div className="cli-bloco-label">Pessoas</div>
-                <div className="cli-bloco-valor">{reserva.hospedes}</div>
+            <div className="p-3 rounded-3 border bg-white h-100 d-flex flex-column gap-2">
+              <div className="cli-label-secao d-flex align-items-center gap-1 mb-1">
+                <i className="bi bi-cash-stack"></i> Valores & Pagamento
               </div>
-              <div className="cli-bloco-dado">
-                <div className="cli-bloco-label">Pagamento</div>
-                <div className="cli-bloco-valor" style={{ fontSize: '0.82rem' }}>{reserva.formaPagamento}</div>
+              <div className="d-flex gap-2">
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Diária</div>
+                  <div className="cli-bloco-valor">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}</div>
+                </div>
+                <div className="cli-bloco-dado flex-fill">
+                  <div className="cli-bloco-label">Método</div>
+                  <div className="cli-bloco-valor">{reserva.formaPagamento || 'PIX'}</div>
+                </div>
+              </div>
+              <div className="cli-bloco-dado d-flex justify-content-between align-items-center px-3" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                <div className="cli-bloco-label mb-0 fw-bold" style={{ color: '#166534', fontSize: '0.72rem' }}>
+                  <i className="bi bi-receipt me-1"></i> Valor Total
+                </div>
+                <div className="cli-bloco-valor fw-bold" style={{ color: '#16a34a', fontSize: '1.05rem' }}>
+                  {fmtMoeda(reserva.total ?? reserva.valorTotal)}
+                </div>
               </div>
             </div>
           </Col>
-          <Col md={6}>
-            <p className="cli-label-secao">Solicitada em</p>
-            <div className="cli-bloco-dado" style={{ display: 'inline-block' }}>
-              <div className="cli-bloco-valor">{fmtData(reserva.criadaEm)}</div>
-            </div>
-          </Col>
-      {reserva.observacao && (
-        <Col xs={12}>
-          <p className="cli-label-secao">Suas Observações</p>
-          <div className="cli-obs-box">{reserva.observacao}</div>
-        </Col>
-      )}
-      {reserva.status === 'recusada' && reserva.motivoRecusa && (
-        <Col xs={12}>
-          <p className="cli-label-secao">Motivo da Recusa</p>
-          <div className="cli-motivo-recusa">
-            <i className="bi bi-info-circle me-2"></i>
-            {reserva.motivoRecusa}
-          </div>
-        </Col>
-      )}
+
+          {/* Avisos de Status / Prazos */}
+          {reserva.status === 'pagamento pendente' && (
+            <Col xs={12}>
+              <div className="p-3 rounded-3" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                <div>
+                  <strong><i className="bi bi-clock-history me-1"></i> Aguardando seu Pagamento:</strong> Sua reserva foi pré-aprovada!
+                </div>
+                {reserva.expiraEm && (
+                  <div className="mt-1 fw-bold" style={{ color: '#b45309' }}>
+                    <i className="bi bi-hourglass-split me-1"></i> Pague até {fmtDataHora(reserva.expiraEm)} (24 horas) para garantir suas datas.
+                  </div>
+                )}
+              </div>
+            </Col>
+          )}
+
+          {reserva.status === 'pendente' && (
+            <Col xs={12}>
+              <div className="p-3 rounded-3" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                <i className="bi bi-info-circle me-1"></i>
+                <strong>Aguardando Aprovação do Anfitrião:</strong> O proprietário analisa sua solicitação.
+                {reserva.expiraEm && (
+                  <span className="ms-1">
+                    Prazo para resposta: até <strong>{fmtDataHora(reserva.expiraEm)} (48 horas)</strong>.
+                  </span>
+                )}
+              </div>
+            </Col>
+          )}
+
+          {(reserva.observacoes || reserva.observacao) && (
+            <Col xs={12}>
+              <p className="cli-label-secao mb-1">Suas Observações</p>
+              <div className="cli-obs-box py-2 px-3" style={{ fontSize: '0.88rem' }}>{reserva.observacoes || reserva.observacao}</div>
+            </Col>
+          )}
+
+          {reserva.status === 'recusada' && (reserva.motivoRecusa || reserva.motivo) && (
+            <Col xs={12}>
+              <p className="cli-label-secao mb-1">Motivo da Recusa</p>
+              <div className="cli-motivo-recusa py-2 px-3" style={{ fontSize: '0.88rem' }}>
+                <i className="bi bi-info-circle me-2"></i>
+                {reserva.motivoRecusa || reserva.motivo}
+              </div>
+            </Col>
+          )}
+
+          {reserva.status === 'cancelada' && (
+            <Col xs={12}>
+              <p className="cli-label-secao mb-1">Cancelamento & Reembolso</p>
+              <div className="cli-motivo-recusa py-2 px-3" style={{ background: Number(reserva.valorReembolsado) > 0 ? '#f0fdf4' : '#fff1f2', borderColor: Number(reserva.valorReembolsado) > 0 ? '#bbf7d0' : '#fecaca', color: Number(reserva.valorReembolsado) > 0 ? '#166534' : '#9a3412', fontSize: '0.88rem' }}>
+                <i className={`bi ${Number(reserva.valorReembolsado) > 0 ? 'bi-arrow-counterclockwise' : 'bi-x-circle'} me-2`}></i>
+                {Number(reserva.valorReembolsado) > 0 ? (
+                  <><strong>Reembolso Processado:</strong> {fmtMoeda(reserva.valorReembolsado)} estornados diretamente à sua operadora no Mercado Pago conforme a Cláusula 4 dos Termos de Uso.</>
+                ) : (
+                  reserva.motivoRecusa || reserva.motivo || 'Cancelada conforme a política de uso.'
+                )}
+              </div>
+            </Col>
+          )}
         </Row>
       </Modal.Body>
-      <Modal.Footer className="border-0 pt-0">
-        <a
-          href={`https://wa.me/5512996297452?text=Olá! Tenho uma dúvida sobre minha reserva ${reserva.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="cli-btn-whats"
-        >
-          <Ico.Whats /> Falar com o Proprietário
-        </a>
-        <Button variant="outline-secondary" style={{ borderRadius: '50px' }} onClick={aoFechar}>Fechar</Button>
+      <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
+        <Button variant="outline-secondary" size="sm" style={{ borderRadius: '50px', padding: '0.42rem 1.1rem', fontSize: '0.85rem' }} onClick={aoFechar}>
+          Fechar
+        </Button>
+        <div className="d-flex align-items-center gap-2">
+          <a
+            href={`https://wa.me/5512997193233?text=${encodeURIComponent(`Olá! Tenho uma dúvida sobre minha reserva #${reserva.id} no Recanto Camargo.`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cli-btn-whats"
+            style={{ padding: '0.42rem 0.95rem', fontSize: '0.85rem', borderRadius: '50px' }}
+          >
+            <Ico.Whats /> WhatsApp
+          </a>
+          {podeCanc && aoCancelar && (
+            <Button
+              variant="outline-danger"
+              size="sm"
+              style={{ borderRadius: '50px', fontWeight: 600, padding: '0.42rem 0.95rem', fontSize: '0.85rem' }}
+              onClick={() => {
+                aoFechar();
+                aoCancelar(reserva);
+              }}
+            >
+              <i className="bi bi-x-circle me-1"></i>
+              Cancelar Reserva
+            </Button>
+          )}
+          {reserva.status === 'pagamento pendente' && aoPagar && (
+            <Button
+              variant="success"
+              size="sm"
+              style={{ borderRadius: '50px', fontWeight: 700, padding: '0.42rem 1.15rem', fontSize: '0.85rem' }}
+              disabled={pagando}
+              onClick={() => aoPagar(reserva)}
+            >
+              <i className="bi bi-credit-card-2-front me-1"></i>
+              {pagando ? 'Abrindo...' : 'Pagar Reserva'}
+            </Button>
+          )}
+        </div>
       </Modal.Footer>
     </Modal>
   );
@@ -315,36 +370,149 @@ function ModalDetalheReserva({ reserva, aoFechar }) {
 ModalDetalheReserva.propTypes = {
   reserva: PropTypes.object,
   aoFechar: PropTypes.func.isRequired,
+  aoCancelar: PropTypes.func,
+  aoPagar: PropTypes.func,
+  pagando: PropTypes.bool,
 };
 
 // ─── Modal Cancelar Reserva ───────────────────────────────────────────────────
-function ModalCancelar({ reserva, aoFechar, aoConfirmar }) {
+function ModalCancelar({ reserva, aoFechar, aoConfirmar, cancelando = false }) {
   const [motivo, setMotivo] = useState('');
   if (!reserva) return null;
+
+  const estimativaReembolso = (() => {
+    if (!reserva?.checkin) return null;
+    if (reserva.status !== 'aprovada') return null;
+    const checkinDate = new Date(reserva.checkin);
+    const ano = checkinDate.getUTCFullYear();
+    const mes = checkinDate.getUTCMonth();
+    const dia = checkinDate.getUTCDate();
+    const checkinHora = new Date(ano, mes, dia, 14, 0, 0, 0);
+    const diffMs = checkinHora.getTime() - Date.now();
+    const horas = Math.max(0, diffMs / (1000 * 60 * 60));
+    const total = Number(reserva.total ?? reserva.valorTotal ?? 0);
+    let percentual = 0;
+    let descricao = '';
+    let cor = '#991b1b';
+    let bg = '#fef2f2';
+    let borda = '#fecaca';
+
+    if (horas >= 168) {
+      percentual = 100;
+      descricao = 'Cancelamento com mais de 7 dias de antecedência: 100% de reembolso integral estornado no Mercado Pago.';
+      cor = '#166534';
+      bg = '#f0fdf4';
+      borda = '#bbf7d0';
+    } else if (horas >= 48) {
+      percentual = 50;
+      descricao = 'Cancelamento entre 2 e 7 dias de antecedência: 50% de reembolso (retenção de 50%).';
+      cor = '#92400e';
+      bg = '#fffbeb';
+      borda = '#fde68a';
+    } else {
+      percentual = 0;
+      descricao = 'Cancelamento com menos de 48h do check-in: sem direito a reembolso conforme os Termos de Uso (retenção de 100%).';
+      cor = '#991b1b';
+      bg = '#fef2f2';
+      borda = '#fecaca';
+    }
+    const valor = Math.round((total * (percentual / 100)) * 100) / 100;
+    return { percentual, valor, descricao, cor, bg, borda };
+  })();
+
   return (
-    <Modal show onHide={aoFechar} centered className="cli-modal">
-      <Modal.Header closeButton className="cli-modal-header-danger">
-        <Modal.Title>Cancelar Reserva #{reserva.id}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body className="p-4">
-        <div className="cli-aviso-cancelar mb-3">
+    <Modal show onHide={aoFechar} centered scrollable size="lg" className="cli-modal">
+      <Modal.Header closeButton className="cli-modal-header-danger py-2 px-3 px-md-4">
+        <Modal.Title style={{ color: '#fff', fontSize: '1.2rem', fontWeight: 700 }}>
           <i className="bi bi-exclamation-triangle-fill me-2"></i>
-          Tem certeza que deseja cancelar? Conforme nossa política, cancelamentos são aceitos até 7 dias antes do check-in.
-        </div>
-        <label className="label-config mb-2 d-block">Motivo (opcional)</label>
+          Cancelar Reserva #{reserva.id}
+        </Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-3 px-md-4 py-md-3">
+        <Row className="g-3 mb-3">
+          {/* Coluna 1: Sugestão de Remarcação */}
+          <Col md={6}>
+            <div className="p-3 rounded-3 border h-100 d-flex flex-column justify-content-between" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+              <div>
+                <div className="fw-bold text-success small d-flex align-items-center mb-1">
+                  <i className="bi bi-whatsapp me-2 fs-6" />
+                  Prefere remarcar sua estadia para outra data?
+                </div>
+                <div className="text-muted" style={{ fontSize: '0.85rem' }}>
+                  Antes de cancelar, você pode solicitar a remarcação de datas diretamente com o anfitrião sem qualquer multa ou taxa extra!
+                </div>
+              </div>
+              <div className="mt-3">
+                <a
+                  href={`https://wa.me/5512997193233?text=${encodeURIComponent(`Olá! Gostaria de verificar a possibilidade de remarcar minha reserva #${reserva.id} no Recanto Camargo.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-sm btn-success fw-semibold px-3 py-1 d-inline-flex align-items-center"
+                  style={{ borderRadius: '50px' }}
+                >
+                  <i className="bi bi-whatsapp me-1" />
+                  Remarcar no WhatsApp
+                </a>
+              </div>
+            </div>
+          </Col>
+
+          {/* Coluna 2: Política de Cancelamento */}
+          <Col md={6}>
+            <div className="p-3 rounded-3 border h-100" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
+              <div className="fw-bold text-dark small d-flex align-items-center mb-1" style={{ color: '#92400e' }}>
+                <i className="bi bi-shield-exclamation me-2 fs-6" style={{ color: '#b45309' }}></i>
+                Política de Cancelamento (Termos de Uso)
+              </div>
+              <ul className="small text-muted ps-3 mb-0" style={{ fontSize: '0.82rem', lineHeight: '1.5' }}>
+                <li><strong>Mais de 7 dias de antecedência:</strong> 100% de reembolso integral.</li>
+                <li><strong>Entre 2 e 7 dias de antecedência:</strong> 50% de reembolso.</li>
+                <li><strong>Com menos de 48h do check-in:</strong> Não há reembolso (retenção de 100%).</li>
+              </ul>
+            </div>
+          </Col>
+        </Row>
+
+        {estimativaReembolso && (
+          <div
+            className="p-3 rounded-3 mb-3 border small"
+            style={{
+              background: estimativaReembolso.bg,
+              borderColor: estimativaReembolso.borda,
+              color: estimativaReembolso.cor
+            }}
+          >
+            <div className="fw-bold d-flex align-items-center mb-1">
+              <i className="bi bi-info-circle-fill me-2" />
+              Previsão de Reembolso: {fmtMoeda(estimativaReembolso.valor)} ({estimativaReembolso.percentual}%)
+            </div>
+            <div>{estimativaReembolso.descricao}</div>
+          </div>
+        )}
+
+        <label className="label-config mb-1 d-block small fw-semibold text-muted">Motivo do cancelamento (opcional)</label>
         <textarea
           className="form-controle-config w-100"
-          rows={3}
+          rows={2}
           placeholder="Nos conte o motivo do cancelamento..."
           value={motivo}
           onChange={e => setMotivo(e.target.value)}
-          style={{ borderRadius: '12px', padding: '0.75rem', border: '1px solid #e2e8f0', resize: 'vertical' }}
+          style={{ borderRadius: '10px', padding: '0.65rem 0.85rem', border: '1px solid #e2e8f0', resize: 'vertical', fontSize: '0.88rem' }}
         />
       </Modal.Body>
-      <Modal.Footer className="border-0 pt-0 gap-2">
-        <Button variant="outline-secondary" style={{ borderRadius: '50px' }} onClick={aoFechar}>Voltar</Button>
-        <Button variant="danger" style={{ borderRadius: '50px', padding: '0.55rem 1.5rem' }} onClick={() => aoConfirmar(reserva.id, motivo)}>
-          <i className="bi bi-x-circle me-2"></i>Confirmar Cancelamento
+      <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
+        <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} onClick={aoFechar} disabled={cancelando}>Voltar</Button>
+        <Button
+          variant="danger"
+          style={{ borderRadius: '50px', padding: '0.45rem 1.4rem', fontSize: '0.88rem' }}
+          onClick={() => aoConfirmar(reserva.id, motivo)}
+          disabled={cancelando}
+        >
+          {cancelando ? (
+            <><span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />Cancelando...</>
+          ) : (
+            <><i className="bi bi-x-circle me-2" />Confirmar Cancelamento</>
+          )}
         </Button>
       </Modal.Footer>
     </Modal>
@@ -354,17 +522,43 @@ ModalCancelar.propTypes = {
   reserva: PropTypes.object,
   aoFechar: PropTypes.func.isRequired,
   aoConfirmar: PropTypes.func.isRequired,
+  cancelando: PropTypes.bool,
 };
 
 // ─── Modal Avaliação ──────────────────────────────────────────────────────────
-function ModalAvaliar({ reserva, aoFechar, aoEnviar }) {
-  const [nota, setNota] = useState(5);
+function ModalAvaliar({ reserva, aoFechar, aoEnviar, enviando, erro }) {
+  const [limpeza, setLimpeza] = useState(5);
+  const [comunicacao, setComunicacao] = useState(5);
+  const [localizacao, setLocalizacao] = useState(5);
+  const [custoBeneficio, setCustoBeneficio] = useState(5);
   const [comentario, setComentario] = useState('');
+
+  useEffect(() => {
+    setLimpeza(5);
+    setComunicacao(5);
+    setLocalizacao(5);
+    setCustoBeneficio(5);
+    setComentario('');
+  }, [reserva?.id]);
+
   if (!reserva) return null;
+
+  // Média ponderada com arredondamento seguro para intervalo de meio ponto
+  const mediaExata = (limpeza + comunicacao + localizacao + custoBeneficio) / 4;
+  const notaGeral = Math.round(mediaExata * 2) / 2;
+
   return (
-    <Modal show onHide={aoFechar} centered className="cli-modal">
-      <Modal.Header closeButton className="cli-modal-header">
-        <Modal.Title>Avaliar Estadia</Modal.Title>
+    <Modal
+      show
+      onHide={() => { if (!enviando) aoFechar(); }}
+      backdrop={enviando ? 'static' : true}
+      keyboard={!enviando}
+      centered
+      size="lg"
+      className="cli-modal cli-modal-avaliar"
+    >
+      <Modal.Header closeButton={!enviando} className="cli-modal-header">
+        <Modal.Title>Avaliar Estadia no Recanto Camargo</Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
         <div className="text-center mb-4">
@@ -374,33 +568,143 @@ function ModalAvaliar({ reserva, aoFechar, aoEnviar }) {
           <div className="fw-bold text-azul">{reserva.imovel}</div>
           <div className="text-muted small">{fmtData(reserva.checkin)} → {fmtData(reserva.checkout)}</div>
         </div>
-        <div className="text-center mb-4">
-          <p className="fw-semibold mb-2" style={{ color: '#223a5e' }}>Como foi sua estadia?</p>
-          <div className="d-flex justify-content-center gap-2" style={{ fontSize: '2rem' }}>
-            <Estrelas nota={nota} interativa onSelecionar={setNota} />
+
+        {/* Nota Média Geral */}
+        <div className="text-center mb-4 p-3 rounded-4" style={{ background: '#f8fafd', border: '1px solid #e2e8f0' }}>
+          <p className="fw-bold mb-1" style={{ color: '#223a5e' }}>Avaliação Geral do Chalé</p>
+          <div className="d-flex align-items-center justify-content-center gap-2 mb-1">
+            <span className="fs-2 fw-bold" style={{ color: '#223a5e' }}>{notaGeral.toFixed(1)}</span>
+            <Estrelas nota={notaGeral} tamanho="1.6rem" />
           </div>
-          <div className="text-muted small mt-1">
-            {['', 'Muito ruim', 'Ruim', 'Regular', 'Bom', 'Excelente!'][nota]}
-          </div>
+          <small className="text-muted">Calculada com base nos 4 critérios abaixo</small>
         </div>
-        <label className="label-config mb-2 d-block">Seu comentário (opcional)</label>
+
+        {/* Os 4 Subcritérios */}
+        <p className="fw-semibold mb-3" style={{ color: '#223a5e' }}>Classifique cada critério da sua estadia:</p>
+        <Row className="g-3 mb-4">
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-stars text-warning me-1"></i>Limpeza
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{limpeza.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${limpeza >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setLimpeza(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-chat-dots-fill text-primary me-1"></i>Comunicação
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{comunicacao.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${comunicacao >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setComunicacao(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-geo-alt-fill text-danger me-1"></i>Localização
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{localizacao.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${localizacao >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setLocalizacao(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+          <Col sm={6}>
+            <div className="p-3 rounded-3 border bg-light h-100">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="fw-bold small text-secondary">
+                  <i className="bi bi-tag-fill text-success me-1"></i>Custo-benefício
+                </span>
+                <span className="badge bg-white text-dark border fw-bold">{custoBeneficio.toFixed(1)} / 5</span>
+              </div>
+              <div className="d-flex align-items-center mt-2" style={{ gap: '4px', cursor: enviando ? 'default' : 'pointer' }}>
+                {[1, 2, 3, 4, 5].map(v => (
+                  <i
+                    key={v}
+                    className={`bi ${custoBeneficio >= v ? 'bi-star-fill' : 'bi-star'} estrela-animada`}
+                    onClick={() => !enviando && setCustoBeneficio(v)}
+                    style={{ color: '#ff9211', fontSize: '1.5rem' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Col>
+        </Row>
+
+        <label htmlFor="comentario-avaliacao" className="label-config mb-2 d-block">Seu comentário (opcional)</label>
         <textarea
+          id="comentario-avaliacao"
           className="form-controle-config w-100"
-          rows={4}
+          rows={3}
+          maxLength={255}
           placeholder="Conte como foi sua experiência no Recanto Camargo..."
           value={comentario}
           onChange={e => setComentario(e.target.value)}
+          disabled={enviando}
           style={{ borderRadius: '12px', padding: '0.75rem', border: '1px solid #e2e8f0', resize: 'vertical' }}
         />
+        <div className="text-end text-muted small mt-1">{comentario.length}/255</div>
+        {erro && <Alert variant="danger" className="mt-3 mb-0" role="alert">{erro}</Alert>}
       </Modal.Body>
       <Modal.Footer className="border-0 pt-0 gap-2">
-        <Button variant="outline-secondary" style={{ borderRadius: '50px' }} onClick={aoFechar}>Cancelar</Button>
+        <Button
+          variant="outline-secondary"
+          style={{ borderRadius: '50px' }}
+          onClick={aoFechar}
+          disabled={enviando}
+        >
+          Cancelar
+        </Button>
         <Button
           className="btn-autenticacao btn-inline"
           style={{ minWidth: '160px' }}
-          onClick={() => aoEnviar(reserva.id, nota, comentario)}
+          onClick={() => aoEnviar(reserva.id, {
+            nota: notaGeral,
+            limpeza,
+            comunicacao,
+            localizacao,
+            custoBeneficio,
+            comentario
+          })}
+          disabled={enviando}
         >
-          <i className="bi bi-send me-2"></i>Enviar Avaliação
+          {enviando
+            ? <><span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando...</>
+            : <><i className="bi bi-send me-2"></i>Enviar Avaliação</>
+          }
         </Button>
       </Modal.Footer>
     </Modal>
@@ -410,13 +714,15 @@ ModalAvaliar.propTypes = {
   reserva: PropTypes.object,
   aoFechar: PropTypes.func.isRequired,
   aoEnviar: PropTypes.func.isRequired,
+  enviando: PropTypes.bool.isRequired,
+  erro: PropTypes.string.isRequired,
 };
 
 // ─── Card de Reserva ──────────────────────────────────────────────────────────
-function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
+function CardReserva({ reserva, onVer, onCancelar, onAvaliar, onPagar, pagando = false }) {
   const n    = calcNoites(reserva.checkin, reserva.checkout);
   const dias = diasAteCheckin(reserva.checkin);
-  const podeCanc = podeCancelar(reserva.checkin) && (reserva.status === 'aprovada' || reserva.status === 'pendente');
+  const podeCanc = podeCancelar(reserva);
 
   return (
     <div className="cli-card-reserva">
@@ -424,9 +730,9 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
       <div className="cli-card-img">
         <i className="bi bi-house-heart"></i>
         <BadgeStatus status={reserva.status} />
-        {reserva.status === 'aprovada' && dias > 0 && dias <= 30 && (
+        {reserva.status === 'aprovada' && dias >= 0 && dias <= 30 && (
           <div className="cli-card-contagem">
-            em {dias} dia{dias > 1 ? 's' : ''}
+            {dias === 0 ? 'Check-in Hoje!' : `em ${dias} dia${dias > 1 ? 's' : ''}`}
           </div>
         )}
       </div>
@@ -448,19 +754,45 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar }) {
         <span><i className="bi bi-people me-1"></i>{reserva.hospedes} pessoa{reserva.hospedes > 1 ? 's' : ''}</span>
       </div>
 
-      {reserva.status === 'recusada' && reserva.motivoRecusa && (
+      {reserva.status === 'recusada' && (reserva.motivoRecusa || reserva.motivo) && (
         <div className="cli-motivo-recusa">
           <i className="bi bi-info-circle me-2"></i>
-          <strong>Motivo da recusa:</strong> {reserva.motivoRecusa}
+          <strong>Motivo da recusa:</strong> {reserva.motivoRecusa || reserva.motivo}
+        </div>
+      )}
+
+      {reserva.status === 'cancelada' && (
+        <div className="cli-motivo-recusa" style={{ background: Number(reserva.valorReembolsado) > 0 ? '#f0fdf4' : '#fff1f2', borderColor: Number(reserva.valorReembolsado) > 0 ? '#bbf7d0' : '#fecaca', color: Number(reserva.valorReembolsado) > 0 ? '#166534' : '#9a3412' }}>
+          <i className={`bi ${Number(reserva.valorReembolsado) > 0 ? 'bi-arrow-counterclockwise' : 'bi-x-circle'} me-2`}></i>
+          <strong>Reserva Cancelada:</strong> {Number(reserva.valorReembolsado) > 0 ? `Reembolso de ${fmtMoeda(reserva.valorReembolsado)} processado via Mercado Pago.` : (reserva.motivoRecusa || reserva.motivo || 'Cancelada conforme Termos de Uso.')}
+        </div>
+      )}
+
+      {reserva.status === 'pagamento pendente' && (
+        <div className="cli-motivo-recusa" style={{ background: '#fef3c7', borderColor: '#fde68a', color: '#92400e' }}>
+          <i className="bi bi-clock-history me-2"></i>
+          <strong>Pré-Aprovada!</strong> {reserva.expiraEm ? `Pague até ${fmtDataHora(reserva.expiraEm)} para garantir suas datas.` : 'Efetue o pagamento em até 24h para garantir suas datas.'}
         </div>
       )}
 
         <div className="cli-card-rodape">
           <div>
-            <div className="cli-card-valor">{fmtMoeda(reserva.valorTotal)}</div>
-            <div className="cli-card-valor-diaria">{fmtMoeda(reserva.valorDiaria)}/noite</div>
+            <div className="cli-card-valor">{fmtMoeda(reserva.total ?? reserva.valorTotal)}</div>
+            <div className="cli-card-valor-diaria">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}/noite</div>
           </div>
           <div className="cli-card-acoes">
+            {reserva.status === 'pagamento pendente' && onPagar && (
+              <button
+                type="button"
+                className="cli-btn-pagar"
+                onClick={() => onPagar(reserva)}
+                disabled={pagando}
+                title="Efetuar pagamento via Mercado Pago (Pix / Cartão)"
+              >
+                <i className="bi bi-credit-card-2-front me-1"></i>
+                {pagando ? 'Abrindo...' : 'Pagar Reserva'}
+              </button>
+            )}
             <button className="cli-btn-ver" onClick={() => onVer(reserva)}>
               <i className="bi bi-eye me-1"></i>Detalhes
             </button>
@@ -485,38 +817,64 @@ CardReserva.propTypes = {
   onVer: PropTypes.func.isRequired,
   onCancelar: PropTypes.func.isRequired,
   onAvaliar: PropTypes.func.isRequired,
+  onPagar: PropTypes.func,
+  pagando: PropTypes.bool,
 };
 
-// ─── Aba: Visão Geral ─────────────────────────────────────────────────────────
-function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
-  const hoje = new Date();
+function VisaoGeral({ reservas, cupons, onVerReserva, onCancelarReserva, onIrAba, reputacao, onPagar, pagandoId }) {
+  const hoje = useMemo(() => {
+    const h = new Date();
+    h.setHours(0, 0, 0, 0);
+    return h;
+  }, []);
+
   const proxima = useMemo(() =>
     reservas
-      .filter(r => (r.status === 'aprovada' || r.status === 'pendente') && new Date(r.checkin + 'T00:00:00') >= hoje)
+      .filter(r => (r.status === 'aprovada' || r.status === 'pendente' || r.status === 'pagamento pendente') && new Date(r.checkin + 'T00:00:00') >= hoje)
       .sort((a, b) => new Date(a.checkin) - new Date(b.checkin))[0]
-  , [reservas]);
+  , [reservas, hoje]);
 
   const totalAvaliacoes  = reservas.filter(r => r.avaliacao).length;
-  // const cuponsDisponiveis = cupons.filter(c => c.ativo && !c.usado).length;
+  const cuponsDisponiveis = cupons.filter(c => c.ativo && !c.usado).length;
   const diasProxima = proxima ? diasAteCheckin(proxima.checkin) : null;
 
   return (
     <>
       <p className="dash-section-label">Resumo da Conta</p>
       <Row className="g-3 mb-4">
-        <Col xs={12} md={6} xl={4}>
-          <div className={`cli-card-resumo destaque ${!proxima ? 'vazio' : ''}`}>
+        <Col xs={12} sm={6} xl={4}>
+          <div className="cli-card-resumo">
+            <div className="cli-card-resumo-icone" style={{ background: '#fff7ed', color: '#ff9211' }}>
+              <i className="bi bi-patch-check-fill fs-4"></i>
+            </div>
+            <div className="cli-card-resumo-valor d-flex align-items-center gap-1">
+              {reputacao?.totalAvaliadas > 0 ? (
+                <>
+                  <span style={{ color: '#ff9211' }}>★</span> {reputacao?.nota}
+                </>
+              ) : (
+                <span className="fs-5 fw-bold text-muted">Novo</span>
+              )}
+            </div>
+            <div className="cli-card-resumo-titulo">{reputacao?.badge || 'Novo Hóspede'}</div>
+            <div className="cli-card-resumo-sub">
+              {reputacao?.totalAvaliadas ? `${reputacao.totalAvaliadas} estadia(s) avaliada(s)` : 'Sem avaliações de estadias ainda'}
+            </div>
+          </div>
+        </Col>
+        <Col xs={12} sm={6} xl={4}>
+          <div className={`cli-card-resumo ${proxima ? 'destaque' : 'vazio'}`}>
             <div className="cli-card-resumo-icone" style={{ background: '#f0f7ff', color: '#3b6399' }}>
               <i className="bi bi-calendar-heart fs-4"></i>
             </div>
-            <div className="cli-card-resumo-valor">{proxima ? `${diasProxima}d` : '—'}</div>
+            <div className="cli-card-resumo-valor">{proxima ? (diasProxima === 0 ? 'Hoje' : `${diasProxima}d`) : '—'}</div>
             <div className="cli-card-resumo-titulo">Próxima Estadia</div>
             <div className="cli-card-resumo-sub">
               {proxima ? `${fmtData(proxima.checkin)} → ${fmtData(proxima.checkout)}` : 'Nenhuma agendada'}
             </div>
           </div>
         </Col>
-        <Col xs={6} md={6} xl={4}>
+        <Col xs={6} sm={6} xl={4}>
           <div className="cli-card-resumo">
             <div className="cli-card-resumo-icone" style={{ background: '#d1fae5', color: '#065f46' }}>
               <i className="bi bi-house-check fs-4"></i>
@@ -526,7 +884,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             <div className="cli-card-resumo-sub">{reservas.filter(r => r.status === 'concluida').length} concluída(s)</div>
           </div>
         </Col>
-        <Col xs={6} md={6} xl={4}>
+        <Col xs={6} sm={6} xl={6}>
           <div className="cli-card-resumo">
             <div className="cli-card-resumo-icone" style={{ background: '#fef3c7', color: '#92400e' }}>
               <i className="bi bi-star-fill fs-4"></i>
@@ -538,7 +896,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             </div>
           </div>
         </Col>
-        {/* <Col xs={6} md={6} xl={3}>
+        <Col xs={12} sm={6} xl={6}>
           <div className="cli-card-resumo">
             <div className="cli-card-resumo-icone" style={{ background: '#fce7f3', color: '#9d174d' }}>
               <i className="bi bi-tag-fill fs-4"></i>
@@ -547,7 +905,7 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
             <div className="cli-card-resumo-titulo">Cupons Disponíveis</div>
             <div className="cli-card-resumo-sub">prontos para usar</div>
           </div>
-        </Col> */}
+        </Col>
       </Row>
 
       {proxima ? (
@@ -574,15 +932,36 @@ function VisaoGeral({ reservas, cupons, onVerReserva, onIrAba }) {
               </div>
               <div className="cli-proxima-rodape">
                 <div>
-                  <span className="cli-proxima-label">Total pago</span>
-                  <div className="cli-proxima-valor">{fmtMoeda(proxima.valorTotal)}</div>
+                  <span className="cli-proxima-label">{proxima.status === 'pagamento pendente' ? 'Total a pagar' : 'Total'}</span>
+                  <div className="cli-proxima-valor">{fmtMoeda(proxima.total ?? proxima.valorTotal)}</div>
                 </div>
                 <div className="d-flex gap-2 flex-wrap">
+                  {proxima.status === 'pagamento pendente' && onPagar && (
+                    <button
+                      type="button"
+                      className="cli-btn-pagar"
+                      onClick={() => onPagar(proxima)}
+                      disabled={pagandoId === proxima.id}
+                      title="Efetuar pagamento via Mercado Pago (Pix / Cartão)"
+                    >
+                      <i className="bi bi-credit-card-2-front me-1"></i>
+                      {pagandoId === proxima.id ? 'Abrindo...' : 'Pagar Reserva'}
+                    </button>
+                  )}
                   <button className="cli-btn-ver" onClick={() => onVerReserva(proxima)}>
                     <i className="bi bi-eye me-1"></i>Ver Detalhes
                   </button>
+                  {podeCancelar(proxima) && onCancelarReserva && (
+                    <button
+                      type="button"
+                      className="cli-btn-cancelar"
+                      onClick={() => onCancelarReserva(proxima)}
+                    >
+                      <i className="bi bi-x-circle me-1"></i>Cancelar
+                    </button>
+                  )}
                   <a
-                    href="https://wa.me/5512996297452"
+                    href="https://wa.me/5512997193233"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="cli-btn-whats-sm"
@@ -623,16 +1002,21 @@ VisaoGeral.propTypes = {
   reservas: PropTypes.array.isRequired,
   cupons: PropTypes.array.isRequired,
   onVerReserva: PropTypes.func.isRequired,
+  onCancelarReserva: PropTypes.func,
   onIrAba: PropTypes.func.isRequired,
+  reputacao: PropTypes.object,
+  onPagar: PropTypes.func,
+  pagandoId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 // ─── Aba: Minhas Reservas ─────────────────────────────────────────────────────
-function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar }) {
+function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar, onPagar, pagandoId }) {
   const [filtro, setFiltro] = useState('todas');
 
   const FILTROS = [
     { id: 'todas', label: 'Todas' },
     { id: 'pendente', label: 'Pendentes' },
+    { id: 'pagamento pendente', label: 'Pagamento Pendente' },
     { id: 'aprovada', label: 'Confirmadas'},
     { id: 'cancelada', label: 'Canceladas' },
     { id: 'recusada', label: 'Recusadas' },
@@ -679,6 +1063,8 @@ function MinhasReservas({ reservas, onVer, onCancelar, onAvaliar }) {
               onVer={onVer}
               onCancelar={onCancelar}
               onAvaliar={onAvaliar}
+              onPagar={onPagar}
+              pagando={pagandoId === r.id}
             />
           ))}
         </div>
@@ -691,10 +1077,12 @@ MinhasReservas.propTypes = {
   onVer: PropTypes.func.isRequired,
   onCancelar: PropTypes.func.isRequired,
   onAvaliar: PropTypes.func.isRequired,
+  onPagar: PropTypes.func,
+  pagandoId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
 };
 
 // ─── Aba: Cupons ──────────────────────────────────────────────────────────────
-function MeusCupons({ cupons }) {
+function MeusCupons({ cupons, carregando, erro }) {
   const [copiado, setCopiado] = useState(null);
   const hoje = new Date();
 
@@ -710,6 +1098,23 @@ function MeusCupons({ cupons }) {
   };
 
   const expirado = (validoAte) => new Date(validoAte + 'T23:59:59') < hoje;
+
+  if (carregando) {
+    return (
+      <div className="text-center text-muted py-4" role="status">
+        <span className="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+        Carregando cupons...
+      </div>
+    );
+  }
+
+  if (erro) {
+    return <Alert variant="danger">{erro}</Alert>;
+  }
+
+  if (cupons.length === 0) {
+    return <Alert variant="info">Nenhum cupom disponível no momento.</Alert>;
+  }
 
   return (
     <>
@@ -754,7 +1159,11 @@ function MeusCupons({ cupons }) {
     </>
   );
 }
-MeusCupons.propTypes = { cupons: PropTypes.array.isRequired };
+MeusCupons.propTypes = {
+  cupons: PropTypes.array.isRequired,
+  carregando: PropTypes.bool.isRequired,
+  erro: PropTypes.string.isRequired,
+};
 
 // ─── Aba: Avaliações ──────────────────────────────────────────────────────────
 function MinhasAvaliacoes({ reservas, onAvaliar }) {
@@ -810,6 +1219,20 @@ function MinhasAvaliacoes({ reservas, onAvaliar }) {
               {r.avaliacao.comentario && (
                 <p className="cli-avaliacao-texto">"{r.avaliacao.comentario}"</p>
               )}
+              {r.avaliacao.respostaProprietario && (
+                <div className="cli-resposta-proprietario">
+                  <div className="cli-resposta-proprietario-header">
+                    <strong><i className="bi bi-reply-fill me-2"></i>Resposta do proprietário</strong>
+                    {r.avaliacao.respostaProprietario.data && (
+                      <span>{fmtData(r.avaliacao.respostaProprietario.data)}</span>
+                    )}
+                  </div>
+                  <Estrelas nota={r.avaliacao.respostaProprietario.nota} />
+                  {r.avaliacao.respostaProprietario.comentario && (
+                    <p>{r.avaliacao.respostaProprietario.comentario}</p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -831,12 +1254,40 @@ function DashboardCliente() {
   const [abaAtiva,      setAbaAtiva]      = useState('visao-geral');
   const [reservas,      setReservas]      = useState([]);
   const [cupons,        setCupons]        = useState([]);
+  const [cuponsCarregando, setCuponsCarregando] = useState(true);
+  const [erroCupons,     setErroCupons]    = useState('');
   const [feedback,      setFeedback]      = useState({ tipo: '', msg: '' });
+  const [reputacao,     setReputacao]     = useState({ nota: 'Novo', badge: 'Novo Hóspede', totalAvaliadas: 0 });
+
+  const tratarCliqueNotificacao = useCallback((notificacao) => {
+    if (!notificacao) return;
+    const texto = `${notificacao.titulo || ''} ${notificacao.mensagem || ''}`.toLowerCase();
+    const matchReserva = texto.match(/#(\d+)/);
+    const reservaId = matchReserva ? matchReserva[1] : null;
+
+    if (texto.includes('avaliação') || texto.includes('avaliacao') || texto.includes('avaliar') || texto.includes('avaliou')) {
+      setAbaAtiva('avaliacoes');
+    } else if (texto.includes('cupom') || texto.includes('cupons')) {
+      setAbaAtiva('cupons');
+    } else if (texto.includes('reserva')) {
+      setAbaAtiva('reservas');
+      if (reservaId) {
+        const rEncontrada = reservas.find(res => String(res.id) === String(reservaId));
+        if (rEncontrada) {
+          setModalDetalhe(rEncontrada);
+        }
+      }
+    }
+  }, [reservas]);
 
   // Modais
   const [modalDetalhe,  setModalDetalhe]  = useState(null);
   const [modalCancelar, setModalCancelar] = useState(null);
   const [modalAvaliar,  setModalAvaliar]  = useState(null);
+  const [avaliacaoEnviando, setAvaliacaoEnviando] = useState(false);
+  const [erroAvaliacao, setErroAvaliacao] = useState('');
+  const [pagandoReservaId, setPagandoReservaId] = useState(null);
+  const [cancelando, setCancelando] = useState(false);
 
   // Proteção de rota
   useEffect(() => { if (tipo !== 'hospede') navigate('/'); }, [tipo, navigate]);
@@ -850,9 +1301,93 @@ function DashboardCliente() {
 
   // Carregar dados
   useEffect(() => {
-    const { reservas: r, cupons: c } = inicializarDados();
-    setReservas(r);
-    setCupons(c);
+    async function carregarReservas() {
+      if (!IS_API_AVAILABLE) {
+        try {
+          const salvas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS_CLIENTE) || '[]');
+          setReservas(Array.isArray(salvas) ? salvas : []);
+        } catch {
+          setReservas([]);
+        }
+        return;
+      }
+      try {
+        // Busca as reservas reais do Back-end
+        const resposta = await fetch(`${API_BASE}/api/hospede/reservas`, {
+          credentials: 'include' // Envia o cookie JWT
+        });
+
+        const dados = await resposta.json().catch(() => null);
+        if (!resposta.ok) {
+          throw new Error(dados?.error || 'Falha ao carregar reservas');
+        }
+        if (!Array.isArray(dados)) throw new Error('Resposta inválida ao carregar reservas');
+
+        setReservas(dados.map(reserva => ({
+          ...reserva,
+          avaliacao: normalizarAvaliacao(reserva.avaliacao),
+        })));
+      } catch (erro) {
+        console.error('Erro ao buscar dados do dashboard:', erro);
+        fb('erro', 'Erro ao carregar suas reservas. Tente novamente.');
+      }
+    }
+
+    async function carregarCupons() {
+      if (!IS_API_AVAILABLE) {
+        setCuponsCarregando(false);
+        return;
+      }
+      try {
+        setErroCupons('');
+        const resposta = await fetch(`${API_BASE}/api/cupons/meus`, {
+          credentials: 'include',
+        });
+        const dados = await resposta.json().catch(() => null);
+
+        if (!resposta.ok) {
+          throw new Error(dados?.error || 'Não foi possível carregar seus cupons.');
+        }
+        if (!Array.isArray(dados)) {
+          throw new Error('Resposta inválida ao carregar cupons.');
+        }
+
+        setCupons(dados.map(normalizarCupom));
+      } catch (erro) {
+        console.error('Erro ao buscar cupons:', erro);
+        setCupons([]);
+        setErroCupons(erro.message || 'Não foi possível carregar seus cupons.');
+      } finally {
+        setCuponsCarregando(false);
+      }
+    }
+
+    async function carregarReputacao() {
+      if (!IS_API_AVAILABLE) return;
+      try {
+        const resp = await fetch(`${API_BASE}/api/hospede/me/reputacao`, {
+          credentials: 'include',
+        });
+        if (resp.ok) {
+          const dados = await resp.json();
+          if (dados && dados.nota) {
+            setReputacao(dados);
+          }
+        }
+      } catch (erro) {
+        console.error('Erro ao carregar reputação do hóspede:', erro);
+      }
+    }
+
+    carregarReservas();
+    carregarCupons();
+    carregarReputacao();
+
+    const onFocus = () => {
+      carregarReservas();
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
   }, []);
 
   const salvarReservas = (novas) => {
@@ -866,27 +1401,160 @@ function DashboardCliente() {
   };
 
   // RN02 — Cancelamento
-  const confirmarCancelamento = useCallback((id, motivo) => {
-    const atualizadas = reservas.map(r =>
-      r.id === id ? { ...r, status: 'cancelada', motivoCancelamento: motivo } : r
-    );
-    salvarReservas(atualizadas);
-    setModalCancelar(null);
-    fb('sucesso', `Reserva #${id} cancelada com sucesso.`);
-  }, [reservas]);
+  const confirmarCancelamento = useCallback(async (id, motivo) => {
+    setCancelando(true);
+    try {
+      const resposta = await fetch(`${API_BASE}/api/hospede/reservas/${id}/cancelar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ motivo })
+      });
 
-  // Enviar avaliação
-  const enviarAvaliacao = useCallback((id, nota, comentario) => {
-    const atualizadas = reservas.map(r =>
-      r.id === id ? {
-        ...r,
-        avaliacao: { nota, comentario, data: new Date().toISOString().slice(0, 10) }
-      } : r
-    );
-    salvarReservas(atualizadas);
+      const dados = await resposta.json().catch(() => null);
+
+      if (!resposta.ok) {
+        throw new Error(dados?.error || 'Falha ao cancelar');
+      }
+
+      const atualizadas = reservas.map(r =>
+        r.id === id ? {
+          ...r,
+          status: 'cancelada',
+          motivoCancelamento: motivo,
+          valorReembolsado: dados?.calculo?.valorReembolso ?? r.valorReembolsado,
+          motivo: dados?.calculo?.descricaoRegra || motivo || r.motivo
+        } : r
+      );
+      salvarReservas(atualizadas);
+      setModalCancelar(null);
+      if (modalDetalhe && modalDetalhe.id === id) {
+        setModalDetalhe(null);
+      }
+      fb('sucesso', dados?.message || `Reserva #${id} cancelada com sucesso.`);
+    } catch (erro) {
+      console.error(erro);
+      fb('erro', erro.message || 'Não foi possível cancelar a reserva. Tente novamente.');
+    } finally {
+      setCancelando(false);
+    }
+  }, [reservas, modalDetalhe]);
+
+  // Integração Mercado Pago — Gerar preferência e abrir Checkout Pro
+  const handlePagar = useCallback(async (reserva) => {
+    if (!reserva?.id) return;
+    try {
+      setPagandoReservaId(reserva.id);
+      const resp = await fetch(`${API_BASE}/api/pagamentos/criar-preferencia/${reserva.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      const dados = await resp.json().catch(() => null);
+      if (!resp.ok) {
+        throw new Error(dados?.error || 'Não foi possível gerar a preferência de pagamento.');
+      }
+      const linkPagamento = dados?.sandboxInitPoint || dados?.initPoint;
+      if (linkPagamento) {
+        window.open(linkPagamento, '_blank');
+        fb('sucesso', 'Guia do Mercado Pago aberta em uma nova aba.');
+      } else {
+        throw new Error('Link de pagamento não retornado pela operadora.');
+      }
+    } catch (err) {
+      console.error('Erro ao abrir pagamento:', err);
+      fb('erro', err.message || 'Erro ao abrir o checkout.');
+    } finally {
+      setPagandoReservaId(null);
+    }
+  }, []);
+
+  const abrirModalAvaliacao = useCallback((reserva) => {
+    setErroAvaliacao('');
+    setModalAvaliar(reserva);
+  }, []);
+
+  const fecharModalAvaliacao = useCallback(() => {
+    if (avaliacaoEnviando) return;
+    setErroAvaliacao('');
     setModalAvaliar(null);
-    fb('sucesso', 'Avaliação enviada! Obrigado pelo seu feedback.');
-  }, [reservas]);
+  }, [avaliacaoEnviando]);
+
+  // Enviar avaliação real; a resposta confirmada pelo servidor atualiza a tela.
+  const enviarAvaliacao = useCallback(async (id, dadosAvaliacao) => {
+    if (avaliacaoEnviando) return;
+
+    let notaNumero = 5;
+    let limpezaNum = 5;
+    let comunicacaoNum = 5;
+    let localizacaoNum = 5;
+    let custoBeneficioNum = 5;
+    let comentarioLimpo = '';
+
+    if (typeof dadosAvaliacao === 'object' && dadosAvaliacao !== null) {
+      notaNumero = Number(dadosAvaliacao.nota || 5);
+      limpezaNum = Number(dadosAvaliacao.limpeza || 5);
+      comunicacaoNum = Number(dadosAvaliacao.comunicacao || 5);
+      localizacaoNum = Number(dadosAvaliacao.localizacao || 5);
+      custoBeneficioNum = Number(dadosAvaliacao.custoBeneficio || 5);
+      comentarioLimpo = String(dadosAvaliacao.comentario || '').trim();
+    } else {
+      notaNumero = Number(dadosAvaliacao);
+      comentarioLimpo = String(arguments[2] || '').trim();
+    }
+
+    if (!Number.isFinite(notaNumero) || notaNumero < 1 || notaNumero > 5 || !Number.isInteger(notaNumero * 2)) {
+      setErroAvaliacao('Escolha uma nota entre 1 e 5, em intervalos de meio ponto.');
+      return;
+    }
+    if (comentarioLimpo.length > 255) {
+      setErroAvaliacao('O comentário deve ter no máximo 255 caracteres.');
+      return;
+    }
+
+    setAvaliacaoEnviando(true);
+    setErroAvaliacao('');
+
+    try {
+      const resposta = await fetch(`${API_BASE}/api/avaliacoes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          reservaId: id,
+          nota: notaNumero,
+          limpeza: limpezaNum,
+          comunicacao: comunicacaoNum,
+          localizacao: localizacaoNum,
+          custoBeneficio: custoBeneficioNum,
+          comentario: comentarioLimpo
+        }),
+      });
+      const dados = await resposta.json().catch(() => null);
+
+      if (!resposta.ok) {
+        throw new Error(dados?.error || 'Não foi possível enviar sua avaliação.');
+      }
+
+      const avaliacaoCriada = normalizarAvaliacao(dados?.avaliacao ?? dados);
+      if (!avaliacaoCriada) {
+        throw new Error('O servidor retornou uma avaliação inválida. Atualize a página e tente novamente.');
+      }
+
+      setReservas(atuais => atuais.map(reserva =>
+        String(reserva.id) === String(id)
+          ? { ...reserva, avaliacao: avaliacaoCriada }
+          : reserva
+      ));
+      setModalAvaliar(null);
+      fb('sucesso', 'Avaliação enviada! Obrigado pelo seu feedback.');
+    } catch (erro) {
+      console.error('Erro ao enviar avaliação:', erro);
+      setErroAvaliacao(erro.message || 'Não foi possível enviar sua avaliação.');
+    } finally {
+      setAvaliacaoEnviando(false);
+    }
+  }, [avaliacaoEnviando]);
 
   const irAba = (id) => {
     setAbaAtiva(id);
@@ -897,7 +1565,7 @@ function DashboardCliente() {
     { id: 'visao-geral', label: 'Visão Geral',      icone: <Ico.Dash />     },
     { id: 'reservas',    label: 'Minhas Reservas',   icone: <Ico.Reservas /> },
     { id: 'avaliacoes',  label: 'Minhas Avaliações', icone: <Ico.Estrela />  },
-    //{ id: 'cupons',      label: 'Meus Cupons',       icone: <Ico.Cupom />    },
+    { id: 'cupons',      label: 'Meus Cupons',       icone: <Ico.Cupom />    },
   ];
 
   const renderConteudo = () => {
@@ -908,7 +1576,11 @@ function DashboardCliente() {
             reservas={reservas}
             cupons={cupons}
             onVerReserva={setModalDetalhe}
+            onCancelarReserva={setModalCancelar}
             onIrAba={irAba}
+            reputacao={reputacao}
+            onPagar={handlePagar}
+            pagandoId={pagandoReservaId}
           />
         );
       case 'reservas':
@@ -919,7 +1591,9 @@ function DashboardCliente() {
               reservas={reservas}
               onVer={setModalDetalhe}
               onCancelar={setModalCancelar}
-              onAvaliar={setModalAvaliar}
+              onAvaliar={abrirModalAvaliacao}
+              onPagar={handlePagar}
+              pagandoId={pagandoReservaId}
             />
           </>
         );
@@ -927,16 +1601,16 @@ function DashboardCliente() {
         return (
           <>
             <p className="dash-section-label">Suas Avaliações</p>
-            <MinhasAvaliacoes reservas={reservas} onAvaliar={setModalAvaliar} />
+            <MinhasAvaliacoes reservas={reservas} onAvaliar={abrirModalAvaliacao} />
           </>
         );
-      // case 'cupons':
-      //   return (
-      //     <>
-      //       <p className="dash-section-label">Cupons de Desconto</p>
-      //       <MeusCupons cupons={cupons} />
-      //     </>
-      //   );
+      case 'cupons':
+        return (
+          <>
+            <p className="dash-section-label">Cupons de Desconto</p>
+            <MeusCupons cupons={cupons} carregando={cuponsCarregando} erro={erroCupons} />
+          </>
+        );
       default: return null;
     }
   };
@@ -1013,10 +1687,29 @@ function DashboardCliente() {
               <h4 className="topbar-cli-titulo mb-0">
                 {abas.find(a => a.id === abaAtiva)?.label}
               </h4>
-              <span className="topbar-cli-sub">Olá, {usuario?.nome?.split(' ')[0]}! 👋</span>
+              <div className="d-flex align-items-center gap-2 mt-1">
+                <span className="topbar-cli-sub">Olá, {usuario?.nome?.split(' ')[0]}! 👋</span>
+                <span
+                  className="badge px-2 py-1 rounded-pill d-inline-flex align-items-center"
+                  style={{ background: '#fff7ed', color: '#ea580c', border: '1px solid #ffedd5', fontSize: '0.78rem', fontWeight: 600 }}
+                  title={`${reputacao?.totalAvaliadas || 0} estadia(s) avaliada(s) pelo anfitrião`}
+                >
+                  {reputacao?.totalAvaliadas > 0 ? (
+                    <>
+                      <i className="bi bi-star-fill text-warning me-1"></i>
+                      {reputacao?.nota} · {reputacao?.badge}
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-person-check text-success me-1"></i>
+                      Novo Hóspede
+                    </>
+                  )}
+                </span>
+              </div>
             </div>
           </div>
-          {/* <div className="topbar-cli-avatar">{usuario?.nome?.charAt(0)}</div> */}
+          <Notificacoes aoClicarNotificacao={tratarCliqueNotificacao} />
         </div>
 
         {feedback.msg && (
@@ -1032,9 +1725,29 @@ function DashboardCliente() {
         <div className="dashboard-cli-conteudo">{renderConteudo()}</div>
       </main>
 
-      <ModalDetalheReserva reserva={modalDetalhe}  aoFechar={() => setModalDetalhe(null)} />
-      <ModalCancelar       reserva={modalCancelar} aoFechar={() => setModalCancelar(null)} aoConfirmar={confirmarCancelamento} />
-      <ModalAvaliar        reserva={modalAvaliar}  aoFechar={() => setModalAvaliar(null)}  aoEnviar={enviarAvaliacao} />
+      <ModalDetalheReserva
+        reserva={modalDetalhe}
+        aoFechar={() => setModalDetalhe(null)}
+        aoCancelar={(res) => {
+          setModalDetalhe(null);
+          setModalCancelar(res);
+        }}
+        aoPagar={handlePagar}
+        pagando={pagandoReservaId === modalDetalhe?.id}
+      />
+      <ModalCancelar
+        reserva={modalCancelar}
+        aoFechar={() => setModalCancelar(null)}
+        aoConfirmar={confirmarCancelamento}
+        cancelando={cancelando}
+      />
+      <ModalAvaliar
+        reserva={modalAvaliar}
+        aoFechar={fecharModalAvaliacao}
+        aoEnviar={enviarAvaliacao}
+        enviando={avaliacaoEnviando}
+        erro={erroAvaliacao}
+      />
     </div>
   );
 }

@@ -13,7 +13,8 @@
 /* ── Layout Shell ──────────────────────────────────────────── */
 .dashboard-admin-shell {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: #f0f4f8;
   /* Isola do padding-top global */
   margin-top: 0 !important;
@@ -25,6 +26,9 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   /* Garante que não herda padding do app-main */
   padding-top: 0 !important;
 }
@@ -39,6 +43,7 @@
   flex-direction: column;
   position: sticky;
   top: 0;
+  align-self: flex-start;
   z-index: 300;
   flex-shrink: 0;
   transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -392,19 +397,108 @@
 .btn-acao-tabela.recusar { background:#fff1f2; color:#dc2626; }
 .btn-acao-tabela.recusar:hover { background:#dc2626; color:#fff; }
 
-/* ── Modal ─────────────────────────────────────────────────── */
-.modal-reserva-admin .modal-content { border-radius:20px; border:none; box-shadow:0 20px 60px rgba(0,0,0,0.18); overflow:hidden; }
-.modal-header-admin { background:linear-gradient(135deg,#223a5e,#3b6399); color:#fff; border-bottom:none; padding:1.2rem 1.5rem; }
-.modal-header-admin .modal-title { color:#fff; font-weight:700; }
-.modal-header-admin .btn-close { filter:brightness(0) invert(1); }
-.label-secao-modal { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:#94a3b8; font-weight:700; margin-bottom:0.5rem; }
-.info-hospede-modal { display:flex; align-items:center; gap:0.85rem; }
-.avatar-hospede-modal { width:46px; height:46px; border-radius:50%; background:linear-gradient(135deg,#f37321,#ffad33); color:#fff; font-weight:700; font-size:1.25rem; display:grid; place-items:center; flex-shrink:0; }
-.bloco-data-modal { background:#f8fafc; border-radius:10px; padding:0.55rem 0.9rem; min-width:76px; text-align:center; }
-.label-data-modal { font-size:0.66rem; text-transform:uppercase; letter-spacing:0.08em; color:#94a3b8; font-weight:700; margin-bottom:2px; }
-.valor-data-modal { font-size:0.95rem; font-weight:700; color:#223a5e; }
-.obs-modal { background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:0.8rem 1rem; font-size:0.875rem; color:#78350f; }
-.btn-acao-modal { display:inline-flex; align-items:center; gap:0.4rem; border-radius:10px; padding:0.55rem 1.1rem; font-weight:600; font-size:0.875rem; }
+/* ── Modal Padronizado Admin (760px • Altura Adaptativa) ───── */
+.modal-reserva-admin .modal-dialog {
+  max-width: 760px;
+  width: calc(100% - 2rem);
+  margin: 1.5rem auto;
+}
+.modal-reserva-admin .modal-content {
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+  max-height: calc(100vh - 2.5rem);
+  display: flex;
+  flex-direction: column;
+}
+.modal-reserva-admin .modal-body {
+  overflow-y: auto;
+  padding: 1.25rem 1.5rem;
+}
+.modal-header-admin {
+  background: linear-gradient(135deg, #1e3a5f, #3b6399);
+  color: #fff;
+  border-bottom: none;
+  padding: 1rem 1.5rem;
+}
+.modal-header-admin .modal-title {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+.modal-header-admin .btn-close {
+  filter: brightness(0) invert(1);
+}
+.label-secao-modal {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 800;
+  margin-bottom: 0.45rem;
+}
+.info-hospede-modal {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+  border-radius: 12px;
+  padding: 0.65rem 0.95rem;
+}
+.avatar-hospede-modal {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f37321, #ffad33);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.2rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.bloco-data-modal {
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+  border-radius: 10px;
+  padding: 0.55rem 0.85rem;
+  min-width: 65px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+.label-data-modal {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.valor-data-modal {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+.obs-modal {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.88rem;
+  color: #78350f;
+  line-height: 1.5;
+}
+.btn-acao-modal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 50px;
+  padding: 0.55rem 1.2rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
 
 /* ── Calendário ────────────────────────────────────────────── */
 .calendario-wrapper-admin { background:#fff; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); padding:1.5rem; }
@@ -479,7 +573,7 @@
 
 .grafico-barras {
   display:flex;
-  align-items:flex-end;
+  align-items:stretch;
   justify-content:space-around;
   gap:1rem;
   height:220px;
@@ -489,6 +583,7 @@
 .grafico-coluna {
   display:flex;
   flex-direction:column;
+  justify-content:flex-end;
   align-items:center;
   gap:0.5rem;
   flex:1;
@@ -518,6 +613,7 @@
   align-items:center;
   justify-content:flex-end;
   width:52px;
+  height:100%;
   gap:2px;
 }
 
@@ -578,6 +674,172 @@
   text-align:center;
 }
 
+/* ── Avaliações ─────────────────────────────────────────────── */
+.avaliacoes-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.card-avaliacao-admin {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 1.25rem;
+  background: #fff;
+  border: 1px solid #e8eef5;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(34, 58, 94, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.card-avaliacao-admin:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(34, 58, 94, 0.11);
+}
+
+.card-avaliacao-admin-topo {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.avatar-avaliacao-admin {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b6399, #223a5e);
+  color: #fff;
+  font-weight: 700;
+}
+
+.badge-resposta-pendente {
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.avaliacao-admin-estrelas {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  color: #f59e0b;
+}
+
+.comentario-avaliacao-admin {
+  flex: 1;
+  margin-bottom: 1rem;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.meta-avaliacao-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #eef2f7;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.btn-responder-avaliacao {
+  width: 100%;
+  padding: 0.62rem 1rem;
+  border: 1px solid #3b6399;
+  border-radius: 10px;
+  background: #fff;
+  color: #3b6399;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.btn-responder-avaliacao:hover,
+.btn-responder-avaliacao:focus-visible {
+  background: #3b6399;
+  color: #fff;
+}
+
+.estado-avaliacoes-admin {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  border: 1px solid #e8eef5;
+  border-radius: 16px;
+  background: #fff;
+  color: #64748b;
+  text-align: center;
+}
+
+.estado-avaliacoes-admin > i {
+  color: #94a3b8;
+  font-size: 2.25rem;
+}
+
+.estado-avaliacoes-admin h5,
+.estado-avaliacoes-admin p {
+  margin: 0;
+}
+
+.estado-avaliacoes-admin h5 {
+  color: #223a5e;
+  font-weight: 700;
+}
+
+.estado-avaliacoes-admin.erro > i {
+  color: #dc2626;
+}
+
+.avaliacao-modal-contexto {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.avaliacao-original-admin {
+  padding: 1rem;
+  border: 1px solid #e8eef5;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #475569;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.avaliacao-nota-range {
+  accent-color: #f37321;
+}
+
+.avaliacao-contador {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.avaliacao-contador.limite {
+  color: #b45309;
+  font-weight: 700;
+}
+
 /* ── Responsivo ────────────────────────────────────────────── */
 @media (max-width: 991px) {
   .sidebar-admin {
@@ -604,6 +866,11 @@
   .grafico-valor-topo { font-size:0.6rem; }
   .card-previsao-mini { padding:1rem; }
   .card-previsao-valor { font-size:1.25rem; }
+  .avaliacoes-admin-grid { grid-template-columns: minmax(0, 1fr); }
+  .card-avaliacao-admin { padding: 1rem; }
+  .card-avaliacao-admin-topo { align-items: flex-start; }
+  .badge-resposta-pendente { white-space: normal; text-align: center; }
+  .estado-avaliacoes-admin { min-height: 230px; padding: 1.25rem; }
 }
 
 /* ─── Paginação ────────────────────────────────────────────── */
@@ -703,3 +970,617 @@
     text-align: center;
   }
 }
+.btn-bloquear-datas-admin {
+  background-color: #ff9211;
+  border-color: #ff9211;
+  color: #ffffff;
+}
+.btn-bloquear-datas-admin:hover,
+.btn-bloquear-datas-admin:focus {
+  background-color: #ee7f01;
+  border-color: #ee7f01;
+  color: #ffffff;
+}
+
+/* ─── Painel do Administrador: Estilos Modernizados ──────────── */
+
+/* ── KPI Cards Modernos ─────────────────────────────────────── */
+.card-kpi-moderno {
+  background: #ffffff;
+  border-radius: 18px !important;
+  border: 1px solid #e8eef5 !important;
+  box-shadow: 0 4px 18px rgba(34, 58, 94, 0.05) !important;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+
+.card-kpi-moderno:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 28px rgba(34, 58, 94, 0.1) !important;
+}
+
+.titulo-kpi-moderno {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.icone-kpi-moderno {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 1.25rem;
+}
+
+.valor-kpi-moderno {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: #223a5e;
+  line-height: 1.1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sub-kpi-moderno {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.barra-progresso-kpi {
+  width: 100%;
+  height: 7px;
+  background: #f1f5f9;
+  border-radius: 50px;
+  overflow: hidden;
+}
+
+.barra-progresso-kpi-fill {
+  height: 100%;
+  border-radius: 50px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kpi-badge-variacao {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.kpi-badge-variacao.positiva {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.kpi-badge-variacao.negativa {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.kpi-badge-variacao.neutra {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── Gráfico SVG Moderno de Faturamento ─────────────────────── */
+.card-grafico-svg {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e8eef5;
+  box-shadow: 0 4px 18px rgba(34, 58, 94, 0.05);
+}
+
+.badge-total-6m {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  padding: 0.35rem 0.85rem;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.grafico-svg-container {
+  min-height: 210px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.grafico-tooltip-flutuante {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  background: #223a5e;
+  color: #ffffff;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  animation: fadeInTooltip 0.15s ease-in-out;
+}
+
+.grafico-tooltip-flutuante::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #223a5e transparent transparent transparent;
+}
+
+@keyframes fadeInTooltip {
+  from { opacity: 0; transform: translate(-50%, -90%); }
+  to { opacity: 1; transform: translate(-50%, -100%); }
+}
+
+/* ── Card de Próximos Check-ins & WhatsApp ──────────────────── */
+.card-checkins-admin {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e8eef5;
+  box-shadow: 0 4px 18px rgba(34, 58, 94, 0.05);
+}
+
+.item-checkin-card {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 14px;
+  transition: background 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+}
+
+.item-checkin-card:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.avatar-checkin {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #223a5e 0%, #3b6399 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.15rem;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(34, 58, 94, 0.2);
+}
+
+.btn-whatsapp-checkin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #25d366;
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 50px;
+  text-decoration: none !important;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 10px rgba(37, 211, 102, 0.25);
+  border: none;
+}
+
+.btn-whatsapp-checkin:hover {
+  background: #1ebd5a;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(37, 211, 102, 0.35);
+}
+
+/* ── Calendário Duplo & Hachura de Manutenção ────────────────── */
+.calendario-duplo-wrapper {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 1.75rem;
+  box-shadow: 0 2px 14px rgba(34, 58, 94, 0.06);
+  border: 1px solid #e8eef5;
+}
+
+.calendario-duplo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.75rem;
+}
+
+@media (max-width: 991px) {
+  .calendario-duplo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calendario-mes-coluna {
+  display: flex;
+  flex-direction: column;
+}
+
+.calendario-mes-titulo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #223a5e;
+  text-transform: capitalize;
+  text-align: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #f1f5f9;
+}
+
+/* Hachura listrada amarela/âmbar para dias bloqueados integrais */
+.calendario-admin-custom .dia-bloqueado-manutencao {
+  background: repeating-linear-gradient(
+    -45deg,
+    #fef3c7,
+    #fef3c7 6px,
+    #fde68a 6px,
+    #fde68a 12px
+  ) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  border: 1px solid #fcd34d !important;
+  border-radius: 8px !important;
+  position: relative;
+}
+
+.calendario-admin-custom .react-calendar__tile abbr {
+  position: relative;
+  z-index: 2;
+}
+
+/* ─── Dias com Divisão de Metade (Check-out de manhã / Check-in de tarde) ─── */
+
+/* 1. Reserva Aprovada (manhã) + Bloqueio Manual (tarde) */
+.calendario-admin-custom .dia-split-reserva-bloqueio {
+  background: linear-gradient(to right, #d1fae5 50%, #fde68a 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-reserva-bloqueio::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 2. Bloqueio Manual (manhã) + Reserva Aprovada (tarde) */
+.calendario-admin-custom .dia-split-bloqueio-reserva {
+  background: linear-gradient(to right, #fde68a 50%, #d1fae5 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-bloqueio-reserva::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 3. Reserva Aprovada (manhã - check-out) + Livre (tarde) */
+.calendario-admin-custom .dia-split-reserva-livre {
+  background: linear-gradient(to right, #d1fae5 50%, transparent 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+/* 4. Livre (manhã) + Reserva Aprovada (tarde - check-in) */
+.calendario-admin-custom .dia-split-livre-reserva {
+  background: linear-gradient(to right, transparent 50%, #d1fae5 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+/* 5. Bloqueio Manual (manhã - fim) + Livre (tarde) */
+.calendario-admin-custom .dia-split-bloqueio-livre {
+  background: linear-gradient(to right, #fde68a 50%, transparent 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-bloqueio-livre::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; bottom: 0; right: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 6. Livre (manhã) + Bloqueio Manual (tarde - início) */
+.calendario-admin-custom .dia-split-livre-bloqueio {
+  background: linear-gradient(to right, transparent 50%, #fde68a 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-livre-bloqueio::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0; left: 50%;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(245, 158, 11, 0.4) 3px, rgba(245, 158, 11, 0.4) 6px);
+  pointer-events: none;
+}
+
+/* 7. Reserva Pendente splits */
+.calendario-admin-custom .dia-split-pendente-bloqueio {
+  background: linear-gradient(to right, #fef3c7 50%, #fde68a 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-bloqueio-pendente {
+  background: linear-gradient(to right, #fde68a 50%, #fef3c7 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-pendente-livre {
+  background: linear-gradient(to right, #fef3c7 50%, transparent 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+.calendario-admin-custom .dia-split-livre-pendente {
+  background: linear-gradient(to right, transparent 50%, #fef3c7 50%) !important;
+  color: #92400e !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+/* 8. Reserva Aprovada (manhã) + Reserva Pendente (tarde) */
+.calendario-admin-custom .dia-split-reserva-pendente {
+  background: linear-gradient(to right, #d1fae5 50%, #fef3c7 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+/* 9. Reserva Pendente (manhã) + Reserva Aprovada (tarde) */
+.calendario-admin-custom .dia-split-pendente-reserva {
+  background: linear-gradient(to right, #fef3c7 50%, #d1fae5 50%) !important;
+  color: #065f46 !important;
+  font-weight: 700 !important;
+  border-radius: 8px !important;
+}
+
+.dot-bloqueado {
+  background: repeating-linear-gradient(
+    -45deg,
+    #f59e0b,
+    #f59e0b 3px,
+    #fde68a 3px,
+    #fde68a 6px
+  );
+  border: 1px solid #f59e0b;
+}
+
+.lista-bloqueios-wrapper {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.item-bloqueio-card {
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 12px;
+  padding: 0.85rem 1.15rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  transition: all 0.18s ease;
+}
+
+.item-bloqueio-card:hover {
+  background: #fef3c7;
+  border-color: #fde68a;
+}
+
+/* ── Aba Cupons & Cards Modernos ────────────────────────────── */
+.cupons-grid-admin {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+}
+
+.card-cupom-moderno {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.4rem;
+  position: relative;
+  box-shadow: 0 3px 14px rgba(34, 58, 94, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-cupom-moderno:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(34, 58, 94, 0.1);
+}
+
+.card-cupom-moderno.inativo {
+  opacity: 0.65;
+  background: #f8fafc;
+  filter: grayscale(0.2);
+}
+
+.cupom-valor-destaque {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #ff9211;
+  line-height: 1.1;
+}
+
+.cupom-codigo-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f1f5f9;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 0.5rem 0.85rem;
+  margin: 1rem 0;
+}
+
+.cupom-codigo-texto {
+  font-family: monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #223a5e;
+  letter-spacing: 0.08em;
+}
+
+.btn-copiar-cupom {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-copiar-cupom:hover {
+  background: #223a5e;
+  color: #ffffff;
+  border-color: #223a5e;
+}
+
+/* Badges de Público-Alvo */
+.badge-publico-todos {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-primeira {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-retornante {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-recorrente {
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde68a;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.badge-publico-especifico {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+  padding: 0.28rem 0.65rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.switch-cupom-input {
+  cursor: pointer;
+  width: 2.5rem !important;
+  height: 1.3rem !important;
+}
+
+.switch-cupom-input:checked {
+  background-color: #223a5e !important;
+  border-color: #223a5e !important;
+}
+
+/* ── Modal Responder Avaliação: Confidencialidade e Estrelas ── */
+.alerta-nota-confidencial {
+  background: #f0f7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+}
+
+.btn-estrela-picker {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  transition: transform 0.15s ease;
+}
+
+.btn-estrela-picker:hover {
+  transform: scale(1.18);
+}
+
+/* ── Modal Criar Cupom: Sugestões de Hóspede ── */
+.btn-sugestao-hospede {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.btn-sugestao-hospede:hover {
+  background-color: #f1f5f9 !important;
+}
+

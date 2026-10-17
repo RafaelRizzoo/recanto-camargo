@@ -5,7 +5,6 @@ import Menu from "./components/navbar";
 import Footer from "./components/footer";
 import Home from "./pages/Home";
 import BotaoWhats from "./components/UI/BotaoWhats";
-import { ContextoAutenticacao } from './context/ContextoAutenticacao';
 import { useAutenticacao } from './hooks/useAutenticacao';
 
 const Login                  = lazy(() => import("./pages/Login"));
@@ -17,6 +16,9 @@ const Avaliacoes             = lazy(() => import("./pages/Avaliacoes"));
 const Fotos                  = lazy(() => import("./pages/Fotos"));
 const DashboardAdministrador = lazy(() => import("./pages/DashboardAdministrador"));
 const DashboardCliente       = lazy(() => import("./pages/DashboardCliente"));
+const ReservaConcluida       = lazy(() => import("./pages/ReservaConcluida"));
+const TermosDeUso             = lazy(() => import("./pages/TermosDeUso"));
+const Privacidade             = lazy(() => import("./pages/Privacidade"));
 
 const ROTAS_SEM_LAYOUT = [
   '/Login',
@@ -24,6 +26,7 @@ const ROTAS_SEM_LAYOUT = [
   '/RecuperarSenha',
   '/DashboardAdministrador',
   '/DashboardCliente',
+  '/ReservaConcluida'
 ];
 
 function CarregandoPagina() {
@@ -46,23 +49,25 @@ function RotaProtegida({ elemento, tipoRequerido }) {
 }
 
 function ScrollToTop() {
-  const { key } = useLocation();
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if ('scrollRestoration' in window.history) {
       window.history.scrollRestoration = 'manual';
     }
-    const el = document.scrollingElement || document.documentElement;
-    el.scrollTop = 0;
     window.scrollTo(0, 0);
-  }, [key]);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+    const rootEl = document.getElementById('root');
+    if (rootEl) rootEl.scrollTop = 0;
+  }, [pathname]);
 
   return null;
 }
 
 function AppContent() {
   const location = useLocation();
-  const mostrarLayout = !ROTAS_SEM_LAYOUT.includes(location.pathname);
+  const mostrarLayout = !ROTAS_SEM_LAYOUT.some(rota => location.pathname.startsWith(rota));
 
   return (
     <div className="app-shell">
@@ -76,11 +81,16 @@ function AppContent() {
             <Route path="/Cadastro"               element={<Cadastro />} />
             <Route path="/Login"                  element={<Login />} />
             <Route path="/RecuperarSenha"         element={<RecuperarSenha />} />
+            <Route path="/ReservaConcluida/:id"   element={<ReservaConcluida />} />
             <Route path="/Configuracoes"          element={<RotaProtegida elemento={<Configuracoes />} />} />
             <Route path="/Reserva"                element={<Reserva />} />
             <Route path="/Avaliacoes"             element={<Avaliacoes />} />
             <Route path="/Fotos"                  element={<Fotos />} />
-            <Route path="/DashboardAdministrador" element={<RotaProtegida elemento={<DashboardAdministrador />} tipoRequerido="admin" />} />
+            <Route path="/TermosDeUso"            element={<TermosDeUso />} />
+            <Route path="/termosdeuso"            element={<Navigate to="/TermosDeUso" replace />} />
+            <Route path="/Privacidade"            element={<Privacidade />} />
+            <Route path="/privacidade"            element={<Navigate to="/Privacidade" replace />} />
+            <Route path="/DashboardAdministrador" element={<RotaProtegida elemento={<DashboardAdministrador />} tipoRequerido="proprietario" />} />
             <Route path="/DashboardCliente"       element={<RotaProtegida elemento={<DashboardCliente />} tipoRequerido="hospede" />} />
             <Route path="*"                       element={<Navigate to="/" replace />} />
           </Routes>
@@ -96,9 +106,7 @@ function AppContent() {
 function App() {
   return (
     <HashRouter>
-      <ContextoAutenticacao>
-        <AppContent />
-      </ContextoAutenticacao>
+      <AppContent />
     </HashRouter>
   );
 }

@@ -12,6 +12,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.env.keys
 
 # ============================================
 # LOGS
@@ -32,6 +33,9 @@ lerna-debug.log*
 .idea
 .DS_Store
 Thumbs.db
+desktop.ini
+*.tmp
+*.temp
 *.suo
 *.ntvs*
 *.njsproj
@@ -43,3 +47,41 @@ Thumbs.db
 # ============================================
 coverage
 .claude/worktrees/
+.opencoderules
+PROJECT_CONTEXT.md
+scripts/comprimir.mjs
+
+# ============================================
+# SCRIPTS E TESTES LOCAIS TEMPORÁRIOS
+# ============================================
+backend/run_migration.cjs
+backend/gerar_schema_sprint3.js
+backend/tests/*.cjs
+backend/tests/sprint2.integration.js
+/tests/
+!backend/tests/*.test.js
+
+# ============================================
+# AGENTES & ARQUIVOS INTERNOS
+# ============================================
+.agents/
+.opencode/
+opencode.json
+docs/
+scripts/
+ORIGINAL_REQUEST.md
+PROJECT.md
+TEST_INFRA.md
+
+# ============================================
+# BACKUPS & ARQUIVOS TEMPORÁRIOS LOCAIS
+# ============================================
+backend_backup/
+**/backend_backup/
+
+# ============================================
+# SCRIPTS DE BANCO DE DADOS & MIGRAÇÕES LOCAIS
+# ============================================
+backend/migrations/20260928_*.sql
+*.sql
+!backend/migrations/20260904_001_not_notificacao.sql

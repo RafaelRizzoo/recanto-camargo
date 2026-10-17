@@ -1,39 +1,54 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Container, Row, Col, Carousel } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import Botao from "../components/UI/Botao";
 import Entrada from "../components/UI/Entrada";
 import { LinkContainer } from "react-router-bootstrap";
+import CalendarioCustom from "../components/UI/CalendarioCustom";
 import {
   imagensCarrosselHome,
   comodidades,
   pontosTuristicos,
 } from "../data/conteudoSite";
+import { verificarSeFeriado } from "../utils/feriados";
+import { API_BASE, IS_API_AVAILABLE } from "../utils/api";
 
-const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 const WHATSAPP_NUMERO = '5512996297452';
-
-function verificarConflito(checkin, checkout) {
-  try {
-    const reservas = JSON.parse(localStorage.getItem(CHAVE_RESERVAS) || '[]');
-    const entrada = new Date(checkin);
-    const saida = new Date(checkout);
-    return reservas.some(r => {
-      const rEntrada = new Date(r.checkin);
-      const rSaida = new Date(r.checkout);
-      return entrada < rSaida && saida > rEntrada;
-    });
-  } catch {
-    return false;
-  }
-}
 
 function Home() {
   const navigate = useNavigate();
-  const hoje = new Date().toISOString().split('T')[0];
+
+  // ----- TESTE DE INTEGRAÇÃO COM O BACK-END (apenas se disponível) -----
+  useEffect(() => {
+    if (!IS_API_AVAILABLE) return;
+    fetch(`${API_BASE}/api/imoveis`)
+      .then(response => response.json())
+      .then(dados => {
+        console.log("🔥 [SUCESSO] Dados vindos direto do MySQL via Back-end Node.js:");
+        console.table(dados);
+      })
+      .catch(erro => console.error("Erro ao conectar no Back-end:", erro));
+  }, []);
+  // ---------------------------------------------------
 
   const [dispo, setDispo] = useState({ checkin: '', checkout: '', pessoas: '' });
   const [erroDispo, setErroDispo] = useState('');
+  const [feedbackDispo, setFeedbackDispo] = useState(null);
+  const [mostrarCalendario, setMostrarCalendario] = useState(false);
+
+  const toggleCalendario = () => {
+    if (!mostrarCalendario) {
+      setMostrarCalendario(true);
+      setTimeout(() => {
+        const cal = document.getElementById('calendario-popup');
+        if (cal) {
+          cal.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    } else {
+      setMostrarCalendario(false);
+    }
+  };
 
   function handleDispo(e) {
     const { name, value } = e.target;
@@ -42,23 +57,74 @@ function Home() {
     setErroDispo('');
   }
 
-  function verificarDisponibilidade() {
+  async function verificarDisponibilidade() {
     if (!dispo.checkin || !dispo.checkout) {
       setErroDispo('Selecione as datas de entrada e saída.');
+      setFeedbackDispo(null);
       return;
     }
-    const entrada = new Date(dispo.checkin);
-    const saida = new Date(dispo.checkout);
+    
+    if (!dispo.pessoas || dispo.pessoas <= 0) {
+      setErroDispo('Informe o número de pessoas.');
+      setFeedbackDispo(null);
+      return;
+    }
+
+    if (parseInt(dispo.pessoas, 10) > 10) {
+      setErroDispo('O número de pessoas ultrapassa o limite da casa (máx: 10).');
+      setFeedbackDispo(null);
+      return;
+    }
+    
+    const entrada = new Date(dispo.checkin + 'T12:00:00');
+    const saida = new Date(dispo.checkout + 'T12:00:00');
     if (saida <= entrada) {
       setErroDispo('A saída deve ser depois da entrada.');
+      setFeedbackDispo(null);
       return;
     }
-    if (verificarConflito(dispo.checkin, dispo.checkout)) {
-      setErroDispo('Período indisponível. Escolha outras datas.');
-      return;
+
+    try {
+      if (IS_API_AVAILABLE) {
+        const response = await fetch(`${API_BASE}/api/reservas/disponibilidade?checkin=${dispo.checkin}&checkout=${dispo.checkout}`);
+        const data = await response.json();
+        
+        if (!data.disponivel) {
+          setErroDispo('Período indisponível. Escolha outras datas.');
+          setFeedbackDispo(null);
+          return;
+        }
+      }
+      
+      const msDiff = saida.getTime() - entrada.getTime();
+      const dias = Math.round(msDiff / (1000 * 3600 * 24));
+      
+      const strCheckin = entrada.toLocaleDateString('pt-BR');
+      const strCheckout = saida.toLocaleDateString('pt-BR');
+      
+      setFeedbackDispo(`Reserva de ${dias} noite${dias > 1 ? 's' : ''} disponível! Check-in: ${strCheckin} | Check-out: ${strCheckout}`);
+      
+      setTimeout(() => {
+        navigate(`/Reserva?checkin=${dispo.checkin}&checkout=${dispo.checkout}&hospedes=${dispo.pessoas}`);
+      }, 2000);
+    } catch (error) {
+      console.error(error);
+      setErroDispo('Erro ao consultar servidor.');
     }
-    navigate(`/Reserva?checkin=${dispo.checkin}&checkout=${dispo.checkout}`);
   }
+
+
+    
+  const handleCalendarChange = (val) => {
+    if (Array.isArray(val) && val[0] && val[1]) {
+      const ci = new Date(val[0].getTime() - val[0].getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      const co = new Date(val[1].getTime() - val[1].getTimezoneOffset() * 60000).toISOString().split('T')[0];
+      setDispo(d => ({ ...d, checkin: ci, checkout: co }));
+      setErroDispo('');
+      setFeedbackDispo(null);
+      setMostrarCalendario(false);
+    }
+  };
 
   return (
     <>
@@ -104,29 +170,70 @@ function Home() {
             </Col>
           </Row>
 
-          <div className="barra-disponibilidade shadow">
+          <div className="barra-disponibilidade shadow position-relative">
             <Row className="g-3 align-items-end">
               <Col md={3}>
-                <label className="label-dispo">Data de entrada</label>
-                <Entrada tipo="date" nome="checkin" valor={dispo.checkin} onChange={handleDispo} min={hoje} mostrarIconeEsquerdo={false} />
+                <div onClick={toggleCalendario} style={{ cursor: 'pointer' }}>
+                  <label className="label-dispo">Data de entrada</label>
+                  <Entrada 
+                    tipo="text" 
+                    nome="checkin" 
+                    valor={dispo.checkin ? new Date(dispo.checkin + 'T12:00:00').toLocaleDateString('pt-BR') : ''} 
+                    onChange={() => {}} 
+                    placeholder="Selecionar" 
+                    mostrarIconeEsquerdo={false} 
+                    readOnly 
+                    style={{ cursor: 'pointer', backgroundColor: '#fff' }}
+                  />
+                </div>
               </Col>
               <Col md={3}>
-                <label className="label-dispo">Data de saída</label>
-                <Entrada tipo="date" nome="checkout" valor={dispo.checkout} onChange={handleDispo} min={dispo.checkin || hoje} mostrarIconeEsquerdo={false} />
+                <div onClick={toggleCalendario} style={{ cursor: 'pointer' }}>
+                  <label className="label-dispo">Data de saída</label>
+                  <Entrada 
+                    tipo="text" 
+                    nome="checkout" 
+                    valor={dispo.checkout ? new Date(dispo.checkout + 'T12:00:00').toLocaleDateString('pt-BR') : ''} 
+                    onChange={() => {}} 
+                    placeholder="Selecionar" 
+                    mostrarIconeEsquerdo={false} 
+                    readOnly 
+                    style={{ cursor: 'pointer', backgroundColor: '#fff' }}
+                  />
+                </div>
               </Col>
               <Col md={3}>
                 <label className="label-dispo">Pessoas</label>
                 <Entrada tipo="number" nome="pessoas" valor={dispo.pessoas} onChange={handleDispo} placeholder="0" min="1" max="10" mostrarIconeEsquerdo={false} />
               </Col>
               <Col md={3}>
-                <Botao tipo="button" className="w-100 py-2" onClick={verificarDisponibilidade}>
+                <Botao tipo="button" className="w-100 mb-3" style={{ height: '55px' }} onClick={verificarDisponibilidade}>
                   Verificar disponibilidade
                 </Botao>
               </Col>
             </Row>
+
+            {mostrarCalendario && (
+              <div id="calendario-popup" className="calendario-popup-home shadow-lg rounded bg-white p-3 position-absolute z-3" style={{ top: '100%', left: '15px', marginTop: '10px', minWidth: '320px' }}>
+                <div className="d-flex justify-content-between align-items-center mb-2">
+                  <span className="fw-bold text-azul fs-5">Selecione as datas</span>
+                  <button type="button" className="btn-close" onClick={() => setMostrarCalendario(false)}></button>
+                </div>
+                <CalendarioCustom
+                  valor={(dispo.checkin && dispo.checkout) ? [new Date(dispo.checkin + 'T12:00:00'), new Date(dispo.checkout + 'T12:00:00')] : null}
+                  onChange={handleCalendarChange}
+                />
+              </div>
+            )}
+
             {erroDispo && (
-              <p className="text-danger small mt-2 mb-0 ps-2">
+              <p className="text-danger small mt-2 mb-0 ps-2 fw-bold">
                 <i className="bi bi-exclamation-circle me-1"></i>{erroDispo}
+              </p>
+            )}
+            {feedbackDispo && (
+              <p className="text-success small mt-2 mb-0 ps-2 fw-bold" style={{ color: '#198754' }}>
+                <i className="bi bi-check-circle-fill me-1"></i>{feedbackDispo}
               </p>
             )}
           </div>
@@ -166,34 +273,38 @@ function Home() {
           <Row className="g-4">
             {pontosTuristicos.map((item) => (
               <Col md={6} lg={4} key={item.id}>
-                <div className="card-turismo shadow-sm">
-                  <div className="img-container">
-                    <img
-                      src={item.imagem}
-                      alt={item.alt}
-                      className="img-fluid"
-                      loading="lazy"
-                      decoding="async"
-                      width="400"
-                      height="220"
-                    />
-                    <div className="tempo-tag">
-                      <i className="bi bi-clock"></i> {item.tempo}
+                <a 
+                  href={item.linkMaps} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                >
+                  <div className="card-turismo shadow-sm">
+                    <div className="img-container">
+                      <img
+                        src={item.imagem}
+                        alt={item.alt}
+                        className="img-fluid"
+                        loading="lazy"
+                        decoding="async"
+                        width="400"
+                        height="220"
+                      />
+                      <div className="tempo-tag">
+                        <i className="bi bi-clock"></i> {item.tempo}
+                      </div>
+                    </div>
+                    <div className="card-conteudo p-4">
+                      <h4>{item.titulo}</h4>
+                      <p>{item.descricao}</p>
+                      <div className="mt-3 text-end">
+                         <span style={{color: '#f37321', fontWeight: 'bold', fontSize: '0.9rem'}}>
+                           Ver Rota <i className="bi bi-arrow-right-short"></i>
+                         </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="card-conteudo p-4">
-                    <h4>{item.titulo}</h4>
-                    <p>{item.descricao}</p>
-                    <a
-                      href={item.mapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn-como-chegar"
-                    >
-                      <i className="bi bi-map me-1"></i>Como chegar
-                    </a>
-                  </div>
-                </div>
+                </a>
               </Col>
             ))}
           </Row>

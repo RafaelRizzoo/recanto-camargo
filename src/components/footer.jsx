@@ -1,9 +1,26 @@
 import { Container, Row, Col } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import "./footer.css";
 import { linksFooter } from "../data/conteudoSite";
 
 function Footer() {
+  const location = useLocation();
+
+  const lidarCliqueLink = (destino) => {
+    const atual = (location.pathname || '').toLowerCase();
+    const dest = (destino || '').toLowerCase();
+
+    const ehMesmaPagina =
+      atual === dest ||
+      (dest === '/' && (atual === '/' || atual === '' || window.location.hash === '#/' || window.location.hash === ''));
+
+    if (ehMesmaPagina) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const rootEl = document.getElementById('root');
+      if (rootEl) rootEl.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <footer className="footer-recanto pt-5 pb-3">
       <Container>
@@ -20,7 +37,7 @@ function Footer() {
             <ul className="list-unstyled footer-links">
               {linksFooter.map((link) => (
                 <li key={link.id}>
-                  <Link to={link.to}>{link.label}</Link>
+                  <Link to={link.to} onClick={() => lidarCliqueLink(link.to)}>{link.label}</Link>
                 </li>
               ))}
             </ul>

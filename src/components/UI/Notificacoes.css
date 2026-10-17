@@ -158,16 +158,19 @@
   padding: 0.85rem 1.1rem;
   border-bottom: 1px solid #f8fafc;
   transition: background 0.15s ease;
-  cursor: default;
+  cursor: pointer;
+}
+
+.notif-item:hover {
+  background: #f1f5f9;
 }
 
 .notif-item.nao-lida {
   background: #f8faff;
-  cursor: pointer;
 }
 
 .notif-item.nao-lida:hover {
-  background: #f0f4ff;
+  background: #eef4ff;
 }
 
 .notif-item:last-child {

@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Container, Row, Col, Nav, Form, Card, Alert } from 'react-bootstrap';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import Botao from '../components/UI/Botao';
 import EntradaSenha from '../components/UI/EntradaSenha';
+import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 
 const CHAVE_DB = 'recanto_camargo_db';
 const CHAVE_SESSION = 'recanto_camargo_session';
 
 function Configuracoes() {
-  const { usuario, tipo } = useAutenticacao();
+  const { usuario, tipo, atualizarUsuario } = useAutenticacao();
   const [abaAtiva, setAbaAtiva] = useState('perfil');
   const [feedback, setFeedback] = useState({ tipo: '', msg: '' });
+  const [salvando, setSalvando] = useState(false);
 
   const [perfil, setPerfil] = useState({
     nome: usuario?.nome || '',
@@ -19,6 +21,29 @@ function Configuracoes() {
   });
 
   const [senhas, setSenhas] = useState({ atual: '', nova: '', confirmar: '' });
+
+  useEffect(() => {
+    if (!IS_API_AVAILABLE) return;
+    let ativo = true;
+
+    fetch(`${API_BASE}/api/usuarios/perfil`, { credentials: 'include' })
+      .then(res => {
+        if (!res.ok) throw new Error('Não foi possível carregar os dados do perfil.');
+        return res.json();
+      })
+      .then(data => {
+        if (ativo && data?.usuario) {
+          setPerfil({
+            nome: data.usuario.nome || '',
+            email: data.usuario.email || '',
+            telefone: data.usuario.telefone || '',
+          });
+        }
+      })
+      .catch(() => {});
+
+    return () => { ativo = false; };
+  }, []);
 
   const [notificacoes, setNotificacoes] = useState({
     emailReserva: true,
@@ -34,60 +59,107 @@ function Configuracoes() {
 
   const mostrarFeedback = (t, msg) => {
     setFeedback({ tipo: t, msg });
-    setTimeout(() => setFeedback({ tipo: '', msg: '' }), 3000);
+    setTimeout(() => setFeedback({ tipo: '', msg: '' }), 3500);
   };
 
-  const salvarPerfil = (e) => {
+  const salvarPerfil = async (e) => {
     e.preventDefault();
     if (!perfil.nome.trim()) return mostrarFeedback('erro', 'Nome não pode estar vazio.');
 
+    if (!IS_API_AVAILABLE) {
+      mostrarFeedback('sucesso', 'Perfil atualizado (modo demonstração)!');
+      return;
+    }
+
+    setSalvando(true);
     try {
-      const db = JSON.parse(localStorage.getItem(CHAVE_DB) || '[]');
-      const idx = db.findIndex(u => u.id === usuario.id);
-      if (idx === -1) return mostrarFeedback('erro', 'Usuário não encontrado.');
+      const res = await fetch(`${API_BASE}/api/usuarios/perfil`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          nome: perfil.nome.trim(),
+          telefone: perfil.telefone.trim(),
+        }),
+      });
 
-      db[idx] = { ...db[idx], nome: perfil.nome.trim(), telefone: perfil.telefone.trim() };
-      if (tipo === 'hospede') db[idx].email = perfil.email.trim();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao salvar perfil.');
+      }
 
-      localStorage.setItem(CHAVE_DB, JSON.stringify(db));
-
-      const sessaoAtualizada = { ...JSON.parse(localStorage.getItem(CHAVE_SESSION) || '{}'), ...db[idx] };
-      delete sessaoAtualizada.senha;
-      localStorage.setItem(CHAVE_SESSION, JSON.stringify(sessaoAtualizada));
+      if (atualizarUsuario) {
+        atualizarUsuario({ nome: perfil.nome.trim(), telefone: perfil.telefone.trim() });
+      }
 
       mostrarFeedback('sucesso', 'Perfil atualizado com sucesso!');
-    } catch {
-      mostrarFeedback('erro', 'Erro ao salvar. Tente novamente.');
+    } catch (err) {
+      mostrarFeedback('erro', err.message || 'Erro ao salvar perfil. Tente novamente.');
+    } finally {
+      setSalvando(false);
     }
   };
 
-  const alterarSenha = (e) => {
+  const alterarSenha = async (e) => {
     e.preventDefault();
     if (!senhas.atual || !senhas.nova || !senhas.confirmar) {
-      return mostrarFeedback('erro', 'Preencha todos os campos.');
+      return mostrarFeedback('erro', 'Preencha todos os campos de senha.');
     }
     if (senhas.nova !== senhas.confirmar) {
-      return mostrarFeedback('erro', 'Senhas não coincidem.');
+      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
+      return mostrarFeedback('erro', 'A nova senha e a confirmação não coincidem.');
     }
-    if (senhas.nova.length < 6) {
-      return mostrarFeedback('erro', 'A nova senha deve ter pelo menos 6 caracteres.');
+    if (senhas.nova.length < 8) {
+      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
+      return mostrarFeedback('erro', 'A nova senha deve ter no mínimo 8 caracteres.');
+    }
+    if (!/[A-Z]/.test(senhas.nova)) {
+      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
+      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos uma letra maiúscula.');
+    }
+    if (!/[a-z]/.test(senhas.nova)) {
+      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
+      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos uma letra minúscula.');
+    }
+    if (!/\d/.test(senhas.nova)) {
+      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
+      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos um número.');
+    }
+    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(senhas.nova)) {
+      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
+      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos um caractere especial (!@#$%...).');
     }
 
+    if (!IS_API_AVAILABLE) {
+      mostrarFeedback('sucesso', 'Senha alterada (modo demonstração)!');
+      setSenhas({ atual: '', nova: '', confirmar: '' });
+      return;
+    }
+
+    setSalvando(true);
     try {
-      const db = JSON.parse(localStorage.getItem(CHAVE_DB) || '[]');
-      const idx = db.findIndex(u => u.id === usuario.id);
-      if (idx === -1) return mostrarFeedback('erro', 'Usuário não encontrado.');
-      if (db[idx].senha !== senhas.atual) {
-        return mostrarFeedback('erro', 'Senha atual incorreta.');
-      }
+      const res = await fetch(`${API_BASE}/api/usuarios/senha`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          senhaAtual: senhas.atual,
+          novaSenha: senhas.nova,
+        }),
+      });
 
-      db[idx].senha = senhas.nova;
-      localStorage.setItem(CHAVE_DB, JSON.stringify(db));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao alterar senha.');
+      }
 
       setSenhas({ atual: '', nova: '', confirmar: '' });
       mostrarFeedback('sucesso', 'Senha alterada com sucesso!');
-    } catch {
-      mostrarFeedback('erro', 'Erro ao alterar senha. Tente novamente.');
+    } catch (err) {
+      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
+      mostrarFeedback('erro', err.message || 'Erro ao alterar senha. Tente novamente.');
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -162,7 +234,9 @@ function Configuracoes() {
                     />
                   </Col>
                 </Row>
-                <Botao className="btn-config mt-2" tipo="submit">Salvar alterações</Botao>
+                <Botao className="btn-config mt-2" tipo="submit" disabled={salvando}>
+                  {salvando ? 'Salvando...' : 'Salvar alterações'}
+                </Botao>
               </Form>
             </Card.Body>
           </Card>
@@ -193,10 +267,14 @@ function Configuracoes() {
                   <Form.Label className="label-config">Nova senha</Form.Label>
                   <EntradaSenha
                     nome="novaSenha"
-                    placeholder="Mínimo 6 caracteres"
+                    placeholder="Mínimo 8 caracteres (A-Z, a-z, 0-9, @#$)"
                     valor={senhas.nova}
                     onChange={e => setSenhas(p => ({ ...p, nova: e.target.value }))}
+                    autoComplete="new-password"
                   />
+                  <Form.Text className="text-muted d-block mt-1" style={{ fontSize: '0.8rem' }}>
+                    Requisitos: Mínimo 8 caracteres, com maiúscula, minúscula, número e símbolo especial (!@#$%).
+                  </Form.Text>
                 </div>
                 <div className="mb-4">
                   <Form.Label className="label-config">Confirmar nova senha</Form.Label>
@@ -205,9 +283,12 @@ function Configuracoes() {
                     placeholder="Repita a nova senha"
                     valor={senhas.confirmar}
                     onChange={e => setSenhas(p => ({ ...p, confirmar: e.target.value }))}
+                    autoComplete="new-password"
                   />
                 </div>
-                <Botao className="btn-config" tipo="submit">Atualizar senha</Botao>
+                <Botao className="btn-config" tipo="submit" disabled={salvando}>
+                  {salvando ? 'Atualizando...' : 'Atualizar senha'}
+                </Botao>
               </Form>
             </Card.Body>
           </Card>

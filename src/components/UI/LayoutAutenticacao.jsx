@@ -28,7 +28,8 @@ function LayoutAutenticacao({
   subtitulo = 'Bem-vindo ao seu recanto de paz',
   mostrarBotaoVoltar = true,
   linkVoltar = '/',
-  textoBotaoVoltar = 'Voltar para o site'
+  textoBotaoVoltar = 'Voltar para o site',
+  compacto = false
 }) {
   return (
     <Container fluid className="container-autenticacao">
@@ -51,7 +52,7 @@ function LayoutAutenticacao({
         </Col>
 
         <Col xs={12} md={4} className="coluna-formulario">
-          <div className="container-formulario">
+          <div className={`container-formulario${compacto ? ' formulario-compacto' : ''}`}>
             {imagemLogo && (
               <div className="container-logo">
                 <img src={imagemLogo} alt="Recanto Camargo" className="logo" />
@@ -83,6 +84,7 @@ LayoutAutenticacao.propTypes = {
   mostrarBotaoVoltar: PropTypes.bool,
   linkVoltar: PropTypes.string,
   textoBotaoVoltar: PropTypes.string,
+  compacto: PropTypes.bool,
 };
 
 export default LayoutAutenticacao;

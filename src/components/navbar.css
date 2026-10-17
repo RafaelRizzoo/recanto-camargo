@@ -28,7 +28,7 @@
 
 .navbar-topo .navbar-shell {
   pointer-events: auto;
-  width: min(1380px, calc(100% - 2.5rem));
+  width: min(1320px, calc(100% - 2.5rem));
   margin: 0 auto;
   min-height: 84px;
   padding: 0.95rem 1.35rem;
@@ -128,9 +128,10 @@
 }
 
 .navbar-conteudo-mobile.is-open {
-  max-height: 400px;
+  max-height: 800px;
   opacity: 1;
   margin-top: 1rem;
+  overflow: visible;
 }
 
 .navbar-links-list {
