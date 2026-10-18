@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { usePreferencias } from '../hooks/usePreferencias';
 import Lightbox from "../components/UI/Lightbox";
 import { galeriaPorUnidade, midiasGaleria, unidades } from "../data/conteudoSite";
 import "../components/home/home.css";
@@ -7,6 +8,7 @@ import "./Fotos.css";
 const VIDEOS = midiasGaleria.filter((m) => m.ehVideo);
 
 function Fotos() {
+  const { t } = usePreferencias();
   const [unidade, setUnidade] = useState(1);
   const [categoria, setCategoria] = useState("Todos");
   const [indiceAberto, setIndiceAberto] = useState(null);
@@ -28,7 +30,7 @@ function Fotos() {
   }, [fotos, categoria, selo]);
 
   const midiasLightbox = itens.map((i) =>
-    i.ehVideo ? i : { src: i.src, alt: `${i.alt} · ${i.selo}`, categoria: i.categoria }
+    i.ehVideo ? { ...i, alt: t(i.alt), categoria: t(i.categoria) } : { src: i.src, alt: `${t(i.alt)} · ${i.selo}`, categoria: t(i.categoria) }
   );
 
   const mudarUnidade = (id) => {
@@ -40,14 +42,14 @@ function Fotos() {
     <div className="rc-home rc-fotos">
       <div className="rc-wrap">
         <div className="rc-fotos-head">
-          <span className="rc-eyebrow">Álbum do Recanto</span>
-          <h1>Cada cantinho do seu conforto</h1>
+          <span className="rc-eyebrow">{t("Álbum do Recanto")}</span>
+          <h1>{t("Cada cantinho do seu conforto")}</h1>
           <p className="rc-lead">
-            Fotos reais das duas unidades. Escolha a hospedagem e explore os ambientes antes de reservar.
+            {t("Fotos reais das duas unidades. Escolha a hospedagem e explore os ambientes antes de reservar.")}
           </p>
         </div>
 
-        <div className="rc-tabs" role="tablist" aria-label="Unidade">
+        <div className="rc-tabs" role="tablist" aria-label={t("Unidade")}>
           {unidades.map((u) => (
             <button
               type="button"
@@ -62,7 +64,7 @@ function Fotos() {
           ))}
         </div>
 
-        <div className="rc-chips-filtro" role="group" aria-label="Filtrar por ambiente">
+        <div className="rc-chips-filtro" role="group" aria-label={t("Filtrar por ambiente")}>
           {categorias.map((c) => (
             <button
               type="button"
@@ -71,13 +73,13 @@ function Fotos() {
               aria-pressed={categoria === c}
               onClick={() => setCategoria(c)}
             >
-              {c}
+              {t(c)}
             </button>
           ))}
         </div>
 
         <p className="rc-contagem" aria-live="polite">
-          {itens.length} {categoria === "Vídeos" ? (itens.length === 1 ? "vídeo" : "vídeos") : itens.length === 1 ? "item" : "itens"}
+          {itens.length} {t(categoria === "Vídeos" ? (itens.length === 1 ? "vídeo" : "vídeos") : itens.length === 1 ? "item" : "itens")}
           {categoria !== "Vídeos" && ` · ${selo}`}
         </p>
 
@@ -88,7 +90,7 @@ function Fotos() {
                 type="button"
                 className="rc-fitem"
                 onClick={() => setIndiceAberto(i)}
-                aria-label={item.ehVideo ? `Assistir vídeo: ${item.alt}` : `Ampliar foto: ${item.alt}, ${item.selo}`}
+                aria-label={item.ehVideo ? t("Assistir vídeo: {alt}", { alt: t(item.alt) }) : t("Ampliar foto: {alt}, {rotulo}", { alt: t(item.alt), rotulo: item.selo })}
               >
                 <img
                   src={item.ehVideo ? `https://img.youtube.com/vi/${item.youtubeId}/${item.ehShort ? "sddefault" : "hqdefault"}.jpg` : item.src}
@@ -97,7 +99,7 @@ function Fotos() {
                   decoding="async"
                 />
                 {item.ehVideo && <i className="bi bi-play-circle-fill rc-play" aria-hidden="true" />}
-                <span className="rc-cap">{item.ehVideo ? "Vídeo" : `${item.alt} · ${item.selo}`}</span>
+                <span className="rc-cap">{item.ehVideo ? t("Vídeo") : `${t(item.alt)} · ${item.selo}`}</span>
               </button>
             </li>
           ))}

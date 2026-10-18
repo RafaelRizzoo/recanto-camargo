@@ -1,29 +1,31 @@
 import PropTypes from "prop-types";
+import { usePreferencias } from "../../hooks/usePreferencias";
 import { unidades } from "../../data/conteudoSite";
 import LinkAncora from "./LinkAncora";
 
 function EscolhaHospedagem({ onVerGaleria, onVerDatas }) {
+  const { t } = usePreferencias();
   return (
     <section id="hospedagens">
       <div className="rc-wrap">
         <div className="rc-rv">
-          <span className="rc-eyebrow">Escolha sua hospedagem</span>
-          <h2>Duas casas, o mesmo<br />jeito de receber.</h2>
+          <span className="rc-eyebrow">{t("Escolha sua hospedagem")}</span>
+          <h2>{t("Duas casas, o mesmo jeito de receber.")}</h2>
         </div>
 
         <div className="rc-units">
           {unidades.map((u) => (
             <article className="rc-unit rc-rv" style={{ "--c": u.cor }} key={u.id}>
               <div className="rc-ph">
-                <img src={u.foto} alt={u.alt} loading="lazy" decoding="async" />
+                <img src={u.foto} alt={t(u.alt)} loading="lazy" decoding="async" />
                 <span className="rc-badge"><i className="rc-dot" aria-hidden="true" />{u.selo}</span>
               </div>
               <div className="rc-body">
                 <h3>{u.nome}</h3>
-                <p style={{ color: "var(--rc-muted)" }}>{u.resumo}</p>
+                <p style={{ color: "var(--rc-muted)" }}>{t(u.resumo)}</p>
                 <div className="rc-chips">
                   {u.destaques.map((d) => (
-                    <span className="rc-chip" key={d.texto}><i className={`bi ${d.icone}`} aria-hidden="true" />{d.texto}</span>
+                    <span className="rc-chip" key={d.texto}><i className={`bi ${d.icone}`} aria-hidden="true" />{t(d.texto)}</span>
                   ))}
                 </div>
                 <div className="rc-actions">
@@ -32,17 +34,17 @@ function EscolhaHospedagem({ onVerGaleria, onVerDatas }) {
                     className="rc-btn rc-btn-dark"
                     style={{ background: u.cor }}
                     onClick={() => onVerGaleria(u.id)}
-                    aria-label={`Conhecer hospedagem ${u.nome}`}
+                    aria-label={t("Conhecer hospedagem {nome}", { nome: u.nome })}
                   >
-                    Conhecer hospedagem
+                    {t("Conhecer hospedagem")}
                   </LinkAncora>
                   <LinkAncora
                     para="reservar"
                     className="rc-btn rc-btn-line"
                     onClick={() => onVerDatas(u.id)}
-                    aria-label={`Ver datas do ${u.nome}`}
+                    aria-label={t("Ver datas do {nome}", { nome: u.nome })}
                   >
-                    Ver datas
+                    {t("Ver datas")}
                   </LinkAncora>
                 </div>
               </div>

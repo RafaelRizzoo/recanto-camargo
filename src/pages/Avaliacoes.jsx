@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { usePreferencias } from '../hooks/usePreferencias';
 import PropTypes from 'prop-types';
 import { Link } from 'react-router-dom';
 import { depoimentos } from '../data/conteudoSite';
@@ -20,15 +21,16 @@ function formatarData(data) {
   return ano && mes && dia ? `${dia}/${mes}/${ano}` : '';
 }
 
-function formatarNota(valor, casas = 1) {
-  return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: 2 });
+function formatarNota(idioma, valor, casas = 1) {
+  return Number(valor).toLocaleString(idioma === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: 2 });
 }
 
 function Estrelas({ nota }) {
+  const { t, idioma } = usePreferencias();
   const valor = Math.min(5, Math.max(0, Number(nota) || 0));
 
   return (
-    <span className="rc-av-estrelas" role="img" aria-label={`${formatarNota(valor)} de 5 estrelas`}>
+    <span className="rc-av-estrelas" role="img" aria-label={t('{n} de 5 estrelas', { n: formatarNota(idioma, valor) })}>
       {[1, 2, 3, 4, 5].map(posicao => {
         const classe = valor >= posicao ? 'bi-star-fill' : valor >= posicao - 0.5 ? 'bi-star-half' : 'bi-star';
         return <i key={posicao} className={`bi ${classe}`} aria-hidden="true" />;
@@ -40,11 +42,12 @@ function Estrelas({ nota }) {
 Estrelas.propTypes = { nota: PropTypes.oneOfType([PropTypes.number, PropTypes.string]) };
 
 function CardAvaliacao({ item }) {
+  const { t, idioma } = usePreferencias();
   const [expandido, setExpandido] = useState(false);
   const resposta = item.respostaProprietario;
   const doSite = Boolean(item.doSite);
 
-  const nomeCompleto = item.hospede?.nome || 'Hóspede';
+  const nomeCompleto = item.hospede?.nome || t('Hóspede');
   const partesNome = nomeCompleto.trim().split(' ');
   const iniciais = partesNome.length > 1
     ? `${partesNome[0][0]}${partesNome[partesNome.length - 1][0]}`.toUpperCase()
@@ -65,24 +68,24 @@ function CardAvaliacao({ item }) {
         <div className="rc-av-avatar" aria-hidden="true">{iniciais}</div>
         <div className="rc-av-quem">
           <strong>{nomeCompleto}</strong>
-          <span>{doSite ? item.periodo : formatarData(item.data)}</span>
+          <span>{doSite ? t(item.periodo) : formatarData(item.data)}</span>
         </div>
         {!doSite && (
-          <span className="rc-av-verificado" title="Hóspede verificado">
-            <i className="bi bi-patch-check-fill" aria-hidden="true" /> Verificado
+          <span className="rc-av-verificado" title={t('Hóspede verificado')}>
+            <i className="bi bi-patch-check-fill" aria-hidden="true" /> {t('Verificado')}
           </span>
         )}
       </div>
 
       <div className="rc-av-nota">
         <Estrelas nota={notaExibida} />
-        <strong>{formatarNota(notaExibida)}</strong>
+        <strong>{formatarNota(idioma, notaExibida)}</strong>
       </div>
 
       {temSubcriterios && (
         <ul className="rc-av-criterios">
           {CRITERIOS.map(c => (
-            <li key={c.chave}><i className={`bi ${c.icone}`} aria-hidden="true" /> {c.rotulo} {Number(item[c.chave]).toFixed(1)}</li>
+            <li key={c.chave}><i className={`bi ${c.icone}`} aria-hidden="true" /> {t(c.rotulo)} {Number(item[c.chave]).toFixed(1)}</li>
           ))}
         </ul>
       )}
@@ -91,14 +94,14 @@ function CardAvaliacao({ item }) {
 
       {textoLongo && (
         <button type="button" className="rc-link-inline rc-av-mais" onClick={() => setExpandido(atual => !atual)} aria-expanded={expandido}>
-          {expandido ? 'Mostrar menos' : 'Mostrar mais'}
+          {expandido ? t('Mostrar menos') : t('Mostrar mais')}
         </button>
       )}
 
       {resposta && (
         <div className="rc-av-resposta">
           <div className="rc-av-resposta-topo">
-            <span><i className="bi bi-reply-fill" aria-hidden="true" /> Resposta do Recanto Camargo</span>
+            <span><i className="bi bi-reply-fill" aria-hidden="true" /> {t('Resposta do Recanto Camargo')}</span>
             <span>{formatarData(resposta.data)}</span>
           </div>
           <p>{resposta.comentario}</p>
@@ -111,6 +114,7 @@ function CardAvaliacao({ item }) {
 CardAvaliacao.propTypes = { item: PropTypes.object.isRequired };
 
 function Avaliacoes() {
+  const { t, idioma } = usePreferencias();
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -188,32 +192,32 @@ function Avaliacoes() {
     <div className="rc-home rc-avaliacoes">
       <div className="rc-wrap">
         <header className="rc-av-head">
-          <span className="rc-eyebrow">Avaliações</span>
-          <h1>Quem já se hospedou.</h1>
-          <p className="rc-lead">Relatos reais de hóspedes do Recanto Camargo.</p>
+          <span className="rc-eyebrow">{t('Avaliações')}</span>
+          <h1>{t('Quem já se hospedou.')}</h1>
+          <p className="rc-lead">{t('Relatos reais de hóspedes do Recanto Camargo.')}</p>
           {!carregando && total > 0 && !dadosCompletos && (
             <span className="rc-rating">
               <i className="bi bi-chat-heart" aria-hidden="true" />
-              {total} depoimentos de hóspedes
+              {total} {t('depoimentos de hóspedes')}
             </span>
           )}
           {notaGoogleOk && (
             <span className="rc-rating">
               <i className="bi bi-star-fill" aria-hidden="true" />
-              {formatarNota(notaGoogle, 1)} no Google · {totalGoogle} avaliações
+              {formatarNota(idioma, notaGoogle, 1)} {t('no Google')} · {totalGoogle} {t('avaliações')}
             </span>
           )}
         </header>
 
         {!carregando && dadosCompletos && (
-          <section className="rc-av-resumo" aria-label="Resumo das avaliações">
+          <section className="rc-av-resumo" aria-label={t('Resumo das avaliações')}>
             <div className="rc-av-geral">
-                <span className="rc-av-score">{formatarNota(mediaGeral, 1)}</span>
+                <span className="rc-av-score">{formatarNota(idioma, mediaGeral, 1)}</span>
                 <Estrelas nota={mediaGeral} />
-                <span className="rc-av-total">{total} {total === 1 ? 'estadia avaliada' : 'estadias avaliadas'}</span>
+                <span className="rc-av-total">{total} {t(total === 1 ? 'estadia avaliada' : 'estadias avaliadas')}</span>
             </div>
 
-              <ul className="rc-av-barras" aria-label="Filtrar por nota">
+              <ul className="rc-av-barras" aria-label={t('Filtrar por nota')}>
                 {[5, 4, 3, 2, 1].map(estrela => {
                   const ativa = filtroEstrela === estrela;
                   return (
@@ -223,7 +227,7 @@ function Avaliacoes() {
                         className={`rc-av-barra${ativa ? ' rc-ativa' : ''}`}
                         aria-pressed={ativa}
                         onClick={() => setFiltroEstrela(atual => (atual === estrela ? null : estrela))}
-                        title={`Filtrar por ${estrela} estrela${estrela > 1 ? 's' : ''}`}
+                        title={t(estrela > 1 ? 'Filtrar por {n} estrelas' : 'Filtrar por {n} estrela', { n: estrela })}
                       >
                         <span>{estrela} <i className="bi bi-star-fill" aria-hidden="true" /></span>
                         <span className="rc-av-trilha"><span style={{ width: `${percentual(estrela)}%` }} /></span>
@@ -238,8 +242,8 @@ function Avaliacoes() {
                 {CRITERIOS.map(c => (
                   <li key={c.chave}>
                     <i className={`bi ${c.icone}`} aria-hidden="true" />
-                    <strong>{formatarNota(media(c.chave), 1)}</strong>
-                    <span>{c.rotulo}</span>
+                    <strong>{formatarNota(idioma, media(c.chave), 1)}</strong>
+                    <span>{t(c.rotulo)}</span>
                   </li>
                 ))}
               </ul>
@@ -248,15 +252,15 @@ function Avaliacoes() {
 
         {filtroEstrela && (
           <p className="rc-av-filtro">
-            <i className="bi bi-funnel-fill" aria-hidden="true" /> Filtrando por {filtroEstrela} estrela{filtroEstrela > 1 ? 's' : ''} ({distribuicao[filtroEstrela]})
-            <button type="button" className="rc-link-inline" onClick={() => setFiltroEstrela(null)}>Limpar filtro</button>
+            <i className="bi bi-funnel-fill" aria-hidden="true" /> {t(filtroEstrela > 1 ? 'Filtrando por {n} estrelas' : 'Filtrando por {n} estrela', { n: filtroEstrela })} ({distribuicao[filtroEstrela]})
+            <button type="button" className="rc-link-inline" onClick={() => setFiltroEstrela(null)}>{t('Limpar filtro')}</button>
           </p>
         )}
 
         {carregando && (
           <div className="rc-av-estado" role="status" aria-live="polite">
             <span className="spinner-border" aria-hidden="true" />
-            <span>Carregando avaliações...</span>
+            <span>{t('Carregando avaliações...')}</span>
           </div>
         )}
 
@@ -264,15 +268,15 @@ function Avaliacoes() {
           <div className="rc-av-estado" role="alert">
             <i className="bi bi-exclamation-triangle" aria-hidden="true" />
             <p>{erro}</p>
-            <button type="button" className="rc-btn rc-btn-line" onClick={() => buscarAvaliacoes()}>Tentar novamente</button>
+            <button type="button" className="rc-btn rc-btn-line" onClick={() => buscarAvaliacoes()}>{t('Tentar novamente')}</button>
           </div>
         )}
 
         {!carregando && !erro && total === 0 && (
           <div className="rc-av-estado">
             <i className="bi bi-chat-square-heart" aria-hidden="true" />
-            <h2>Ainda não há avaliações publicadas</h2>
-            <p>As avaliações de estadias concluídas aparecerão aqui.</p>
+            <h2>{t('Ainda não há avaliações publicadas')}</h2>
+            <p>{t('As avaliações de estadias concluídas aparecerão aqui.')}</p>
           </div>
         )}
 
@@ -280,10 +284,10 @@ function Avaliacoes() {
           avaliacoesFiltradas.length === 0 ? (
             <div className="rc-av-estado">
               <i className="bi bi-search" aria-hidden="true" />
-              <h2>Nenhuma avaliação com {filtroEstrela} estrela{filtroEstrela > 1 ? 's' : ''}</h2>
-              <p>Tente outra classificação ou limpe o filtro.</p>
+              <h2>{t(filtroEstrela > 1 ? 'Nenhuma avaliação com {n} estrelas' : 'Nenhuma avaliação com {n} estrela', { n: filtroEstrela })}</h2>
+              <p>{t('Tente outra classificação ou limpe o filtro.')}</p>
               <button type="button" className="rc-btn rc-btn-line" onClick={() => setFiltroEstrela(null)}>
-                Ver todas as avaliações ({total})
+                {t('Ver todas as avaliações')} ({total})
               </button>
             </div>
           ) : (
@@ -294,8 +298,8 @@ function Avaliacoes() {
         )}
 
         <div className="rc-av-final">
-          <p>Pronto para se hospedar?</p>
-          <Link to="/Reserva" className="rc-btn rc-btn-primary">Consultar disponibilidade</Link>
+          <p>{t('Pronto para se hospedar?')}</p>
+          <Link to="/Reserva" className="rc-btn rc-btn-primary">{t('Consultar disponibilidade')}</Link>
         </div>
       </div>
     </div>

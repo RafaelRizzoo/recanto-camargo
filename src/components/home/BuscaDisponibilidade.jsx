@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { usePreferencias } from "../../hooks/usePreferencias";
 import PropTypes from "prop-types";
 import CalendarioCustom from "../UI/CalendarioCustom";
 import { MAX_HOSPEDES, unidades } from "../../data/conteudoSite";
@@ -22,6 +23,7 @@ function BuscaDisponibilidade({
   rotuloBotao = "Consultar",
   botaoClasse = "rc-btn-primary",
 }) {
+  const { t } = usePreferencias();
   const [calAberto, setCalAberto] = useState(null);
   const raiz = useRef(null);
   useAjustarPopover(Boolean(calAberto), raiz);
@@ -50,10 +52,10 @@ function BuscaDisponibilidade({
   const popover = (
     <>
       <div className="rc-pop-backdrop" onClick={() => setCalAberto(null)} aria-hidden="true" />
-      <div className="rc-pop" role="dialog" aria-label="Selecione as datas">
+      <div className="rc-pop" role="dialog" aria-label={t("Selecione as datas")}>
         <div className="rc-pop-head">
-          <span>Selecione as datas</span>
-          <button type="button" onClick={() => setCalAberto(null)} aria-label="Fechar calendário">
+          <span>{t("Selecione as datas")}</span>
+          <button type="button" onClick={() => setCalAberto(null)} aria-label={t("Fechar calendário")}>
             <i className="bi bi-x-lg" aria-hidden="true" />
           </button>
         </div>
@@ -77,14 +79,14 @@ function BuscaDisponibilidade({
     <div className="rc-search-wrap" ref={raiz}>
       <form
         className="rc-search"
-        aria-label="Consultar disponibilidade"
+        aria-label={t("Consultar disponibilidade")}
         onSubmit={(e) => {
           e.preventDefault();
           consultar(origem);
         }}
       >
         <div className="rc-field">
-          <label htmlFor={idUnidade}>Unidade</label>
+          <label htmlFor={idUnidade}>{t("Unidade")}</label>
           <select id={idUnidade} value={busca.unidade} onChange={(e) => atualizar({ unidade: e.target.value })}>
             {unidades.map((u) => (
               <option key={u.id} value={u.id}>{u.nome}</option>
@@ -94,7 +96,7 @@ function BuscaDisponibilidade({
 
         <CampoData
           id={`${origem}-checkin`}
-          rotulo="Check-in"
+          rotulo={t("Check-in")}
           valor={busca.checkin}
           aberto={calAberto === "checkin"}
           onAbrir={() => setCalAberto("checkin")}
@@ -105,7 +107,7 @@ function BuscaDisponibilidade({
 
         <CampoData
           id={`${origem}-checkout`}
-          rotulo="Check-out"
+          rotulo={t("Check-out")}
           valor={busca.checkout}
           aberto={calAberto === "checkout"}
           onAbrir={() => setCalAberto("checkout")}
@@ -115,17 +117,17 @@ function BuscaDisponibilidade({
         </CampoData>
 
         <div className="rc-field">
-          <label htmlFor={idHospedes}>Hóspedes</label>
+          <label htmlFor={idHospedes}>{t("Hóspedes")}</label>
           <select id={idHospedes} value={busca.hospedes} onChange={(e) => atualizar({ hospedes: e.target.value })}>
-            <option value="">Quantos?</option>
+            <option value="">{t("Quantos?")}</option>
             {Array.from({ length: MAX_HOSPEDES }, (_, i) => (
-              <option key={i + 1} value={i + 1}>{i + 1} hóspede{i ? "s" : ""}</option>
+              <option key={i + 1} value={i + 1}>{t(i ? "{n} hóspedes" : "{n} hóspede", { n: i + 1 })}</option>
             ))}
           </select>
         </div>
 
         <button type="submit" className={`rc-btn ${botaoClasse}`} disabled={carregando}>
-          {carregando ? "Consultando..." : rotuloBotao}
+          {carregando ? t("Consultando...") : rotuloBotao}
         </button>
 
         <div
@@ -137,9 +139,9 @@ function BuscaDisponibilidade({
             <>
               <i className={`bi ${ICONE_MENSAGEM[mensagem.tipo]}`} aria-hidden="true" />
               <span>
-                {mensagem.msg}{" "}
+                {t(mensagem.msg, mensagem.vars)}{" "}
                 {mensagem.whatsapp && (
-                  <a href={mensagem.whatsapp} target="_blank" rel="noopener noreferrer">Consultar pelo WhatsApp</a>
+                  <a href={mensagem.whatsapp} target="_blank" rel="noopener noreferrer">{t("Consultar pelo WhatsApp")}</a>
                 )}
               </span>
             </>

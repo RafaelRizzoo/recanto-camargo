@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import { usePreferencias } from "../hooks/usePreferencias";
 import "./footer.css";
 import { contato, linksFooter } from "../data/conteudoSite";
 
@@ -9,6 +10,7 @@ const REDES = [
 ];
 
 function Footer() {
+  const { t } = usePreferencias();
   const location = useLocation();
 
   const lidarCliqueLink = (destino) => {
@@ -33,23 +35,23 @@ function Footer() {
           <div>
             <p className="footer-marca fonte-logo">Recanto Camargo</p>
             <p className="footer-texto">
-              Hospedagem familiar em Aparecida, a cerca de 5 minutos a pé da Basílica Nacional.
+              {t("Hospedagem familiar em Aparecida, a cerca de 5 minutos a pé da Basílica Nacional.")}
             </p>
           </div>
 
-          <nav aria-label="Rodapé">
-            <h2 className="footer-titulo">Navegação</h2>
+          <nav aria-label={t("Rodapé")}>
+            <h2 className="footer-titulo">{t("Navegação")}</h2>
             <ul className="footer-links">
               {linksFooter.map((link) => (
                 <li key={link.id}>
-                  <Link to={link.to} onClick={() => lidarCliqueLink(link.to)}>{link.label}</Link>
+                  <Link to={link.to} onClick={() => lidarCliqueLink(link.to)}>{t(link.label)}</Link>
                 </li>
               ))}
             </ul>
           </nav>
 
           <div>
-            <h2 className="footer-titulo">Contato</h2>
+            <h2 className="footer-titulo">{t("Contato")}</h2>
             <ul className="footer-links">
               <li>
                 <a href={`https://wa.me/${contato.whatsapp}`} target="_blank" rel="noopener noreferrer">
@@ -62,7 +64,7 @@ function Footer() {
               {REDES.map((r) => (
                 <li key={r.id}>
                   <a href={r.href} target="_blank" rel="noopener noreferrer">
-                    <i className={`bi ${r.icone}`} aria-hidden="true" /> {r.label}
+                    <i className={`bi ${r.icone}`} aria-hidden="true" /> {t(r.label)}
                   </a>
                 </li>
               ))}
@@ -73,7 +75,7 @@ function Footer() {
         <div className="footer-legal">
           <span>© 2026 Recanto Camargo</span>
           <span>
-            <Link to="/TermosDeUso">Termos de Uso</Link> · <Link to="/Privacidade">Privacidade (LGPD)</Link>
+            <Link to="/TermosDeUso">{t("Termos de Uso")}</Link> · <Link to="/Privacidade">{t("Privacidade (LGPD)")}</Link>
           </span>
         </div>
       </div>

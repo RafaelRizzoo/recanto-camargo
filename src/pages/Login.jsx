@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { usePreferencias } from '../hooks/usePreferencias';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Form } from 'react-bootstrap';
 import LayoutAutenticacao from '../components/UI/LayoutAutenticacao';
@@ -11,6 +12,7 @@ import logoPng from '../assets/img/artes/logo.webp';
 import basilicaPng from '../assets/img/artes/basilica.webp';
 
 function Login() {
+  const { t } = usePreferencias();
   const [dados, setDados] = useState({ email: '', senha: '' });
   const [erro, setErro] = useState('');
   const { login } = useAutenticacao();
@@ -38,8 +40,8 @@ function Login() {
     <LayoutAutenticacao
       imagemFundo={basilicaPng}
       imagemLogo={logoPng}
-      titulo="Acesse sua conta"
-      subtitulo="Bem-vindo ao seu recanto de paz"
+      titulo={t("Acesse sua conta")}
+      subtitulo={t("Bem-vindo ao seu recanto de paz")}
     >
       <Form onSubmit={handleSubmit}>
         {erro && <div className="alerta-erro mb-3">{erro}</div>}
@@ -47,7 +49,7 @@ function Login() {
         <Entrada
           tipo="email"
           nome="email"
-          placeholder="Insira seu email"
+          placeholder={t("Insira seu email")}
           valor={dados.email}
           onChange={handleChange}
           required
@@ -55,37 +57,37 @@ function Login() {
         
         <EntradaSenha
           nome="senha"
-          placeholder="Insira sua senha"
+          placeholder={t("Insira sua senha")}
           valor={dados.senha}
           onChange={handleChange}
           required
         />
 
         <Botao larguraTotal efeitoOnda type="submit">
-          Login
+          {t("Login")}
         </Botao>
 
         <div className="container-link-autenticacao text-center mt-3">
-          <span className="text-white">Ainda não tem conta? </span>
+          <span className="text-white">{t("Ainda não tem conta?")} </span>
           <LinkAutenticacao para="/Cadastro" variante="destaque">
-            Criar conta
+            {t("Criar conta")}
           </LinkAutenticacao>
         </div>
 
         <div className="text-center mt-2">
           <LinkAutenticacao para="/RecuperarSenha" variante="secundario">
-            Esqueceu a senha?
+            {t("Esqueceu a senha?")}
           </LinkAutenticacao>
         </div>
 
         <div className="text-center mt-3 pt-1">
           <div className="d-flex justify-content-center align-items-center gap-2">
             <LinkAutenticacao para="/TermosDeUso" variante="secundario" style={{ fontSize: '0.82rem', opacity: 0.85 }}>
-              Termos de Uso
+              {t("Termos de Uso")}
             </LinkAutenticacao>
             <span className="text-white-50" style={{ fontSize: '0.75rem' }}>•</span>
             <LinkAutenticacao para="/Privacidade" variante="secundario" style={{ fontSize: '0.82rem', opacity: 0.85 }}>
-              Privacidade
+              {t("Privacidade")}
             </LinkAutenticacao>
           </div>
         </div>
@@ -95,7 +97,7 @@ function Login() {
           <div className="text-center mb-4">
             <LinkAutenticacao para="/" variante="secundario">
               <i className="bi bi-arrow-left me-2"></i>
-              Voltar para o site
+              {t("Voltar para o site")}
             </LinkAutenticacao>
           </div>
         </div>

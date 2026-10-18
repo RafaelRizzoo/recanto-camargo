@@ -1,7 +1,9 @@
 import PropTypes from "prop-types";
+import { usePreferencias } from "../../hooks/usePreferencias";
 import { formatarData } from "./links";
 
 function CampoData({ id, rotulo, valor, aberto, onAbrir, onFechar, children }) {
+  const { t } = usePreferencias();
   return (
     <div className="rc-field">
       <label id={`${id}-rotulo`} htmlFor={id}>{rotulo}</label>
@@ -14,7 +16,7 @@ function CampoData({ id, rotulo, valor, aberto, onAbrir, onFechar, children }) {
         aria-labelledby={`${id}-rotulo ${id}`}
         onClick={aberto ? onFechar : onAbrir}
       >
-        {valor ? formatarData(valor) : <span className="rc-placeholder">Selecionar</span>}
+        {valor ? formatarData(valor) : <span className="rc-placeholder">{t("Selecionar")}</span>}
       </button>
       {children}
     </div>

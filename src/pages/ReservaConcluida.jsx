@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePreferencias } from '../hooks/usePreferencias';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { API_BASE } from '../utils/api';
 import '../components/home/home.css';
@@ -15,6 +16,7 @@ function formatarMoeda(valor) {
 }
 
 function ReservaConcluida() {
+  const { t } = usePreferencias();
   const { id } = useParams();
   const navigate = useNavigate();
   const [reserva, setReserva] = useState(null);
@@ -55,9 +57,9 @@ function ReservaConcluida() {
         <div className="rc-conc-card rc-conc-estado" role="alert">
           <Link to="/" className="rc-conc-marca fonte-logo">Recanto Camargo</Link>
           <i className="bi bi-exclamation-circle rc-conc-icone-erro" aria-hidden="true" />
-          <h1>Reserva não encontrada</h1>
-          <p>Não conseguimos localizar a reserva solicitada.</p>
-          <Link to="/" className="rc-btn rc-btn-primary">Voltar ao início</Link>
+          <h1>{t("Reserva não encontrada")}</h1>
+          <p>{t("Não conseguimos localizar a reserva solicitada.")}</p>
+          <Link to="/" className="rc-btn rc-btn-primary">{t("Voltar ao início")}</Link>
         </div>
       </div>
     );
@@ -68,7 +70,7 @@ function ReservaConcluida() {
       <div className="rc-home rc-concluida">
         <div className="rc-conc-card rc-conc-estado" role="status" aria-live="polite">
           <span className="spinner-border" aria-hidden="true" />
-          <p>Carregando detalhes da reserva...</p>
+          <p>{t("Carregando detalhes da reserva...")}</p>
         </div>
       </div>
     );
@@ -82,29 +84,29 @@ function ReservaConcluida() {
         <div className="rc-conc-selo" aria-hidden="true">
           <i className="bi bi-check-lg" />
         </div>
-        <h1>Reserva solicitada!</h1>
+        <h1>{t("Reserva solicitada!")}</h1>
         <p className="rc-conc-texto">
-          A solicitação foi recebida para análise do proprietário. Acompanhe o status e realize o pagamento no seu painel.
+          {t("A solicitação foi recebida para análise do proprietário. Acompanhe o status e realize o pagamento no seu painel.")}
         </p>
 
         <dl className="rc-conc-detalhes">
-          <div><dt>Código</dt><dd>#{reserva.id}</dd></div>
-          <div><dt>Hóspede</dt><dd>{reserva.nome}</dd></div>
-          <div><dt>Check-in</dt><dd>{formatarData(reserva.checkin)} <small>(a partir das 14h)</small></dd></div>
-          <div><dt>Check-out</dt><dd>{formatarData(reserva.checkout)} <small>(até às 11h)</small></dd></div>
+          <div><dt>{t("Código")}</dt><dd>#{reserva.id}</dd></div>
+          <div><dt>{t("Hóspede")}</dt><dd>{reserva.nome}</dd></div>
+          <div><dt>{t("Check-in")}</dt><dd>{formatarData(reserva.checkin)} <small>({t("a partir das 14h")})</small></dd></div>
+          <div><dt>{t("Check-out")}</dt><dd>{formatarData(reserva.checkout)} <small>({t("até às 11h")})</small></dd></div>
         </dl>
 
         <div className="rc-conc-total">
-          <span>Valor total previsto</span>
+          <span>{t("Valor total previsto")}</span>
           <strong>{formatarMoeda(reserva.total)}</strong>
         </div>
 
         <div className="rc-conc-acoes">
           <button type="button" className="rc-btn rc-btn-primary" onClick={() => navigate('/DashboardCliente')}>
-            <i className="bi bi-speedometer2" aria-hidden="true" /> Acompanhar no meu painel
+            <i className="bi bi-speedometer2" aria-hidden="true" /> {t("Acompanhar no meu painel")}
           </button>
           <button type="button" className="rc-link-inline" onClick={() => navigate('/')}>
-            Voltar para a página inicial
+            {t("Voltar para a página inicial")}
           </button>
         </div>
       </div>

@@ -24,12 +24,12 @@ export function useConsultaDisponibilidade() {
 
   const consultar = useCallback(
     async (origem) => {
-      const falha = (msg) => setResultado({ tipo: "erro", msg, origem });
+      const falha = (msg, vars) => setResultado({ tipo: "erro", msg, vars, origem });
       const { checkin, checkout, hospedes } = busca;
 
       if (!checkin || !checkout) return falha("Selecione as datas de entrada e saída.");
       if (!hospedes) return falha("Informe o número de hóspedes.");
-      if (Number(hospedes) > MAX_HOSPEDES) return falha(`O limite é de ${MAX_HOSPEDES} hóspedes por unidade.`);
+      if (Number(hospedes) > MAX_HOSPEDES) return falha("O limite é de {max} hóspedes por unidade.", { max: MAX_HOSPEDES });
       if (new Date(`${checkout}T12:00:00`) <= new Date(`${checkin}T12:00:00`)) {
         return falha("A saída deve ser depois da entrada.");
       }
@@ -41,7 +41,8 @@ export function useConsultaDisponibilidade() {
       if (!unidade.consultaOnline) {
         return setResultado({
           tipo: "info",
-          msg: `A consulta online ainda não está disponível para o ${unidade.nome}.`,
+          msg: "A consulta online ainda não está disponível para o {nome}.",
+          vars: { nome: unidade.nome },
           whatsapp,
           origem,
         });
@@ -66,7 +67,10 @@ export function useConsultaDisponibilidade() {
         );
         setResultado({
           tipo: "ok",
-          msg: `Reserva de ${noites} noite${noites > 1 ? "s" : ""} disponível! Check-in: ${formatarData(checkin)} | Check-out: ${formatarData(checkout)}`,
+          msg: noites > 1
+            ? "Reserva de {n} noites disponível! Check-in: {ci} | Check-out: {co}"
+            : "Reserva de {n} noite disponível! Check-in: {ci} | Check-out: {co}",
+          vars: { n: noites, ci: formatarData(checkin), co: formatarData(checkout) },
           origem,
         });
         temporizador.current = setTimeout(() => {

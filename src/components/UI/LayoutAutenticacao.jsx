@@ -1,4 +1,5 @@
 import { Container, Row, Col } from 'react-bootstrap';
+import { usePreferencias } from '../../hooks/usePreferencias';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import './LayoutAutenticacao.css';
@@ -32,6 +33,8 @@ function LayoutAutenticacao({
   textoBotaoVoltar = 'Voltar para o site',
   compacto = false
 }) {
+  const { t, tema, idioma, alternarTema, alternarIdioma } = usePreferencias();
+  const escuro = tema === 'escuro';
   return (
     <Container fluid className="container-autenticacao">
       <Row className="linha-autenticacao">
@@ -39,14 +42,14 @@ function LayoutAutenticacao({
           {mostrarBotaoVoltar && (
             <Link to={linkVoltar} className="btn-voltar">
               <IconeSetaEsquerda />
-              {textoBotaoVoltar}
+              {t(textoBotaoVoltar)}
             </Link>
           )}
 
           {imagemFundo && (
             <img
               src={imagemFundo}
-              alt="Santuário Nacional de Aparecida"
+              alt={t("Basílica Nacional de Aparecida")}
               className="imagem-autenticacao"
             />
           )}
@@ -58,8 +61,29 @@ function LayoutAutenticacao({
         </Col>
 
         <Col xs={12} md={5} className="coluna-formulario">
+          <div className="rc-auth-prefs">
+            <button
+              type="button"
+              className="rc-pref"
+              onClick={alternarIdioma}
+              lang={idioma === 'en' ? 'pt' : 'en'}
+              aria-label={idioma === 'en' ? 'Mudar para português' : 'Switch to English'}
+            >
+              <i className="bi bi-translate" aria-hidden="true" />
+              <span>{idioma === 'en' ? 'PT' : 'EN'}</span>
+            </button>
+            <button
+              type="button"
+              className="rc-pref"
+              onClick={alternarTema}
+              aria-pressed={escuro}
+              aria-label={escuro ? t('Ativar tema claro') : t('Ativar tema escuro')}
+            >
+              <i className={`bi ${escuro ? 'bi-sun' : 'bi-moon-stars'}`} aria-hidden="true" />
+            </button>
+          </div>
           <div className={`container-formulario${compacto ? ' formulario-compacto' : ''}`}>
-            <Link to="/" className="marca-autenticacao fonte-logo" aria-label="Recanto Camargo, ir ao início">
+            <Link to="/" className="marca-autenticacao fonte-logo" aria-label={t("Recanto Camargo, ir ao início")}>
               Recanto Camargo
             </Link>
 
@@ -68,7 +92,7 @@ function LayoutAutenticacao({
             )}
 
             {subtitulo && (
-              <p className="subtitulo-autenticacao">{subtitulo}</p>
+              <p className="subtitulo-autenticacao">{t(subtitulo)}</p>
             )}
 
             {children}

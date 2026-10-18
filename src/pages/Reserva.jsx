@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { usePreferencias } from '../hooks/usePreferencias';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { comodidadesGrupos, depoimentos, galeriaPorUnidade, mapaEmbedSrc, unidades, MAX_HOSPEDES } from '../data/conteudoSite';
@@ -27,6 +28,7 @@ function formatarMoeda(valor) {
 }
 
 function Reserva() {
+  const { t, idioma } = usePreferencias();
   const { usuario, autenticado } = useAutenticacao();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -73,10 +75,10 @@ function Reserva() {
   useEffect(() => {
     if (cupomAplicado && noites > 0) {
       if (cupomAplicado.minimoNoites > 1 && noites < cupomAplicado.minimoNoites) {
-        setErroCupom(`O cupom ${cupomAplicado.codigo} exige no mínimo ${cupomAplicado.minimoNoites} noites e foi removido.`);
+        setErroCupom(t('O cupom {codigo} exige no mínimo {n} noites e foi removido.', { codigo: cupomAplicado.codigo, n: cupomAplicado.minimoNoites }));
         setCupomAplicado(null);
       } else if (cupomAplicado.valorMinimo > 0 && valorBasePreview < cupomAplicado.valorMinimo) {
-        setErroCupom(`O cupom ${cupomAplicado.codigo} exige um valor mínimo de R$ ${cupomAplicado.valorMinimo.toFixed(2)} e foi removido.`);
+        setErroCupom(t('O cupom {codigo} exige um valor mínimo de R$ {valor} e foi removido.', { codigo: cupomAplicado.codigo, valor: cupomAplicado.valorMinimo.toFixed(2) }));
         setCupomAplicado(null);
       }
     }
@@ -86,11 +88,11 @@ function Reserva() {
     setErroCupom('');
     const codigo = cupomInput.trim();
     if (!codigo) {
-      setErroCupom('Informe um código de cupom.');
+      setErroCupom(t('Informe um código de cupom.'));
       return;
     }
     if (noites <= 0) {
-      setErroCupom('Selecione as datas de check-in e check-out antes de aplicar o cupom.');
+      setErroCupom(t('Selecione as datas de check-in e check-out antes de aplicar o cupom.'));
       return;
     }
 
@@ -114,22 +116,22 @@ function Reserva() {
       }
       if (!dados || !Number.isSafeInteger(Number(dados.cupomId)) || Number(dados.cupomId) <= 0
         || !['PERCENTUAL', 'FIXO'].includes(dados.tipoDesconto)) {
-        throw new Error('Resposta inválida ao validar cupom.');
+        throw new Error(t('Resposta inválida ao validar cupom.'));
       }
 
       const valorDesconto = Number(dados.valorDesconto);
       if (!Number.isFinite(valorDesconto) || valorDesconto < 0) {
-        throw new Error('Resposta inválida ao validar cupom.');
+        throw new Error(t('Resposta inválida ao validar cupom.'));
       }
 
       const minNoites = Number(dados.minimoNoites || 1);
       const valMin = Number(dados.valorMinimo || 0);
 
       if (minNoites > 1 && noites < minNoites) {
-        throw new Error(`Este cupom exige uma estadia mínima de ${minNoites} noites.`);
+        throw new Error(t('Este cupom exige uma estadia mínima de {n} noites.', { n: minNoites }));
       }
       if (valMin > 0 && valorBasePreview < valMin) {
-        throw new Error(`Este cupom exige um valor mínimo de R$ ${valMin.toFixed(2)}.`);
+        throw new Error(t('Este cupom exige um valor mínimo de R$ {valor}.', { valor: valMin.toFixed(2) }));
       }
 
       setCupomAplicado({
@@ -143,7 +145,7 @@ function Reserva() {
       setCupomInput('');
     } catch (erro) {
       setCupomAplicado(null);
-      setErroCupom(erro.message || 'Erro ao validar cupom.');
+      setErroCupom(erro.message || t('Erro ao validar cupom.'));
     } finally {
       setValidandoCupom(false);
     }
@@ -197,13 +199,13 @@ function Reserva() {
   async function handleSubmit(evt) {
     evt.preventDefault();
     const errosNovos = {};
-    if (!datas.checkin) errosNovos.checkin = 'Selecione a data de check-in.';
-    if (!datas.checkout) errosNovos.checkout = 'Selecione a data de check-out.';
+    if (!datas.checkin) errosNovos.checkin = t('Selecione a data de check-in.');
+    if (!datas.checkout) errosNovos.checkout = t('Selecione a data de check-out.');
     if (datas.checkin && datas.checkout && noites <= 0) {
-      errosNovos.checkout = 'O check-out deve ser depois do check-in.';
+      errosNovos.checkout = t('O check-out deve ser depois do check-in.');
     }
     if (!hospedes || hospedes < 1 || hospedes > 10) {
-      errosNovos.hospedes = 'Informe um número válido de hóspedes (1 a 10).';
+      errosNovos.hospedes = t('Informe um número válido de hóspedes (1 a 10).');
     }
     if (Object.keys(errosNovos).length > 0) {
       setErros(errosNovos);
@@ -236,7 +238,7 @@ function Reserva() {
       navigate('/ReservaConcluida/' + dadosAPI.reservaId);
     } catch (erro) {
       console.error(erro);
-      setErros({ geral: erro.message || 'Erro ao salvar reserva no Banco de Dados.' });
+      setErros({ geral: erro.message || t('Erro ao salvar reserva no Banco de Dados.') });
     }
   }
 
@@ -250,14 +252,14 @@ function Reserva() {
       <div className="rc-wrap">
 
         <header className="rc-res-head">
-          <span className="rc-eyebrow">Reserva direta</span>
+          <span className="rc-eyebrow">{t('Reserva direta')}</span>
           <h1>{unidade.nome}</h1>
           <div className="rc-res-meta">
             <span className="rc-res-nota">
               <i className="bi bi-star-fill" aria-hidden="true" />
               {notaGoogle
-                ? <>{notaMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} no Google · {totalGoogle} avaliações</>
-                : <>{depoimentos.length} avaliações de hóspedes</>}
+                ? <>{notaMedia.toLocaleString(idioma === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} {t('no Google')} · {totalGoogle} {t('avaliações')}</>
+                : <>{depoimentos.length} {t('avaliações de hóspedes')}</>}
             </span>
             <span aria-hidden="true">·</span>
             <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local">
@@ -265,7 +267,7 @@ function Reserva() {
             </a>
           </div>
 
-          <div className="rc-tabs" role="tablist" aria-label="Unidade">
+          <div className="rc-tabs" role="tablist" aria-label={t('Unidade')}>
             {unidades.map((u) => (
               <button
                 type="button"
@@ -287,40 +289,29 @@ function Reserva() {
           <div className="rc-res-main">
 
             <section className="rc-res-bloco">
-              <h2>Sobre o {unidade.nome}</h2>
+              <h2>{t('Sobre o {nome}', { nome: unidade.nome })}</h2>
               {unidade.id === 1 ? (
                 <>
-                  <p>
-                    Casa aconchegante com 2 quartos, localizada no bairro Ponte Alta, a apenas 5 minutos
-                    a pé do Santuário Nacional de Aparecida. Ideal para famílias e grupos de peregrinos
-                    que buscam conforto, privacidade e uma estadia tranquila na cidade da Padroeira do Brasil.
-                  </p>
-                  <p>
-                    A casa conta com cozinha completa, churrasqueira, Wi-Fi, Smart TVs, garagem e enxoval
-                    incluso. Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a
-                    melhor experiência possível.
-                  </p>
+                  <p>{t('Casa aconchegante com 2 quartos, localizada no bairro Ponte Alta, a apenas 5 minutos a pé do Santuário Nacional de Aparecida. Ideal para famílias e grupos de peregrinos que buscam conforto, privacidade e uma estadia tranquila na cidade da Padroeira do Brasil.')}</p>
+                  <p>{t('A casa conta com cozinha completa, churrasqueira, Wi-Fi, Smart TVs, garagem e enxoval incluso. Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a melhor experiência possível.')}</p>
                 </>
               ) : (
                 <>
-                  <p>{unidade.resumo}</p>
-                  <p>
-                    Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a melhor
-                    experiência possível.
-                  </p>
+                  <p>{t(unidade.resumo)}</p>
+                  <p>{t('Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a melhor experiência possível.')}</p>
                 </>
               )}
             </section>
 
             <section className="rc-res-bloco">
-              <h2>O que este lugar oferece</h2>
+              <h2>{t('O que este lugar oferece')}</h2>
               <div className="rc-am rc-am-reserva">
                 {comodidadesGrupos.map((g) => (
                   <div className="rc-g" key={g.id}>
-                    <h3>{g.titulo}</h3>
+                    <h3>{t(g.titulo)}</h3>
                     <ul>
                       {g.itens.map((item) => (
-                        <li key={item.texto}><i className={`bi ${item.icone}`} aria-hidden="true" />{item.texto}</li>
+                        <li key={item.texto}><i className={`bi ${item.icone}`} aria-hidden="true" />{t(item.texto)}</li>
                       ))}
                     </ul>
                   </div>
@@ -329,29 +320,28 @@ function Reserva() {
             </section>
 
             <section className="rc-res-bloco">
-              <h2>Localização</h2>
-              <p>{localTexto} — cerca de 5 min a pé do Santuário Nacional</p>
+              <h2>{t('Localização')}</h2>
+              <p>{localTexto} — {t('cerca de 5 min a pé do Santuário Nacional')}</p>
               {unidade.id === 1 && (
                 <>
                   <div className="rc-res-mapa">
-                    <iframe title="Localização do Recanto Camargo no mapa" loading="lazy" src={mapaEmbedSrc} />
+                    <iframe title={t('Localização do Recanto Camargo no mapa')} loading="lazy" src={mapaEmbedSrc} />
                   </div>
                   <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local rc-res-maps">
-                    <i className="bi bi-geo-alt-fill" aria-hidden="true" /> Ver no Google Maps
+                    <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {t('Ver no Google Maps')}
                   </a>
                 </>
               )}
             </section>
           </div>
 
-          <aside className="rc-res-side" aria-label="Reservar">
+          <aside className="rc-res-side" aria-label={t('Reservar')}>
             <div className="rc-res-card">
               {!reservaOnline ? (
                 <>
-                  <h2 className="rc-res-card-titulo">Reservar o {unidade.nome}</h2>
+                  <h2 className="rc-res-card-titulo">{t('Reservar o {nome}', { nome: unidade.nome })}</h2>
                   <p className="rc-res-card-texto">
-                    A reserva online do {unidade.nome} ainda não está disponível. Fale com a gente pelo WhatsApp
-                    para consultar datas e valores.
+                    {t('A reserva online do {nome} ainda não está disponível. Fale com a gente pelo WhatsApp para consultar datas e valores.', { nome: unidade.nome })}
                   </p>
                   <a
                     className="rc-btn rc-btn-primary rc-res-cta"
@@ -359,20 +349,20 @@ function Reserva() {
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    <i className="bi bi-whatsapp" aria-hidden="true" /> Falar no WhatsApp
+                    <i className="bi bi-whatsapp" aria-hidden="true" /> {t('Falar no WhatsApp')}
                   </a>
                 </>
               ) : (
                 <>
                   <div className="rc-res-preco">
-                    <strong>{formatarMoeda(DIARIA)}</strong> <span>/ noite</span>
+                    <strong>{formatarMoeda(DIARIA)}</strong> <span>/ {t('noite')}</span>
                   </div>
 
                   <div className="rc-res-datas-wrap" ref={areaCalendario}>
                     <div className={`rc-res-datas${erros.checkin || erros.checkout ? ' rc-invalid' : ''}`}>
                       <CampoData
                         id="res-checkin"
-                        rotulo="Check-in"
+                        rotulo={t('Check-in')}
                         valor={datas.checkin}
                         aberto={mostrarCalendario}
                         onAbrir={() => setMostrarCalendario(true)}
@@ -380,7 +370,7 @@ function Reserva() {
                       />
                       <CampoData
                         id="res-checkout"
-                        rotulo="Check-out"
+                        rotulo={t('Check-out')}
                         valor={datas.checkout}
                         aberto={mostrarCalendario}
                         onAbrir={() => setMostrarCalendario(true)}
@@ -391,10 +381,10 @@ function Reserva() {
                     {mostrarCalendario && (
                       <>
                         <div className="rc-pop-backdrop" onClick={() => setMostrarCalendario(false)} aria-hidden="true" />
-                        <div className="rc-pop rc-pop-card" role="dialog" aria-label="Selecione as datas">
+                        <div className="rc-pop rc-pop-card" role="dialog" aria-label={t('Selecione as datas')}>
                           <div className="rc-pop-head">
-                            <span>Selecione as datas</span>
-                            <button type="button" onClick={() => setMostrarCalendario(false)} aria-label="Fechar calendário">
+                            <span>{t('Selecione as datas')}</span>
+                            <button type="button" onClick={() => setMostrarCalendario(false)} aria-label={t('Fechar calendário')}>
                               <i className="bi bi-x-lg" aria-hidden="true" />
                             </button>
                           </div>
@@ -408,7 +398,7 @@ function Reserva() {
                   </div>
 
                   <div className="rc-res-campo">
-                    <label htmlFor="res-hospedes">Hóspedes</label>
+                    <label htmlFor="res-hospedes">{t('Hóspedes')}</label>
                     <select
                       id="res-hospedes"
                       className={erros.hospedes ? 'rc-invalid' : ''}
@@ -419,9 +409,9 @@ function Reserva() {
                         setErros(er => ({ ...er, hospedes: undefined }));
                       }}
                     >
-                      <option value="">Quantidade de pessoas</option>
+                      <option value="">{t('Quantidade de pessoas')}</option>
                       {Array.from({ length: MAX_HOSPEDES }, (_, i) => i + 1).map(num => (
-                        <option key={num} value={num}>{num} {num === 1 ? 'hóspede' : 'hóspedes'}</option>
+                        <option key={num} value={num}>{t(num === 1 ? '{n} hóspede' : '{n} hóspedes', { n: num })}</option>
                       ))}
                     </select>
                     {erros.hospedes && (
@@ -443,12 +433,12 @@ function Reserva() {
 
                   {noites > 0 && (
                     <div className="rc-res-valores">
-                      <div><span>{formatarMoeda(DIARIA)} × {noites} {noites === 1 ? 'noite' : 'noites'}</span><span>{formatarMoeda(subtotal)}</span></div>
-                      <div><span>Taxa de limpeza</span><span>{formatarMoeda(TAXA_LIMPEZA)}</span></div>
+                      <div><span>{formatarMoeda(DIARIA)} × {t(noites === 1 ? '{n} noite' : '{n} noites', { n: noites })}</span><span>{formatarMoeda(subtotal)}</span></div>
+                      <div><span>{t('Taxa de limpeza')}</span><span>{formatarMoeda(TAXA_LIMPEZA)}</span></div>
                       {cupomAplicado && (
-                        <div className="rc-res-desconto"><span>Desconto ({cupomAplicado.codigo})</span><span>-{formatarMoeda(desconto)}</span></div>
+                        <div className="rc-res-desconto"><span>{t('Desconto')} ({cupomAplicado.codigo})</span><span>-{formatarMoeda(desconto)}</span></div>
                       )}
-                      <div className="rc-res-total"><span>Total</span><span>{formatarMoeda(total)}</span></div>
+                      <div className="rc-res-total"><span>{t('Total')}</span><span>{formatarMoeda(total)}</span></div>
                     </div>
                   )}
 
@@ -457,23 +447,23 @@ function Reserva() {
                       {cupomAplicado ? (
                         <div className="rc-res-cupom-ok">
                           <span><i className="bi bi-tag-fill" aria-hidden="true" /> {cupomAplicado.codigo}</span>
-                          <button type="button" onClick={removerCupom}>Remover</button>
+                          <button type="button" onClick={removerCupom}>{t('Remover')}</button>
                         </div>
                       ) : (
                         <>
-                          <label htmlFor="res-cupom">Cupom de desconto</label>
+                          <label htmlFor="res-cupom">{t('Cupom de desconto')}</label>
                           <div className="rc-res-cupom">
                             <input
                               id="res-cupom"
                               type="text"
-                              placeholder="Código do cupom"
+                              placeholder={t('Código do cupom')}
                               value={cupomInput}
                               onChange={(e) => setCupomInput(e.target.value)}
                               disabled={validandoCupom}
                               style={{ textTransform: 'uppercase' }}
                             />
                             <button type="button" className="rc-btn rc-btn-line" onClick={aplicarCupom} disabled={validandoCupom}>
-                              {validandoCupom ? 'Validando...' : 'Aplicar'}
+                              {validandoCupom ? t('Validando...') : t('Aplicar')}
                             </button>
                           </div>
                           {erroCupom && (
@@ -486,13 +476,13 @@ function Reserva() {
 
                   {autenticado && (
                     <div className="rc-res-campo">
-                      <label htmlFor="res-obs">Observações (opcional)</label>
+                      <label htmlFor="res-obs">{t('Observações (opcional)')}</label>
                       <textarea
                         id="res-obs"
                         rows={2}
                         value={observacoes}
                         onChange={e => setObservacoes(e.target.value)}
-                        placeholder="Ex: Berço, pet, chegada noturna..."
+                        placeholder={t('Ex: Berço, pet, chegada noturna...')}
                       />
                     </div>
                   )}
@@ -503,27 +493,27 @@ function Reserva() {
 
                   {autenticado ? (
                     <button type="button" className="rc-btn rc-btn-primary rc-res-cta" onClick={handleSubmit}>
-                      Solicitar reserva
+                      {t('Solicitar reserva')}
                     </button>
                   ) : (
                     <>
                       <button type="button" className="rc-btn rc-btn-dark rc-res-cta" onClick={irParaLogin}>
-                        <i className="bi bi-person-circle" aria-hidden="true" /> Faça login para reservar
+                        <i className="bi bi-person-circle" aria-hidden="true" /> {t('Faça login para reservar')}
                       </button>
-                      <p className="rc-res-nota-pequena">Você pode ver datas e valores sem fazer login.</p>
+                      <p className="rc-res-nota-pequena">{t('Você pode ver datas e valores sem fazer login.')}</p>
                     </>
                   )}
                 </>
               )}
 
               <ul className="rc-res-beneficios">
-                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> Cancelamento gratuito até 7 dias antes</li>
-                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> Sem taxas extras do Airbnb</li>
+                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Cancelamento gratuito até 7 dias antes')}</li>
+                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Sem taxas extras do Airbnb')}</li>
               </ul>
 
               {autenticado && reservaOnline && (
                 <p className="rc-res-usuario">
-                  <i className="bi bi-person-check-fill" aria-hidden="true" /> Reservando como <strong>{usuario.nome}</strong>
+                  <i className="bi bi-person-check-fill" aria-hidden="true" /> {t('Reservando como')} <strong>{usuario.nome}</strong>
                 </p>
               )}
             </div>
@@ -534,15 +524,15 @@ function Reserva() {
           <h2>
             <i className="bi bi-star-fill" aria-hidden="true" />{' '}
             {notaGoogle
-              ? `${notaMedia.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} · ${totalGoogle} avaliações no Google`
-              : `${depoimentos.length} avaliações de hóspedes`}
+              ? `${notaMedia.toLocaleString(idioma === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} · ${totalGoogle} ${t('avaliações no Google')}`
+              : `${depoimentos.length} ${t('avaliações de hóspedes')}`}
           </h2>
           <div className="rc-rev">
             {depoimentos.slice(0, 6).map(dep => (
               <figure className="rc-q" key={dep.id}>
-                <span className="rc-stars" role="img" aria-label={`${dep.estrelas} de 5 estrelas`}>{'★'.repeat(dep.estrelas)}</span>
+                <span className="rc-stars" role="img" aria-label={t('{n} de 5 estrelas', { n: dep.estrelas })}>{'★'.repeat(dep.estrelas)}</span>
                 <blockquote style={{ margin: 0 }}><p>“{dep.texto}”</p></blockquote>
-                <figcaption className="rc-who"><b>{dep.nome}</b>{dep.local}</figcaption>
+                <figcaption className="rc-who"><b>{dep.nome}</b>{t(dep.local)}</figcaption>
               </figure>
             ))}
           </div>

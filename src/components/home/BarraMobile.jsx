@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { usePreferencias } from "../../hooks/usePreferencias";
 import { linkWhats, irPara } from "./links";
 
 const CAMPOS = ["INPUT", "SELECT", "TEXTAREA"];
@@ -6,6 +7,7 @@ const CAMPOS = ["INPUT", "SELECT", "TEXTAREA"];
 // Barra fixa (apenas em telas pequenas via CSS). Some enquanto um campo está em foco,
 // para não competir com o teclado nem cobrir formulários.
 function BarraMobile() {
+  const { t } = usePreferencias();
   const [oculta, setOculta] = useState(false);
 
   useEffect(() => {
@@ -20,8 +22,8 @@ function BarraMobile() {
   }, []);
 
   return (
-    <div className={`rc-mbar${oculta ? " rc-mbar-oculta" : ""}`} role="navigation" aria-label="Ações rápidas">
-      <button type="button" className="rc-btn rc-btn-primary" onClick={() => irPara("reservar")}>Reservar</button>
+    <div className={`rc-mbar${oculta ? " rc-mbar-oculta" : ""}`} role="navigation" aria-label={t("Ações rápidas")}>
+      <button type="button" className="rc-btn rc-btn-primary" onClick={() => irPara("reservar")}>{t("Reservar")}</button>
       <a className="rc-btn rc-btn-line" href={linkWhats()} target="_blank" rel="noopener noreferrer">
         <i className="bi bi-whatsapp" aria-hidden="true" /> WhatsApp
       </a>
