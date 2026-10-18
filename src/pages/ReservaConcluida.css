@@ -1,0 +1,149 @@
+.rc-concluida {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+
+.rc-conc-card {
+  width: 100%;
+  max-width: 520px;
+  padding: 36px 32px 32px;
+  background: #fff;
+  border: 1px solid var(--rc-line);
+  border-radius: 28px;
+  box-shadow: var(--rc-sh);
+  text-align: center;
+}
+
+.rc-conc-estado {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  color: var(--rc-muted);
+}
+
+.rc-conc-marca {
+  display: block;
+  margin-bottom: 22px;
+  color: var(--rc-u1);
+  font-size: 1.8rem;
+  line-height: 1.2;
+}
+
+.rc-conc-estado .rc-conc-marca {
+  margin-bottom: 4px;
+}
+
+.rc-conc-selo {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e8f5e9;
+  color: #146c2e;
+  font-size: 2rem;
+  box-shadow: 0 0 0 8px #f3faf4;
+}
+
+.rc-concluida h1 {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.rc-conc-texto {
+  color: var(--rc-muted);
+  font-size: 0.95rem;
+  max-width: 40ch;
+  margin: 0 auto 24px;
+}
+
+.rc-conc-icone-erro {
+  font-size: 2.4rem;
+  color: #b00020;
+}
+
+.rc-conc-detalhes {
+  margin: 0;
+  text-align: left;
+  border-top: 1px solid var(--rc-line);
+}
+
+.rc-conc-detalhes > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rc-line);
+  font-size: 0.95rem;
+}
+
+.rc-conc-detalhes dt {
+  color: var(--rc-muted);
+  font-weight: 500;
+}
+
+.rc-conc-detalhes dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+.rc-conc-detalhes small {
+  font-weight: 500;
+  color: var(--rc-muted);
+}
+
+.rc-conc-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: var(--rc-bg);
+  border: 1px solid var(--rc-line);
+}
+
+.rc-conc-total span {
+  font-weight: 600;
+  color: var(--rc-muted);
+}
+
+.rc-conc-total strong {
+  font-family: var(--rc-serif);
+  font-size: 1.7rem;
+  color: #b34700;
+}
+
+.rc-conc-acoes {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.rc-conc-acoes .rc-btn {
+  width: 100%;
+  min-height: 54px;
+}
+
+.rc-conc-acoes .rc-link-inline {
+  min-height: 44px;
+}
+
+@media (max-width: 480px) {
+  .rc-conc-card {
+    padding: 28px 20px 24px;
+  }
+  .rc-conc-total {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.rc-conc-estado h1 {
+  color: var(--rc-ink);
+}
