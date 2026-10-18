@@ -31,6 +31,7 @@ const ROTAS_COM_TEMA = [
   '/cadastro',
   '/recuperarsenha',
   '/reservaconcluida',
+  '/dashboardcliente',
 ];
 
 const ROTAS_SEM_LAYOUT = [
