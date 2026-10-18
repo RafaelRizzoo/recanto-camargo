@@ -182,11 +182,11 @@ function Cadastro() {
           />
           <label htmlFor="aceitouTermos" className="form-check-label text-white-50" style={{ fontSize: '0.8rem', lineHeight: '1.3', cursor: 'pointer' }}>
             Li e concordo com os{' '}
-            <LinkAutenticacao para="/TermosDeUso" target="_blank" variante="secundario" style={{ textDecoration: 'underline', color: '#ffffff' }}>
+            <LinkAutenticacao para="/TermosDeUso" target="_blank" variante="secundario" style={{ textDecoration: 'underline' }}>
               Termos de Uso
             </LinkAutenticacao>{' '}
             e a{' '}
-            <LinkAutenticacao para="/Privacidade" target="_blank" variante="secundario" style={{ textDecoration: 'underline', color: '#ffffff' }}>
+            <LinkAutenticacao para="/Privacidade" target="_blank" variante="secundario" style={{ textDecoration: 'underline' }}>
               Política de Privacidade
             </LinkAutenticacao>.
           </label>
