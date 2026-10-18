@@ -38,7 +38,7 @@
 }
 
 .rc-filtro[aria-pressed="true"] {
-  background: #fff;
+  background: var(--rc-card);
   border-color: var(--rc-ink);
   color: var(--rc-ink);
 }
@@ -67,7 +67,7 @@
   border: 0;
   border-radius: var(--rc-r);
   overflow: hidden;
-  background: #e8e4dd;
+  background: var(--rc-fill);
   cursor: zoom-in;
   box-shadow: var(--rc-sh);
 }

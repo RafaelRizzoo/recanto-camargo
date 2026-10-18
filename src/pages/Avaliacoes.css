@@ -21,7 +21,7 @@
   align-items: center;
   margin-top: 36px;
   padding: 28px 32px;
-  background: #fff;
+  background: var(--rc-card);
   border: 1px solid var(--rc-line);
   border-radius: 24px;
   box-shadow: var(--rc-sh);
@@ -190,7 +190,7 @@
 .rc-av-verificado {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #146c2e;
+  color: var(--rc-ok);
   white-space: nowrap;
 }
 
@@ -263,7 +263,7 @@
   padding: 48px 24px;
   text-align: center;
   color: var(--rc-muted);
-  background: #fff;
+  background: var(--rc-card);
   border: 1px solid var(--rc-line);
   border-radius: var(--rc-r);
 }
@@ -286,7 +286,7 @@
   margin-top: 56px;
   padding: 28px 32px;
   border-radius: 24px;
-  background: #fff;
+  background: var(--rc-card);
   border: 1px solid var(--rc-line);
 }
 

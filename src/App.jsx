@@ -6,6 +6,7 @@ import Footer from "./components/footer";
 import Home from "./pages/Home";
 import BotaoWhats from "./components/UI/BotaoWhats";
 import { useAutenticacao } from './hooks/useAutenticacao';
+import { usePreferencias } from './hooks/usePreferencias';
 
 const Login                  = lazy(() => import("./pages/Login"));
 const Cadastro               = lazy(() => import("./pages/Cadastro"));
@@ -19,6 +20,18 @@ const DashboardCliente       = lazy(() => import("./pages/DashboardCliente"));
 const ReservaConcluida       = lazy(() => import("./pages/ReservaConcluida"));
 const TermosDeUso             = lazy(() => import("./pages/TermosDeUso"));
 const Privacidade             = lazy(() => import("./pages/Privacidade"));
+
+// Páginas que já têm tema escuro (as demais continuam sempre claras).
+const ROTAS_COM_TEMA = [
+  '/',
+  '/fotos',
+  '/reserva',
+  '/avaliacoes',
+  '/login',
+  '/cadastro',
+  '/recuperarsenha',
+  '/reservaconcluida',
+];
 
 const ROTAS_SEM_LAYOUT = [
   '/Login',
@@ -71,10 +84,17 @@ function AppContent() {
   // Cabeçalho único: transparente sobre o Hero na Home, sólido nas demais páginas.
   const ehHome = location.pathname === '/';
 
+  const { tema } = usePreferencias();
+  const caminho = location.pathname.toLowerCase();
+  const temaDisponivel = ROTAS_COM_TEMA.some(r => (r === '/' ? caminho === '/' : caminho.startsWith(r)));
+  useEffect(() => {
+    document.documentElement.dataset.theme = temaDisponivel && tema === 'escuro' ? 'dark' : 'light';
+  }, [tema, temaDisponivel]);
+
   return (
     <div className="app-shell">
       <ScrollToTop />
-      {mostrarLayout && <HeaderSite emHome={ehHome} />}
+      {mostrarLayout && <HeaderSite emHome={ehHome} mostrarTema={temaDisponivel} />}
 
       <div className="app-main flex-grow-1">
         <Suspense fallback={<CarregandoPagina />}>

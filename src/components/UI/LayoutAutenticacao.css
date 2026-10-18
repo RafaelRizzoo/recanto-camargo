@@ -62,7 +62,7 @@
   min-height: 44px;
   padding: 0 20px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--rc-card);
   color: var(--rc-ink, #202020);
   font-weight: 700;
   font-size: 0.92rem;
@@ -139,7 +139,7 @@
   padding: 0.7rem 3rem;
   border: 1px solid var(--rc-line, #eae7e2);
   border-radius: 14px;
-  background: #fff;
+  background: var(--rc-card);
   box-shadow: none;
   color: var(--rc-ink, #202020);
   font-size: 1rem;
@@ -153,7 +153,7 @@
   transform: none;
   border: 1px solid var(--rc-ink, #202020);
   box-shadow: 0 0 0 3px rgba(255, 117, 31, 0.25);
-  background: #fff;
+  background: var(--rc-card);
 }
 
 .container-autenticacao .icone-esquerdo,
@@ -226,19 +226,19 @@
 }
 
 .container-autenticacao .link-destaque {
-  color: #b34700;
+  color: var(--rc-u1-text);
   border-bottom: 2px solid transparent;
 }
 
 .container-autenticacao .link-destaque:hover {
-  color: #8f3a00;
+  color: var(--rc-u1-text);
   border-bottom-color: currentColor;
 }
 
 .container-autenticacao .alerta-erro {
-  background: #fce8e6;
-  border: 1px solid #f3b8b3;
-  color: #8f1d14;
+  background: var(--rc-err-bg);
+  border: 1px solid var(--rc-err-borda);
+  color: var(--rc-err);
   border-radius: 12px;
   font-weight: 600;
 }
@@ -330,4 +330,29 @@
   margin-bottom: 0.45rem !important;
   margin-top: -0.25rem !important;
   line-height: 1.25;
+}
+
+.btn-voltar,
+.btn-voltar:hover {
+  background: #fff;
+  color: #202020;
+}
+
+.rc-auth-prefs {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+}
+
+.rc-auth-prefs .rc-pref {
+  color: var(--rc-ink);
+  background: var(--rc-card);
+  border: 1px solid var(--rc-line);
+}
+
+.rc-auth-prefs .rc-pref:hover {
+  background: var(--rc-fill);
 }

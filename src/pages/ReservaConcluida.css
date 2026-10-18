@@ -9,7 +9,7 @@
   width: 100%;
   max-width: 520px;
   padding: 36px 32px 32px;
-  background: #fff;
+  background: var(--rc-card);
   border: 1px solid var(--rc-line);
   border-radius: 28px;
   box-shadow: var(--rc-sh);
@@ -42,10 +42,10 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #e8f5e9;
-  color: #146c2e;
+  background: var(--rc-ok-bg);
+  color: var(--rc-ok);
   font-size: 2rem;
-  box-shadow: 0 0 0 8px #f3faf4;
+  box-shadow: 0 0 0 8px var(--rc-ok-bg);
 }
 
 .rc-concluida h1 {
@@ -62,7 +62,7 @@
 
 .rc-conc-icone-erro {
   font-size: 2.4rem;
-  color: #b00020;
+  color: var(--rc-err);
 }
 
 .rc-conc-detalhes {
@@ -116,7 +116,7 @@
 .rc-conc-total strong {
   font-family: var(--rc-serif);
   font-size: 1.7rem;
-  color: #b34700;
+  color: var(--rc-u1-text);
 }
 
 .rc-conc-acoes {

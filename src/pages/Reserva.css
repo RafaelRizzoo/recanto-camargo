@@ -89,7 +89,7 @@
   aspect-ratio: 16 / 10;
   border-radius: var(--rc-r);
   overflow: hidden;
-  background: #cfd8e3;
+  background: var(--rc-fill);
   margin-top: 8px;
 }
 
@@ -113,7 +113,7 @@
 }
 
 .rc-res-card {
-  background: #fff;
+  background: var(--rc-card);
   border: 1px solid var(--rc-line);
   border-radius: 24px;
   box-shadow: 0 14px 40px rgba(32, 32, 32, 0.1);
@@ -159,7 +159,7 @@
 
 .rc-res-datas.rc-invalid,
 .rc-res-campo select.rc-invalid {
-  border-color: #b00020;
+  border-color: var(--rc-err);
 }
 
 .rc-pop-card {
@@ -191,7 +191,7 @@
   padding: 10px 14px;
   border: 1px solid var(--rc-line);
   border-radius: 12px;
-  background: #fff;
+  background: var(--rc-card);
   color: var(--rc-ink);
   font: 500 1rem var(--rc-sans);
 }
@@ -207,13 +207,13 @@
   margin-top: 8px;
   font-size: 0.88rem;
   font-weight: 600;
-  color: #b00020;
+  color: var(--rc-err);
 }
 
 .rc-res-alerta {
   padding: 10px 14px;
   border-radius: 12px;
-  background: #fce8e6;
+  background: var(--rc-err-bg);
 }
 
 .rc-res-valores {
@@ -231,7 +231,7 @@
 }
 
 .rc-res-desconto {
-  color: #146c2e;
+  color: var(--rc-ok);
 }
 
 .rc-res-total {
@@ -243,7 +243,7 @@
 }
 
 .rc-res-total span:last-child {
-  color: #b34700;
+  color: var(--rc-u1-text);
 }
 
 .rc-res-cupom {
@@ -267,15 +267,15 @@
   padding: 10px 14px;
   border-radius: 12px;
   border: 1px dashed #4caf50;
-  background: #e8f5e9;
-  color: #146c2e;
+  background: var(--rc-ok-bg);
+  color: var(--rc-ok);
   font-weight: 700;
 }
 
 .rc-res-cupom-ok button {
   background: none;
   border: 0;
-  color: #b00020;
+  color: var(--rc-err);
   font: 600 0.9rem var(--rc-sans);
   min-height: 44px;
   cursor: pointer;
@@ -305,7 +305,7 @@
 }
 
 .rc-res-beneficios i {
-  color: #146c2e;
+  color: var(--rc-ok);
   margin-right: 6px;
 }
 
@@ -316,7 +316,7 @@
 }
 
 .rc-res-usuario i {
-  color: #146c2e;
+  color: var(--rc-ok);
   margin-right: 6px;
 }
 
