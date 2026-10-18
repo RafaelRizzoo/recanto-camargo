@@ -7,9 +7,11 @@ import { Row, Col, Card, Modal, Alert, Button } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
 import Calendar from 'react-calendar';
 import { useAutenticacao } from '../hooks/useAutenticacao';
+import { usePreferencias } from '../hooks/usePreferencias';
 import Notificacoes from '../components/UI/Notificacoes';
 import { API_BASE } from '../utils/api';
 import 'react-calendar/dist/Calendar.css';
+import '../components/home/home.css';
 import './DashboardAdministrador.css';
 
 // ─── Constantes & Utilitários ────────────────────────────────────────────────
@@ -21,16 +23,18 @@ const fmtData  = (s) => {
   return (a && m && d) ? `${d}/${m}/${a}` : s;
 };
 
-const fmtDataHora = (s) => {
+const fmtDataHora = (s, t = (x) => x) => {
   if (!s) return '—';
   try {
     const d = new Date(s);
     if (isNaN(d.getTime())) return fmtData(s);
-    return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleDateString('pt-BR') + t(' às ') + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   } catch {
     return fmtData(s);
   }
 };
+
+const localeDe = (idioma) => (idioma === 'en' ? 'en-US' : 'pt-BR');
 
 const fmtMoeda = (v) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -53,13 +57,15 @@ const noites   = (ci, co) => {
 };
 
 const STATUS_CFG = {
-  pendente:  { label: 'Pendente',   bg: '#fff3cd', cor: '#856404' },
-  'pagamento pendente': { label: 'Pagamento Pendente', bg: '#fef3c7', cor: '#b45309' },
-  aprovada:  { label: 'Confirmada', bg: '#d1e7dd', cor: '#0f5132' },
-  recusada:  { label: 'Recusada',   bg: '#f8d7da', cor: '#842029' },
-  cancelada: { label: 'Cancelada',  bg: '#f8d7da', cor: '#842029' },
-  concluida: { label: 'Concluída',  bg: '#dbeafe', cor: '#1e40af' },
+  pendente:  { label: 'Pendente',   bg: 'var(--adm-warn-bg)', cor: 'var(--adm-warn-fg)' },
+  'pagamento pendente': { label: 'Pagamento Pendente' },
+  aprovada:  { label: 'Confirmada' },
+  recusada:  { label: 'Recusada',   bg: 'var(--adm-err-bg)', cor: 'var(--adm-err-fg)' },
+  cancelada: { label: 'Cancelada',  bg: 'var(--adm-err-bg)', cor: 'var(--adm-err-fg)' },
+  concluida: { label: 'Concluída',  bg: 'var(--adm-info-bg)', cor: 'var(--adm-info-fg)' },
 };
+
+const classeStatus = (status) => `st-${String(status || 'pendente').replace(/\s+/g, '-')}`;
 
 const PUBLICO_CFG = {
   TODOS: {
@@ -108,14 +114,16 @@ const Ico = {
 
 // ─── Subcomponentes Visuais ──────────────────────────────────────────────────
 function BadgeStatus({ status }) {
+  const { t } = usePreferencias();
   const c = STATUS_CFG[status] || STATUS_CFG.pendente;
-  return <span className="badge-status-admin" style={{ background: c.bg, color: c.cor }}>{c.label}</span>;
+  return <span className={`badge-status-admin ${classeStatus(status)}`}>{t(c.label)}</span>;
 }
 
 function EstrelasAvaliacao({ nota, tamanho = '1rem' }) {
+  const { t, idioma } = usePreferencias();
   const valor = Math.min(5, Math.max(0, Number(nota) || 0));
   return (
-    <span className="avaliacao-admin-estrelas" role="img" aria-label={`${valor.toLocaleString('pt-BR')} de 5 estrelas`} style={{ fontSize: tamanho }}>
+    <span className="avaliacao-admin-estrelas" role="img" aria-label={t('{valor} de 5 estrelas', { valor: valor.toLocaleString(localeDe(idioma)) })} style={{ fontSize: tamanho }}>
       {[1, 2, 3, 4, 5].map(posicao => {
         const classe = valor >= posicao
           ? 'bi-star-fill'
@@ -128,14 +136,14 @@ function EstrelasAvaliacao({ nota, tamanho = '1rem' }) {
   );
 }
 
-function CardKpiModerno({ icone, titulo, valor, badge, sub, cor = '#3b6399', barraProgresso = null }) {
+function CardKpiModerno({ icone, titulo, valor, badge, sub, cor = 'var(--adm-blue)', barraProgresso = null }) {
   return (
     <Card className="card-kpi-moderno border-0 shadow-sm h-100">
       <Card.Body className="p-4 d-flex flex-column justify-content-between">
         <div>
           <div className="d-flex align-items-center justify-content-between mb-2">
             <span className="titulo-kpi-moderno">{titulo}</span>
-            <div className="icone-kpi-moderno" style={{ background: `${cor}1a`, color: cor }}>
+            <div className="icone-kpi-moderno" style={{ background: `color-mix(in srgb, ${cor} 14%, transparent)`, color: cor }}>
               {icone}
             </div>
           </div>
@@ -162,6 +170,7 @@ function CardKpiModerno({ icone, titulo, valor, badge, sub, cor = '#3b6399', bar
 
 // ─── Gráfico SVG Moderno de Evolução de Faturamento (Últimos 6 Meses) ─────────
 function GraficoFaturamentoSVG({ reservas }) {
+  const { t, idioma } = usePreferencias();
   const [pontoAtivo, setPontoAtivo] = useState(null);
 
   const meses = useMemo(() => {
@@ -170,7 +179,7 @@ function GraficoFaturamentoSVG({ reservas }) {
       const d = new Date(hoje.getFullYear(), hoje.getMonth() - (5 - i), 1);
       const mesNum = d.getMonth();
       const anoNum = d.getFullYear();
-      const label = d.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
+      const label = d.toLocaleString(localeDe(idioma), { month: 'short' }).replace('.', '');
 
       const receitaDoMes = reservas
         .filter(r => (r.status === 'aprovada' || r.status === 'concluida'))
@@ -188,7 +197,7 @@ function GraficoFaturamentoSVG({ reservas }) {
         valor: receitaDoMes,
       };
     });
-  }, [reservas]);
+  }, [reservas, idioma]);
 
   const totalPeriodo = useMemo(() => meses.reduce((a, b) => a + b.valor, 0), [meses]);
   const maxValor = useMemo(() => Math.max(...meses.map(m => m.valor), 2500), [meses]);
@@ -224,15 +233,15 @@ function GraficoFaturamentoSVG({ reservas }) {
     <div className="card-grafico-svg border-0 shadow-sm p-4 mb-4">
       <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
         <div>
-          <h6 className="fw-bold mb-0" style={{ color: '#223a5e' }}>
+          <h6 className="fw-bold mb-0" style={{ color: 'var(--rc-ink)' }}>
             <i className="bi bi-graph-up me-2 text-primary" />
-            Evolução do Faturamento
+            {t("Evolução do Faturamento")}
           </h6>
-          <span className="text-muted small">Últimos 6 meses · Receita de estadias confirmadas e concluídas</span>
+          <span className="text-muted small">{t("Últimos 6 meses · Receita de estadias confirmadas e concluídas")}</span>
         </div>
         <div>
           <span className="badge-total-6m">
-            Total do período: <strong>{fmtMoeda(totalPeriodo)}</strong>
+            {t("Total do período:")} <strong>{fmtMoeda(totalPeriodo)}</strong>
           </span>
         </div>
       </div>
@@ -241,14 +250,14 @@ function GraficoFaturamentoSVG({ reservas }) {
         <svg viewBox={`0 0 ${width} ${height}`} className="w-100" style={{ overflow: 'visible', maxHeight: '220px' }}>
           <defs>
             <linearGradient id="recantoGradienteFaturamento" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ff9211" stopOpacity="0.45" />
-              <stop offset="60%" stopColor="#3b6399" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="#223a5e" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--rc-u1)" stopOpacity="0.45" />
+              <stop offset="60%" stopColor="var(--adm-blue)" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="var(--rc-ink)" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id="recantoGradienteLinha" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#223a5e" />
-              <stop offset="50%" stopColor="#3b6399" />
-              <stop offset="100%" stopColor="#ff9211" />
+              <stop offset="0%" stopColor="var(--rc-ink)" />
+              <stop offset="50%" stopColor="var(--adm-blue)" />
+              <stop offset="100%" stopColor="var(--rc-u1)" />
             </linearGradient>
           </defs>
 
@@ -263,7 +272,7 @@ function GraficoFaturamentoSVG({ reservas }) {
                   y1={y}
                   x2={padding.left + innerWidth}
                   y2={y}
-                  stroke="#f1f5f9"
+                  stroke="var(--rc-line)"
                   strokeDasharray="4 4"
                   strokeWidth="1.2"
                 />
@@ -271,7 +280,7 @@ function GraficoFaturamentoSVG({ reservas }) {
                   x={padding.left - 10}
                   y={y + 4}
                   textAnchor="end"
-                  fill="#94a3b8"
+                  fill="var(--rc-muted)"
                   fontSize="10"
                   fontWeight="600"
                 >
@@ -308,7 +317,7 @@ function GraficoFaturamentoSVG({ reservas }) {
                   x={p.x}
                   y={padding.top + innerHeight + 20}
                   textAnchor="middle"
-                  fill={isAtivo ? '#ff9211' : '#64748b'}
+                  fill={isAtivo ? 'var(--rc-u1)' : 'var(--rc-muted)'}
                   fontSize="11"
                   fontWeight={isAtivo ? '700' : '600'}
                 >
@@ -319,7 +328,7 @@ function GraficoFaturamentoSVG({ reservas }) {
                   cx={p.x}
                   cy={p.y}
                   r={isAtivo ? 9 : 6.5}
-                  fill="#ff9211"
+                  fill="var(--rc-u1)"
                   fillOpacity={isAtivo ? 0.35 : 0.15}
                   style={{ transition: 'all 0.2s ease' }}
                 />
@@ -328,8 +337,8 @@ function GraficoFaturamentoSVG({ reservas }) {
                   cx={p.x}
                   cy={p.y}
                   r={isAtivo ? 5 : 4}
-                  fill="#ffffff"
-                  stroke={isAtivo ? '#ff9211' : '#223a5e'}
+                  fill="var(--rc-card)"
+                  stroke={isAtivo ? 'var(--rc-u1)' : 'var(--rc-ink)'}
                   strokeWidth="2.5"
                   style={{ transition: 'all 0.2s ease' }}
                 />
@@ -356,6 +365,7 @@ function GraficoFaturamentoSVG({ reservas }) {
 
 // ─── Card de Próximos Check-ins com Botão Direto de WhatsApp ──────────────────
 function CardProximosCheckins({ reservas }) {
+  const { t } = usePreferencias();
   const hoje = useMemo(() => {
     const h = new Date();
     h.setHours(0, 0, 0, 0);
@@ -388,21 +398,21 @@ function CardProximosCheckins({ reservas }) {
     <div className="card-checkins-admin border-0 shadow-sm p-4 mb-4">
       <div className="d-flex align-items-center justify-content-between mb-3">
         <div>
-          <h6 className="fw-bold mb-0" style={{ color: '#223a5e' }}>
+          <h6 className="fw-bold mb-0" style={{ color: 'var(--rc-ink)' }}>
             <i className="bi bi-person-check-fill me-2 text-warning" />
-            Próximos Check-ins
+            {t("Próximos Check-ins")}
           </h6>
-          <span className="text-muted small">Hóspedes confirmados com chegada nos próximos dias</span>
+          <span className="text-muted small">{t("Hóspedes confirmados com chegada nos próximos dias")}</span>
         </div>
         <span className="badge bg-light text-dark border">
-          {proximos.length} agendados
+          {t('{n} agendados', { n: proximos.length })}
         </span>
       </div>
 
       {proximos.length === 0 ? (
         <div className="text-center py-4 text-muted">
           <i className="bi bi-calendar-check fs-3 d-block mb-2 opacity-50" />
-          <p className="mb-0 small">Nenhum check-in previsto para os próximos dias.</p>
+          <p className="mb-0 small">{t("Nenhum check-in previsto para os próximos dias.")}</p>
         </div>
       ) : (
         <div className="lista-checkins-wrapper d-flex flex-column gap-3">
@@ -414,15 +424,19 @@ function CardProximosCheckins({ reservas }) {
                 </div>
                 <div>
                   <div className="d-flex align-items-center gap-2">
-                    <span className="fw-bold" style={{ color: '#223a5e' }}>{r.nome || r.hospede}</span>
+                    <span className="fw-bold" style={{ color: 'var(--rc-ink)' }}>{r.nome || r.hospede}</span>
                     <BadgeStatus status={r.status} />
                   </div>
                   <div className="text-muted small">
                     <i className="bi bi-calendar3 me-1" />
-                    {fmtData(r.checkin)} → {fmtData(r.checkout)} ({noites(r.checkin, r.checkout)} noites · {r.hospedes} hóspedes)
+                    {fmtData(r.checkin)} → {fmtData(r.checkout)} ({t('{noites} noites · {hospedes} hóspedes', { noites: noites(r.checkin, r.checkout), hospedes: r.hospedes })})
                   </div>
-                  <div className="small fw-semibold mt-1" style={{ color: r.diffDias === 0 ? '#16a34a' : '#223a5e' }}>
-                    {r.diffDias === 0 ? '✨ Entrada Hoje!' : r.diffDias === 1 ? '📅 Entrada Amanhã' : `⏳ Em ${r.diffDias} dias`}
+                  <div className="small fw-semibold mt-1" style={{ color: r.diffDias === 0 ? 'var(--adm-ok-fg)' : 'var(--rc-ink)' }}>
+                    {r.diffDias === 0
+                      ? <><i className="bi bi-stars me-1" aria-hidden="true" />{t('Entrada Hoje!')}</>
+                      : r.diffDias === 1
+                        ? <><i className="bi bi-calendar-event me-1" aria-hidden="true" />{t('Entrada Amanhã')}</>
+                        : <><i className="bi bi-hourglass-split me-1" aria-hidden="true" />{t('Em {n} dias', { n: r.diffDias })}</>}
                   </div>
                 </div>
               </div>
@@ -433,7 +447,7 @@ function CardProximosCheckins({ reservas }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-whatsapp-checkin"
-                  title={`Abrir WhatsApp de ${r.nome || r.hospede}`}
+                  title={t('Abrir WhatsApp de {nome}', { nome: r.nome || r.hospede })}
                 >
                   <Ico.WhatsApp />
                   <span>WhatsApp</span>
@@ -449,6 +463,7 @@ function CardProximosCheckins({ reservas }) {
 
 // ─── Modal Detalhe da Reserva ────────────────────────────────────────────────
 function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
+  const { t } = usePreferencias();
   const [motivo, setMotivo] = useState('');
   const [erroDecisao, setErroDecisao] = useState('');
   const [enviando, setEnviando] = useState(false);
@@ -464,7 +479,7 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
     setEnviando(true);
     setErroDecisao('');
     try { await aoDecidir(reserva.id, acao, motivo); }
-    catch (erro) { setErroDecisao(erro.message || 'Não foi possível salvar a decisão.'); }
+    catch (erro) { setErroDecisao(erro.message || t('Não foi possível salvar a decisão.')); }
     finally { envioRef.current = false; setEnviando(false); }
   }
 
@@ -483,8 +498,8 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
     <>
       <Modal show onHide={() => !enviando && aoFechar()} centered scrollable size="lg" className="modal-reserva-admin">
         <Modal.Header closeButton className="modal-header-admin py-2 px-3 px-md-4">
-          <Modal.Title style={{ fontSize: '1.2rem', fontWeight: 700 }} className="d-flex align-items-center gap-2">
-            <i className="bi bi-calendar2-check-fill" style={{ color: '#38bdf8' }}></i> Reserva #{reserva.id}
+          <Modal.Title className="d-flex align-items-center gap-2">
+            <i className="bi bi-calendar2-check-fill" aria-hidden="true"></i> {t('Reserva #{id}', { id: reserva.id })}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-3 px-md-4">
@@ -496,7 +511,7 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
                 <div className="d-flex align-items-center gap-3">
                   <div className="avatar-hospede-modal">{(r.nome || r.hospede || '?').charAt(0)}</div>
                   <div>
-                    <div className="cli-bloco-valor" style={{ fontSize: '1.08rem' }}>{r.nome || r.hospede}</div>
+                    <div className="nome-hospede-modal">{r.nome || r.hospede}</div>
                     <div className="text-muted small mt-1">{r.email}</div>
                     {r.telefone && (
                       <div className="text-muted small mt-0.5">
@@ -508,8 +523,8 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
                 </div>
                 {r.criadaEm && (
                   <div className="text-md-end text-muted small ms-auto">
-                    <div className="label-data-modal mb-1" style={{ fontSize: '0.68rem' }}>Criada em</div>
-                    <strong style={{ color: '#334155', fontSize: '0.85rem' }}>{fmtDataHora(r.criadaEm)}</strong>
+                    <div className="label-data-modal mb-1" style={{ fontSize: '0.68rem' }}>{t("Criada em")}</div>
+                    <strong style={{ color: 'var(--rc-ink)', fontSize: '0.85rem' }}>{fmtDataHora(r.criadaEm, t)}</strong>
                   </div>
                 )}
               </div>
@@ -519,19 +534,19 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
             <Col md={6}>
               <div className="p-3 rounded-3 border bg-white h-100">
                 <div className="label-secao-modal d-flex align-items-center gap-1 mb-2">
-                  <i className="bi bi-calendar3"></i> Período
+                  <i className="bi bi-calendar3"></i> {t("Período")}
                 </div>
                 <div className="d-flex gap-2">
                   <div className="bloco-data-modal flex-fill">
-                    <div className="label-data-modal">Check-in</div>
+                    <div className="label-data-modal">{t("Check-in")}</div>
                     <div className="valor-data-modal">{fmtData(r.checkin)}</div>
                   </div>
                   <div className="bloco-data-modal flex-fill">
-                    <div className="label-data-modal">Check-out</div>
+                    <div className="label-data-modal">{t("Check-out")}</div>
                     <div className="valor-data-modal">{fmtData(r.checkout)}</div>
                   </div>
                   <div className="bloco-data-modal" style={{ minWidth: '60px' }}>
-                    <div className="label-data-modal">Noites</div>
+                    <div className="label-data-modal">{t("Noites")}</div>
                     <div className="valor-data-modal">{n}</div>
                   </div>
                 </div>
@@ -542,16 +557,16 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
             <Col md={6}>
               <div className="p-3 rounded-3 border bg-white h-100">
                 <div className="label-secao-modal d-flex align-items-center gap-1 mb-2">
-                  <i className="bi bi-cash-stack"></i> Pessoas & Valor
+                  <i className="bi bi-cash-stack"></i> {t("Pessoas & Valor")}
                 </div>
                 <div className="d-flex gap-2">
                   <div className="bloco-data-modal" style={{ minWidth: '70px' }}>
-                    <div className="label-data-modal">Pessoas</div>
+                    <div className="label-data-modal">{t("Pessoas")}</div>
                     <div className="valor-data-modal">{r.hospedes}</div>
                   </div>
-                  <div className="bloco-data-modal flex-fill" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
-                    <div className="label-data-modal">Total</div>
-                    <div className="valor-data-modal" style={{ color: '#16a34a' }}>{fmtMoeda(r.total || r.valorTotal)}</div>
+                  <div className="bloco-data-modal flex-fill" style={{ background: 'var(--adm-ok-bg)', borderColor: 'var(--adm-ok-bd)' }}>
+                    <div className="label-data-modal">{t('Total')}</div>
+                    <div className="valor-data-modal" style={{ color: 'var(--adm-ok-fg)' }}>{fmtMoeda(r.total || r.valorTotal)}</div>
                   </div>
                 </div>
               </div>
@@ -559,16 +574,16 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
 
             {(r.observacoes || r.observacao) && (
               <Col xs={12}>
-                <p className="label-secao-modal mb-1">Observações do Hóspede</p>
-                <div className="cli-obs-box py-2 px-3" style={{ fontSize: '0.88rem' }}>{r.observacoes || r.observacao}</div>
+                <p className="label-secao-modal mb-1">{t("Observações do Hóspede")}</p>
+                <div className="obs-modal obs-modal-neutra">{r.observacoes || r.observacao}</div>
               </Col>
             )}
 
             {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
               <Col xs={12}>
-                <div className="obs-modal" style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
+                <div className="obs-modal" style={{ background: 'var(--adm-ok-bg)', border: '1px solid var(--adm-ok-bd)', color: 'var(--adm-ok-fg)', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
                   <i className="bi bi-arrow-counterclockwise me-2"></i>
-                  <strong>Estorno Realizado no Mercado Pago:</strong> {fmtMoeda(r.valorReembolsado)} devolvidos diretamente ao hóspede.
+                  <strong>{t("Estorno Realizado no Mercado Pago:")}</strong> {t('{valor} devolvidos diretamente ao hóspede.', { valor: fmtMoeda(r.valorReembolsado) })}
                 </div>
               </Col>
             )}
@@ -576,9 +591,9 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
             {(r.motivoRecusa || r.motivo) && (r.status === 'recusada' || r.status === 'cancelada') && (
               <Col xs={12}>
                 <p className="label-secao-modal mb-1">
-                  {r.status === 'cancelada' ? 'Motivo do Cancelamento' : 'Motivo da Recusa'}
+                  {r.status === 'cancelada' ? t('Motivo do Cancelamento') : t('Motivo da Recusa')}
                 </p>
-                <div className="obs-modal" style={{ background: '#fff1f2', border: '1px solid #fecaca', color: '#9a3412', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
+                <div className="obs-modal" style={{ background: 'var(--adm-err-bg)', border: '1px solid var(--adm-err-bd)', color: 'var(--adm-warn-fg)', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem' }}>
                   <i className="bi bi-info-circle me-2"></i>
                   {r.motivoRecusa || r.motivo}
                 </div>
@@ -587,15 +602,15 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
 
             {r.status === 'pagamento pendente' && (
               <Col xs={12}>
-                <div className="obs-modal" style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                <div className="obs-modal" style={{ background: 'var(--adm-warn-bg)', border: '1px solid var(--adm-warn-bd)', color: 'var(--adm-warn-fg)', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
                   <div>
                     <i className="bi bi-clock-history me-2"></i>
-                    <strong>Aguardando Pagamento do Hóspede:</strong> Esta reserva foi pré-aprovada e aguarda o pagamento via Mercado Pago pelo hóspede. O faturamento e confirmação definitiva ocorrerão automaticamente assim que o pagamento for aprovado.
+                    <strong>{t("Aguardando Pagamento do Hóspede:")}</strong> {t('Esta reserva foi pré-aprovada e aguarda o pagamento via Mercado Pago pelo hóspede. O faturamento e confirmação definitiva ocorrerão automaticamente assim que o pagamento for aprovado.')}
                   </div>
                   {r.expiraEm && (
-                    <div className="mt-2 pt-2 border-top border-warning-subtle fw-semibold" style={{ color: '#78350f' }}>
+                    <div className="mt-2 pt-2 border-top border-warning-subtle fw-semibold" style={{ color: 'var(--adm-warn-fg)' }}>
                       <i className="bi bi-hourglass-split me-1"></i>
-                      Prazo para pagamento: até <strong>{fmtDataHora(r.expiraEm)} (24 horas)</strong>. Caso o pagamento não ocorra até esse horário, a reserva será cancelada e as datas serão liberadas automaticamente no calendário.
+                      {t('Prazo para pagamento: até')} <strong>{t('{data} (24 horas)', { data: fmtDataHora(r.expiraEm, t) })}</strong>. {t('Caso o pagamento não ocorra até esse horário, a reserva será cancelada e as datas serão liberadas automaticamente no calendário.')}
                     </div>
                   )}
                 </div>
@@ -604,13 +619,13 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
 
             {r.status === 'pendente' && (
               <Col xs={12}>
-                <div className="obs-modal" style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
+                <div className="obs-modal" style={{ background: 'var(--adm-info-bg)', border: '1px solid var(--adm-info-bd)', color: 'var(--adm-info-fg)', borderRadius: '10px', padding: '0.85rem 1rem', fontSize: '0.88rem', lineHeight: '1.5' }}>
                   <i className="bi bi-info-circle me-2"></i>
-                  <strong>Aguardando sua Decisão:</strong>
+                  <strong>{t("Aguardando sua Decisão:")}</strong>
                   {r.expiraEm ? (
-                    <span> Você tem até <strong>{fmtDataHora(r.expiraEm)} (48 horas da solicitação)</strong> para aprovar ou recusar esta reserva antes que ela expire e seja cancelada automaticamente pelo sistema.</span>
+                    <span> {t('Você tem até')} <strong>{t('{data} (48 horas da solicitação)', { data: fmtDataHora(r.expiraEm, t) })}</strong> {t('para aprovar ou recusar esta reserva antes que ela expire e seja cancelada automaticamente pelo sistema.')}</span>
                   ) : (
-                    <span> Responda em até 48 horas para evitar cancelamento automático.</span>
+                    <span> {t('Responda em até 48 horas para evitar cancelamento automático.')}</span>
                   )}
                 </div>
               </Col>
@@ -619,7 +634,7 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
 
           {r.status === 'pendente' && (
             <div className="mt-3">
-              <label htmlFor="motivo-recusa" className="form-label small fw-semibold text-muted">Motivo da recusa (opcional)</label>
+              <label htmlFor="motivo-recusa" className="form-label small fw-semibold text-muted">{t("Motivo da recusa (opcional)")}</label>
               <textarea id="motivo-recusa" className="form-control" rows={2} maxLength={250}
                 value={motivo} disabled={enviando} onChange={e => setMotivo(e.target.value)}
                 style={{ borderRadius: '10px', fontSize: '0.88rem' }} />
@@ -629,14 +644,14 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
         {r.status === 'pendente' && (
           <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={enviando} onClick={aoFechar}>
-              Fechar
+              {t('Fechar')}
             </Button>
             <div className="d-flex align-items-center gap-2">
               <Button variant="outline-danger" style={{ borderRadius: '50px', padding: '0.45rem 1.1rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => decidir('recusar')}>
-                <i className="bi bi-x-circle me-1" /> Recusar reserva
+                <i className="bi bi-x-circle me-1" /> {t("Recusar reserva")}
               </Button>
               <Button variant="success" style={{ borderRadius: '50px', fontWeight: 700, padding: '0.45rem 1.3rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => decidir('aprovar')}>
-                <i className="bi bi-check2-circle me-1" /> {enviando ? 'Salvando…' : 'Aprovar reserva'}
+                <i className="bi bi-check2-circle me-1" /> {enviando ? t('Salvando…') : t('Aprovar reserva')}
               </Button>
             </div>
           </Modal.Footer>
@@ -644,20 +659,20 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
         {r.status === 'aprovada' && (
           <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
             <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={enviando} onClick={aoFechar}>
-              Fechar
+              {t('Fechar')}
             </Button>
             <div className="d-flex align-items-center gap-2 flex-wrap">
               <Button variant="outline-danger" style={{ borderRadius: '50px', padding: '0.45rem 1.1rem', fontSize: '0.88rem' }} disabled={enviando} onClick={() => { aoFechar(); aoAbrirCancelamento && aoAbrirCancelamento(r); }}>
-                <i className="bi bi-x-circle me-1" /> Cancelar Reserva (Estorno)
+                <i className="bi bi-x-circle me-1" /> {t("Cancelar Reserva (Estorno)")}
               </Button>
               {checkinNoFuturo ? (
                 <div className="d-flex align-items-center gap-2">
                   <span className="small text-muted" style={{ fontSize: '0.8rem' }}>
                     <i className="bi bi-lock-fill text-secondary me-1" />
-                    Conclusão liberada após o check-in ({fmtData(r.checkin)} às 14h)
+                    {t('Conclusão liberada após o check-in ({data} às 14h)', { data: fmtData(r.checkin) })}
                   </span>
                   <Button variant="secondary" disabled style={{ opacity: 0.65, borderRadius: '50px' }}>
-                    <i className="bi bi-check2-circle me-1" /> Concluir Estadia
+                    <i className="bi bi-check2-circle me-1" /> {t("Concluir Estadia")}
                   </Button>
                 </div>
               ) : (
@@ -667,7 +682,7 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
                   onClick={() => setConfirmandoConclusao(true)}
                   style={{ borderRadius: '50px', fontWeight: 600, padding: '0.45rem 1.25rem', fontSize: '0.88rem' }}
                 >
-                  <i className="bi bi-check2-circle me-1" /> Concluir Estadia
+                  <i className="bi bi-check2-circle me-1" /> {t("Concluir Estadia")}
                 </Button>
               )}
             </div>
@@ -676,7 +691,7 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
         {r.status !== 'pendente' && r.status !== 'aprovada' && (
           <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-end align-items-center">
             <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} onClick={aoFechar}>
-              Fechar
+              {t('Fechar')}
             </Button>
           </Modal.Footer>
         )}
@@ -702,53 +717,54 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
 
 // ─── Modal Confirmação de Conclusão Manual de Estadia (Trava de Segurança) ────
 function ModalConfirmarConclusao({ show, reserva, checkoutNoFuturo, aoFechar, aoConfirmar, enviando }) {
+  const { t } = usePreferencias();
   if (!show || !reserva) return null;
 
   return (
-    <Modal show onHide={aoFechar} centered backdrop={enviando ? 'static' : true}>
-      <Modal.Header closeButton={!enviando} style={{ background: checkoutNoFuturo ? '#fffbeb' : '#f0fdf4', borderBottom: '1px solid ' + (checkoutNoFuturo ? '#fde68a' : '#bbf7d0') }}>
-        <Modal.Title style={{ fontSize: '1.15rem', fontWeight: 700, color: checkoutNoFuturo ? '#92400e' : '#166534' }}>
+    <Modal show onHide={aoFechar} centered backdrop={enviando ? 'static' : true} className="adm-modal">
+      <Modal.Header closeButton={!enviando} style={{ background: checkoutNoFuturo ? 'var(--adm-warn-bg)' : 'var(--adm-ok-bg)', borderBottom: '1px solid ' + (checkoutNoFuturo ? 'var(--adm-warn-bd)' : 'var(--adm-ok-bd)') }}>
+        <Modal.Title style={{ color: checkoutNoFuturo ? 'var(--adm-warn-fg)' : 'var(--adm-ok-fg)' }}>
           <i className={`bi ${checkoutNoFuturo ? 'bi-exclamation-triangle-fill text-warning' : 'bi-check2-circle text-success'} me-2`} />
-          {checkoutNoFuturo ? 'Atenção: Conclusão Antecipada' : 'Confirmar Conclusão da Estadia'}
+          {checkoutNoFuturo ? t('Atenção: Conclusão Antecipada') : t('Confirmar Conclusão da Estadia')}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
         {checkoutNoFuturo ? (
           <div>
-            <div className="p-3 mb-3 rounded-3" style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
-              <div className="fw-bold mb-1" style={{ color: '#92400e' }}>
+            <div className="p-3 mb-3 rounded-3" style={{ background: 'var(--adm-warn-bg)', border: '1px solid var(--adm-warn-bd)' }}>
+              <div className="fw-bold mb-1" style={{ color: 'var(--adm-warn-fg)' }}>
                 <i className="bi bi-hourglass-split me-1" />
-                O check-out oficial está previsto para {fmtData(reserva.checkout)} às 11:00.
+                {t('O check-out oficial está previsto para {data} às 11:00.', { data: fmtData(reserva.checkout) })}
               </div>
               <p className="small mb-0 text-muted">
-                O hóspede <strong>{reserva.nome || reserva.hospede}</strong> ainda está dentro do período regular da reserva contratada.
+                {t('O hóspede')} <strong>{reserva.nome || reserva.hospede}</strong> {t('ainda está dentro do período regular da reserva contratada.')}
               </p>
             </div>
             <p className="small text-muted mb-2">
-              Você confirma que o hóspede já liberou o chalé e realizou o <strong>check-out antecipado</strong>?
+              {t('Você confirma que o hóspede já liberou o chalé e realizou o')} <strong>{t('check-out antecipado')}</strong>?
             </p>
-            <div className="small text-muted border-start border-3 border-warning ps-2 py-1 mb-0" style={{ background: '#f8fafc' }}>
-              Ao confirmar, a reserva será concluída no sistema e um convite de avaliação será disparado para o hóspede.
+            <div className="small text-muted border-start border-3 border-warning ps-2 py-1 mb-0" style={{ background: 'var(--adm-sub)' }}>
+              {t('Ao confirmar, a reserva será concluída no sistema e um convite de avaliação será disparado para o hóspede.')}
             </div>
           </div>
         ) : (
           <div>
             <p className="mb-2">
-              Deseja confirmar o encerramento da estadia da <strong>Reserva #{reserva.id}</strong>?
+              {t('Deseja confirmar o encerramento da estadia da')} <strong>{t('Reserva #{id}', { id: reserva.id })}</strong>?
             </p>
             <div className="p-3 mb-3 rounded-3 border bg-light small">
-              <div><strong>Hóspede:</strong> {reserva.nome || reserva.hospede}</div>
-              <div><strong>Período:</strong> {fmtData(reserva.checkin)} às 14:00 até {fmtData(reserva.checkout)} às 11:00</div>
+              <div><strong>{t("Hóspede:")}</strong> {reserva.nome || reserva.hospede}</div>
+              <div><strong>{t("Período:")}</strong> {t('{ini} às 14:00 até {fim} às 11:00', { ini: fmtData(reserva.checkin), fim: fmtData(reserva.checkout) })}</div>
             </div>
             <p className="small text-muted mb-0">
-              Ao confirmar a conclusão, o hóspede receberá um convite por e-mail e pelo painel para avaliar a hospedagem no Recanto Camargo.
+              {t('Ao confirmar a conclusão, o hóspede receberá um convite por e-mail e pelo painel para avaliar a hospedagem no Recanto Camargo.')}
             </p>
           </div>
         )}
       </Modal.Body>
       <Modal.Footer className="border-0 pt-0 gap-2">
         <Button variant="outline-secondary" disabled={enviando} onClick={aoFechar} style={{ borderRadius: '50px' }}>
-          Voltar
+          {t('Voltar')}
         </Button>
         <Button
           variant={checkoutNoFuturo ? 'warning' : 'primary'}
@@ -759,12 +775,12 @@ function ModalConfirmarConclusao({ show, reserva, checkoutNoFuturo, aoFechar, ao
           {enviando ? (
             <>
               <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-              Concluindo...
+              {t("Concluindo...")}
             </>
           ) : (
             <>
               <i className="bi bi-check2-circle me-1" />
-              {checkoutNoFuturo ? 'Sim, Concluir Antecipado' : 'Confirmar Conclusão'}
+              {checkoutNoFuturo ? t('Sim, Concluir Antecipado') : t('Confirmar Conclusão')}
             </>
           )}
         </Button>
@@ -775,6 +791,7 @@ function ModalConfirmarConclusao({ show, reserva, checkoutNoFuturo, aoFechar, ao
 
 // ─── Modal Cancelar Reserva com Reembolso Automático (Mercado Pago) ───────────
 function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento }) {
+  const { t } = usePreferencias();
   const [simulacao, setSimulacao] = useState(null);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
@@ -797,7 +814,7 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
         else setSimulacao(dados);
       })
       .catch(err => {
-        if (ativo) setErro(err.message || 'Erro ao calcular política de reembolso.');
+        if (ativo) setErro(err.message || t('Erro ao calcular política de reembolso.'));
       })
       .finally(() => {
         if (ativo) setCarregando(false);
@@ -814,7 +831,7 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
       await aoConfirmarCancelamento(reserva.id, motivo);
       aoFechar();
     } catch (err) {
-      setErro(err.message || 'Não foi possível processar o cancelamento.');
+      setErro(err.message || t('Não foi possível processar o cancelamento.'));
     } finally {
       setCancelando(false);
     }
@@ -824,10 +841,10 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
 
   return (
     <Modal show onHide={() => !cancelando && aoFechar()} centered scrollable size="lg" className="modal-reserva-admin">
-      <Modal.Header closeButton className="modal-header-admin py-2 px-3 px-md-4" style={{ background: 'linear-gradient(135deg, #7f1d1d, #dc2626)', color: '#fff', borderBottom: 'none' }}>
-        <Modal.Title style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 700 }}>
+      <Modal.Header closeButton className="modal-header-admin modal-header-perigo py-2 px-3 px-md-4">
+        <Modal.Title>
           <i className="bi bi-exclamation-triangle-fill me-2" />
-          Cancelar Reserva #{reserva.id}
+          {t('Cancelar Reserva #{id}', { id: reserva.id })}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body className="p-4">
@@ -836,7 +853,7 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
         {carregando ? (
           <div className="text-center py-5">
             <div className="spinner-border text-danger" role="status" />
-            <p className="mt-3 text-muted">Consultando política e calculando reembolso no Mercado Pago...</p>
+            <p className="mt-3 text-muted">{t("Consultando política e calculando reembolso no Mercado Pago...")}</p>
           </div>
         ) : simulacao ? (
           <div>
@@ -844,25 +861,25 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
               {/* Coluna 1: Informações e WhatsApp */}
               <Col md={6} className="d-flex flex-column gap-3">
                 <div className="p-3 rounded-3 border bg-light h-100" style={{ fontSize: '0.88rem' }}>
-                  <div className="text-muted small text-uppercase fw-bold mb-2" style={{ letterSpacing: '0.5px' }}>Dados da Reserva</div>
+                  <div className="text-muted small text-uppercase fw-bold mb-2" style={{ letterSpacing: '0.5px' }}>{t("Dados da Reserva")}</div>
                   <div className="mb-2">
-                    <span className="text-muted">Hóspede: </span>
+                    <span className="text-muted">{t("Hóspede:")} </span>
                     <strong className="text-dark fs-6">{simulacao.hospedeNome}</strong>
                     {simulacao.hospedeTelefone && <div className="text-muted small mt-1"><i className="bi bi-telephone me-1" />{fmtTelefone(simulacao.hospedeTelefone)}</div>}
                   </div>
                   <div className="text-muted small">
-                    <div>Check-in: <strong className="text-dark">{fmtData(simulacao.checkin)} às 14:00</strong></div>
-                    <div>Check-out: <strong className="text-dark">{fmtData(simulacao.checkout)} às 11:00</strong></div>
+                    <div>{t('Check-in')}: <strong className="text-dark">{t('{data} às 14:00', { data: fmtData(simulacao.checkin) })}</strong></div>
+                    <div>{t('Check-out')}: <strong className="text-dark">{t('{data} às 11:00', { data: fmtData(simulacao.checkout) })}</strong></div>
                   </div>
                 </div>
 
-                <div className="p-3 rounded-3 border" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                <div className="p-3 rounded-3 border" style={{ background: 'var(--adm-ok-bg)', borderColor: 'var(--adm-ok-bd)' }}>
                   <div className="fw-bold text-success small d-flex align-items-center mb-1">
                     <i className="bi bi-whatsapp me-2 fs-6" />
-                    Prefere propor uma remarcação de datas?
+                    {t("Prefere propor uma remarcação de datas?")}
                   </div>
                   <div className="text-muted mb-2" style={{ fontSize: '0.8rem' }}>
-                    Converse com o hóspede pelo WhatsApp antes de cancelar e estornar o valor.
+                    {t("Converse com o hóspede pelo WhatsApp antes de cancelar e estornar o valor.")}
                   </div>
                   {simulacao.hospedeTelefone ? (
                     <a
@@ -873,48 +890,48 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
                       style={{ borderRadius: '50px' }}
                     >
                       <i className="bi bi-whatsapp me-1" />
-                      Falar no WhatsApp
+                      {t("Falar no WhatsApp")}
                     </a>
                   ) : (
-                    <span className="badge bg-secondary py-1 px-2" style={{ fontSize: '0.75rem' }}>Telefone não informado</span>
+                    <span className="badge bg-secondary py-1 px-2" style={{ fontSize: '0.75rem' }}>{t("Telefone não informado")}</span>
                   )}
                 </div>
               </Col>
 
               {/* Coluna 2: Política e Estorno */}
               <Col md={6}>
-                <div className="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style={{ background: '#fef2f2', border: '1px solid #fecaca' }}>
+                <div className="p-3 rounded-3 h-100 d-flex flex-column justify-content-between" style={{ background: 'var(--adm-err-bg)', border: '1px solid var(--adm-err-bd)' }}>
                   <div>
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span className="fw-bold" style={{ color: '#991b1b', fontSize: '0.9rem' }}>
+                      <span className="fw-bold" style={{ color: 'var(--adm-err-fg)', fontSize: '0.9rem' }}>
                         <i className="bi bi-shield-check me-1" />
-                        Cancelamento pelo Anfitrião
+                        {t("Cancelamento pelo Anfitrião")}
                       </span>
                       <span className="badge bg-danger px-2 py-1" style={{ fontSize: '0.75rem' }}>
-                        Reembolso 100%
+                        {t("Reembolso 100%")}
                       </span>
                     </div>
                     <p className="small text-muted mb-3" style={{ fontSize: '0.82rem' }}>
-                      Por regra dos Termos de Uso, cancelamentos pelo anfitrião exigem estorno integral de 100% do valor pago via Mercado Pago (retenção zero).
+                      {t("Por regra dos Termos de Uso, cancelamentos pelo anfitrião exigem estorno integral de 100% do valor pago via Mercado Pago (retenção zero).")}
                     </p>
                   </div>
 
-                  <div className="pt-2 border-top" style={{ borderColor: '#fecaca', fontSize: '0.88rem' }}>
+                  <div className="pt-2 border-top" style={{ borderColor: 'var(--adm-err-bd)', fontSize: '0.88rem' }}>
                     <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span className="text-muted">Valor pago na reserva:</span>
+                      <span className="text-muted">{t("Valor pago na reserva:")}</span>
                       <span className="fw-semibold text-dark">{fmtMoeda(simulacao.calculo.valorTotal)}</span>
                     </div>
                     <div className="d-flex justify-content-between align-items-center mb-1">
-                      <span className="fw-bold" style={{ color: '#991b1b' }}>
+                      <span className="fw-bold" style={{ color: 'var(--adm-err-fg)' }}>
                         <i className="bi bi-arrow-counterclockwise me-1" />
-                        Valor a Estornar (Mercado Pago):
+                        {t("Valor a Estornar (Mercado Pago):")}
                       </span>
-                      <span className="fw-bold fs-5" style={{ color: '#991b1b' }}>
+                      <span className="fw-bold fs-5" style={{ color: 'var(--adm-err-fg)' }}>
                         {fmtMoeda(simulacao.calculo.valorReembolso)}
                       </span>
                     </div>
                     <div className="d-flex justify-content-between align-items-center small text-muted">
-                      <span>Retenção do anfitrião:</span>
+                      <span>{t("Retenção do anfitrião:")}</span>
                       <span>R$ 0,00 (0%)</span>
                     </div>
                   </div>
@@ -925,14 +942,14 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
             {/* Motivo */}
             <div className="mb-2">
               <label htmlFor="motivo-cancelamento" className="form-label small fw-semibold text-muted mb-1">
-                Motivo do cancelamento (opcional — será enviado no e-mail do hóspede)
+                {t("Motivo do cancelamento (opcional — será enviado no e-mail do hóspede)")}
               </label>
               <textarea
                 id="motivo-cancelamento"
                 className="form-control"
                 rows={2}
                 maxLength={250}
-                placeholder="Ex.: Manutenção urgente na estrutura do chalé."
+                placeholder={t("Ex.: Manutenção urgente na estrutura do chalé.")}
                 value={motivo}
                 disabled={cancelando}
                 onChange={e => setMotivo(e.target.value)}
@@ -944,7 +961,7 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
       </Modal.Body>
       <Modal.Footer className="border-top pt-3 pb-3 px-3 px-md-4 d-flex justify-content-between align-items-center gap-2">
         <Button variant="outline-secondary" style={{ borderRadius: '50px', padding: '0.45rem 1.25rem', fontSize: '0.88rem' }} disabled={cancelando} onClick={aoFechar}>
-          Voltar
+          {t('Voltar')}
         </Button>
         {simulacao && (
           <Button
@@ -956,12 +973,12 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
             {cancelando ? (
               <>
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" />
-                Estornando no MP...
+                {t("Estornando no MP...")}
               </>
             ) : (
               <>
                 <i className="bi bi-x-circle me-1" />
-                Confirmar Estorno ({fmtMoeda(simulacao.calculo.valorReembolso)})
+                {t('Confirmar Estorno ({valor})', { valor: fmtMoeda(simulacao.calculo.valorReembolso) })}
               </>
             )}
           </Button>
@@ -973,6 +990,7 @@ function ModalCancelarReservaAdmin({ reserva, aoFechar, aoConfirmarCancelamento 
 
 // ─── Modal Responder Avaliação com Nota Confidencial do Anfitrião ─────────────
 function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
+  const { t } = usePreferencias();
   const [notaProprietario, setNotaProprietario] = useState(5);
   const [hoverNota, setHoverNota] = useState(0);
   const [comentario, setComentario] = useState('');
@@ -1018,12 +1036,12 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
       const dados = await resposta.json().catch(() => ({}));
 
       if (!resposta.ok) {
-        throw new Error(dados.error || 'Não foi possível enviar a resposta. Tente novamente.');
+        throw new Error(dados.error || t('Não foi possível enviar a resposta. Tente novamente.'));
       }
 
       aoResponder(avaliacao.id, dados.respostaProprietario || comentarioLimpo);
     } catch (falha) {
-      setErro(falha.message || 'Não foi possível enviar a resposta. Tente novamente.');
+      setErro(falha.message || t('Não foi possível enviar a resposta. Tente novamente.'));
     } finally {
       setEnviando(false);
     }
@@ -1040,15 +1058,15 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
     >
       <form onSubmit={enviarResposta}>
         <Modal.Header closeButton={!enviando} className="modal-header-admin">
-          <Modal.Title>Responder Avaliação & Avaliar Hóspede</Modal.Title>
+          <Modal.Title>{t("Responder Avaliação & Avaliar Hóspede")}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4">
           <div className="avaliacao-modal-contexto mb-3">
             <div className="mini-avatar">{(avaliacao.hospede?.nome || '?').charAt(0)}</div>
             <div>
-              <div className="fw-bold" style={{ color: '#223a5e' }}>{avaliacao.hospede?.nome}</div>
+              <div className="fw-bold" style={{ color: 'var(--rc-ink)' }}>{avaliacao.hospede?.nome}</div>
               <div className="text-muted small">
-                Reserva #{avaliacao.reserva?.id} · {avaliacao.imovel?.nome || 'Recanto Camargo'}
+                {t('Reserva #{id}', { id: avaliacao.reserva?.id })} · {avaliacao.imovel?.nome || 'Recanto Camargo'}
               </div>
             </div>
           </div>
@@ -1064,7 +1082,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
           {/* Nota do Proprietário ao Hóspede com Aviso de Confidencialidade */}
           <div className="mb-3">
             <label className="label-secao-modal d-block mb-1">
-              Sua avaliação sobre este hóspede:
+              {t("Sua avaliação sobre este hóspede:")}
             </label>
             <div className="d-flex align-items-center gap-2 mb-2">
               {[1, 2, 3, 4, 5].map((estrela) => {
@@ -1078,7 +1096,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
                     onMouseEnter={() => setHoverNota(estrela)}
                     onMouseLeave={() => setHoverNota(0)}
                     disabled={enviando}
-                    aria-label={`Atribuir ${estrela} estrelas ao hóspede`}
+                    aria-label={t('Atribuir {n} estrelas ao hóspede', { n: estrela })}
                   >
                     <i
                       className={`bi ${ativo ? 'bi-star-fill text-warning' : 'bi-star text-muted'}`}
@@ -1087,8 +1105,8 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
                   </button>
                 );
               })}
-              <span className="fw-bold ms-2" style={{ color: '#223a5e', fontSize: '1.1rem' }}>
-                {(hoverNota || notaProprietario)} / 5 estrelas
+              <span className="fw-bold ms-2" style={{ color: 'var(--rc-ink)', fontSize: '1.1rem' }}>
+                {t('{n} / 5 estrelas', { n: hoverNota || notaProprietario })}
               </span>
             </div>
 
@@ -1097,7 +1115,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
               <div className="d-flex align-items-center gap-2">
                 <i className="bi bi-shield-lock-fill text-primary fs-5" />
                 <span className="small text-muted">
-                  <strong>Esta nota é confidencial</strong> e compõe a reputação interna do hóspede no sistema.
+                  <strong>{t("Esta nota é confidencial")}</strong> {t('e compõe a reputação interna do hóspede no sistema.')}
                 </span>
               </div>
             </div>
@@ -1106,7 +1124,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
           {/* Campo de Resposta Pública */}
           <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
             <label htmlFor="comentario-proprietario" className="label-secao-modal mb-0">
-              Resposta Pública ao Hóspede
+              {t("Resposta Pública ao Hóspede")}
             </label>
             <span className={`avaliacao-contador${comentario.length >= 240 ? ' limite' : ''}`}>
               {comentario.length}/255
@@ -1117,12 +1135,12 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
             className="form-control"
             rows={4}
             maxLength={255}
-            placeholder="Agradeça a preferência ou envie uma mensagem acolhedora que será exibida publicamente..."
+            placeholder={t("Agradeça a preferência ou envie uma mensagem acolhedora que será exibida publicamente...")}
             value={comentario}
             onChange={evento => setComentario(evento.target.value)}
             disabled={enviando}
             
-            style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid #cbd5e1', resize: 'vertical' }}
+            style={{ borderRadius: '12px', padding: '0.85rem 1rem', border: '1px solid var(--rc-line)', resize: 'vertical' }}
           />
 
           {erro && (
@@ -1133,13 +1151,13 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
         </Modal.Body>
         <Modal.Footer className="border-0 pt-0 gap-2">
           <Button variant="outline-secondary" type="button" onClick={fechar} disabled={enviando} style={{ borderRadius: '50px' }}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
           <Button variant="primary" type="submit" disabled={!formularioValido || enviando} className="btn-acao-modal">
             {enviando ? (
-              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> Enviando...</>
+              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> {t("Enviando...")}</>
             ) : (
-              <><i className="bi bi-send me-1" aria-hidden="true" /> Enviar resposta</>
+              <><i className="bi bi-send me-1" aria-hidden="true" /> {t("Enviar resposta")}</>
             )}
           </Button>
         </Modal.Footer>
@@ -1150,6 +1168,7 @@ function ModalResponderAvaliacao({ avaliacao, aoFechar, aoResponder }) {
 
 // ─── Modal Bloquear Datas (Manutenção / Proprietário) ─────────────────────────
 function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [], bloqueiosExistentes = [] }) {
+  const { t } = usePreferencias();
   const hojeStr = new Date().toISOString().slice(0, 10);
   const [dataInicio, setDataInicio] = useState(hojeStr);
   const [dataFim, setDataFim] = useState(() => {
@@ -1157,7 +1176,7 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
     d.setDate(d.getDate() + 2);
     return d.toISOString().slice(0, 10);
   });
-  const [motivo, setMotivo] = useState('Manutenção preventiva e reparos gerais');
+  const [motivo, setMotivo] = useState(() => t('Manutenção preventiva e reparos gerais'));
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -1178,7 +1197,7 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
     if (reservaConflitante) {
       return {
         tipo: 'reserva',
-        mensagem: `Conflito com Reserva #${reservaConflitante.id} (${fmtData(reservaConflitante.checkin)} a ${fmtData(reservaConflitante.checkout)})`,
+        mensagem: t('Conflito com Reserva #{id} ({ini} a {fim})', { id: reservaConflitante.id, ini: fmtData(reservaConflitante.checkin), fim: fmtData(reservaConflitante.checkout) }),
       };
     }
 
@@ -1192,12 +1211,12 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
     if (bloqueioConflitante) {
       return {
         tipo: 'bloqueio',
-        mensagem: `Conflito com Bloqueio existente (${fmtData(bloqueioConflitante.data || bloqueioConflitante.dataInicio)}): ${bloqueioConflitante.motivo}`,
+        mensagem: t('Conflito com Bloqueio existente ({data}): {motivo}', { data: fmtData(bloqueioConflitante.data || bloqueioConflitante.dataInicio), motivo: bloqueioConflitante.motivo }),
       };
     }
 
     return null;
-  }, [dataInicio, dataFim, reservasExistentes, bloqueiosExistentes]);
+  }, [dataInicio, dataFim, reservasExistentes, bloqueiosExistentes, t]);
 
   const submeter = async (e) => {
     e.preventDefault();
@@ -1206,27 +1225,27 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
     setErro('');
 
     try {
-      await aoSalvar({ dataInicio, dataFim, motivo: motivo.trim() || 'Bloqueio para manutenção' });
+      await aoSalvar({ dataInicio, dataFim, motivo: motivo.trim() || t('Bloqueio para manutenção') });
       aoFechar();
     } catch (err) {
-      setErro(err.message || 'Não foi possível salvar o bloqueio.');
+      setErro(err.message || t('Não foi possível salvar o bloqueio.'));
     } finally {
       setEnviando(false);
     }
   };
 
   return (
-    <Modal show={show} onHide={aoFechar} centered backdrop={enviando ? 'static' : true}>
+    <Modal show={show} onHide={aoFechar} centered backdrop={enviando ? 'static' : true} className="adm-modal">
       <form onSubmit={submeter}>
         <Modal.Header closeButton={!enviando} className="modal-header-admin">
-          <Modal.Title><i className="bi bi-shield-slash me-2" /> Bloquear Datas para Manutenção</Modal.Title>
+          <Modal.Title><i className="bi bi-shield-slash me-2" /> {t("Bloquear Datas para Manutenção")}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4">
           {erro && <Alert variant="danger">{erro}</Alert>}
 
           <Row className="g-3 mb-3">
             <Col sm={6}>
-              <label htmlFor="bloq-inicio" className="form-label fw-semibold small text-muted">Data de Entrada (Início)</label>
+              <label htmlFor="bloq-inicio" className="form-label fw-semibold small text-muted">{t("Data de Entrada (Início)")}</label>
               <input
                 id="bloq-inicio"
                 type="date"
@@ -1238,7 +1257,7 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
               />
             </Col>
             <Col sm={6}>
-              <label htmlFor="bloq-fim" className="form-label fw-semibold small text-muted">Data de Saída (Fim / Desocupação)</label>
+              <label htmlFor="bloq-fim" className="form-label fw-semibold small text-muted">{t("Data de Saída (Fim / Desocupação)")}</label>
               <input
                 id="bloq-fim"
                 type="date"
@@ -1253,17 +1272,17 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
 
           <div className="mb-3">
             <label htmlFor="bloq-motivo" className="form-label fw-semibold small text-muted">
-              Motivo do Bloqueio <span className="fw-normal text-muted">(opcional — apenas para seu controle)</span>
+              {t('Motivo do Bloqueio')} <span className="fw-normal text-muted">{t('(opcional — apenas para seu controle)')}</span>
             </label>
             <textarea
               id="bloq-motivo"
               rows={3}
               className="form-control"
-              placeholder="Ex.: Conflito com Airbnb, uso pessoal da família, reparos..."
+              placeholder={t("Ex.: Conflito com Airbnb, uso pessoal da família, reparos...")}
               value={motivo}
               onChange={e => setMotivo(e.target.value)}
             />
-            <small className="text-muted d-block mt-1">Este motivo é privado e serve como log interno para sua gestão.</small>
+            <small className="text-muted d-block mt-1">{t("Este motivo é privado e serve como log interno para sua gestão.")}</small>
           </div>
 
           {dataInicio && dataFim && dataInicio <= dataFim && !conflitoDetectado && (
@@ -1271,8 +1290,8 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
               <i className="bi bi-info-circle text-primary fs-6" />
               <span>
                 {dataInicio === dataFim 
-                  ? `Bloqueio de 1 diária (${fmtData(dataInicio)}).`
-                  : `Bloqueio de ${noites(dataInicio, dataFim)} diária(s) (${fmtData(dataInicio)} a ${fmtData(dataFim)} — imóvel liberado no check-out em ${fmtData(dataFim)}).`}
+                  ? t('Bloqueio de 1 diária ({data}).', { data: fmtData(dataInicio) })
+                  : t('Bloqueio de {n} diária(s) ({ini} a {fim} — imóvel liberado no check-out em {fim}).', { n: noites(dataInicio, dataFim), ini: fmtData(dataInicio), fim: fmtData(dataFim) })}
               </span>
             </div>
           )}
@@ -1281,14 +1300,14 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
             <Alert variant="warning" className="border-0 shadow-sm d-flex align-items-center gap-2 mb-0">
               <i className="bi bi-exclamation-triangle-fill fs-5 text-warning" />
               <div className="small">
-                <strong>Atenção:</strong> {conflitoDetectado.mensagem}. Selecione outro período.
+                <strong>{t("Atenção:")}</strong> {conflitoDetectado.mensagem}. {t('Selecione outro período.')}
               </div>
             </Alert>
           )}
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={aoFechar} disabled={enviando} style={{ borderRadius: '50px' }}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
           <Button
             variant="warning"
@@ -1297,7 +1316,7 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
             disabled={!dataInicio || !dataFim || !!conflitoDetectado || enviando}
             style={{ borderRadius: '50px' }}
           >
-            {enviando ? 'Bloqueando…' : 'Confirmar Bloqueio'}
+            {enviando ? t('Bloqueando…') : t('Confirmar Bloqueio')}
           </Button>
         </Modal.Footer>
       </form>
@@ -1307,6 +1326,8 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
 
 // ─── Calendário de Ocupação com 2 Meses Lado a Lado ───────────────────────────
 function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBloqueio }) {
+  const { t, idioma } = usePreferencias();
+  const loc = localeDe(idioma);
   const [mesBase, setMesBase] = useState(() => new Date());
   const [showModalBloqueio, setShowModalBloqueio] = useState(false);
 
@@ -1429,8 +1450,8 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
       {/* Topo com Ações e Legenda */}
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
         <div>
-          <h5 className="mb-0 fw-bold" style={{ color: '#223a5e' }}>Calendário de Ocupação & Manutenção</h5>
-          <span className="text-muted small">Visualização de 2 meses simultâneos</span>
+          <h5 className="mb-0 fw-bold" style={{ color: 'var(--rc-ink)' }}>{t("Calendário de Ocupação & Manutenção")}</h5>
+          <span className="text-muted small">{t("Visualização de 2 meses simultâneos")}</span>
         </div>
 
         <div className="d-flex align-items-center gap-2 flex-wrap">
@@ -1440,27 +1461,27 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
               className="btn btn-outline-secondary btn-sm"
               style={{ borderRadius: '50px' }}
               onClick={() => mudarMes(-1)}
-              title="Mês Anterior"
+              title={t("Mês Anterior")}
             >
-              ‹ Anterior
+              {t("‹ Anterior")}
             </button>
             <button
               type="button"
               className="btn btn-outline-primary btn-sm"
               style={{ borderRadius: '50px' }}
               onClick={() => setMesBase(new Date())}
-              title="Voltar para Hoje"
+              title={t("Voltar para Hoje")}
             >
-              Hoje
+              {t('Hoje')}
             </button>
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm"
               style={{ borderRadius: '50px' }}
               onClick={() => mudarMes(1)}
-              title="Próximo Mês"
+              title={t("Próximo Mês")}
             >
-              Próximo ›
+              {t("Próximo ›")}
             </button>
           </div>
 
@@ -1469,27 +1490,27 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
             style={{ borderRadius: '50px' }}
             onClick={() => setShowModalBloqueio(true)}
           >
-            <i className="bi bi-shield-slash" /> Bloquear Datas
+            <i className="bi bi-shield-slash" /> {t("Bloquear Datas")}
           </Button>
         </div>
       </div>
 
       {/* Legenda das Cores */}
       <div className="legenda-calendario mb-3 p-2 bg-light rounded-3 d-flex align-items-center gap-3 flex-wrap">
-        <span className="legenda-item"><span className="dot dot-aprovada" /> Reserva Confirmada</span>
-        <span className="legenda-item"><span className="dot dot-pendente" /> Reserva Pendente</span>
-        <span className="legenda-item"><span className="dot dot-bloqueado" /> Bloqueio Manual (Hachura)</span>
-        <span className="legenda-item text-muted small"><i className="bi bi-circle-half me-1" /> Metade dividida: Saída (manhã) / Entrada (tarde)</span>
+        <span className="legenda-item"><span className="dot dot-aprovada" /> {t("Reserva Confirmada")}</span>
+        <span className="legenda-item"><span className="dot dot-pendente" /> {t("Reserva Pendente")}</span>
+        <span className="legenda-item"><span className="dot dot-bloqueado" /> {t("Bloqueio Manual (Hachura)")}</span>
+        <span className="legenda-item text-muted small"><i className="bi bi-circle-half me-1" /> {t("Metade dividida: Saída (manhã) / Entrada (tarde)")}</span>
       </div>
 
       {/* Grid de 2 Meses Lado a Lado */}
       <div className="calendario-duplo-grid">
         <div className="calendario-mes-coluna">
           <div className="calendario-mes-titulo">
-            {mesBase.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+            {mesBase.toLocaleString(loc, { month: 'long', year: 'numeric' })}
           </div>
           <Calendar
-            locale="pt-BR"
+            locale={loc}
             activeStartDate={mesBase}
             onActiveStartDateChange={({ activeStartDate }) => setMesBase(activeStartDate || new Date())}
             tileClassName={tileClassName}
@@ -1500,10 +1521,10 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
 
         <div className="calendario-mes-coluna">
           <div className="calendario-mes-titulo">
-            {mesSeguinte.toLocaleString('pt-BR', { month: 'long', year: 'numeric' })}
+            {mesSeguinte.toLocaleString(loc, { month: 'long', year: 'numeric' })}
           </div>
           <Calendar
-            locale="pt-BR"
+            locale={loc}
             activeStartDate={mesSeguinte}
             tileClassName={tileClassName}
             className="calendario-admin-custom w-100"
@@ -1515,27 +1536,27 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
       {/* Lista de Bloqueios Ativos */}
       <div className="lista-bloqueios-wrapper">
         <div className="d-flex align-items-center justify-content-between mb-3">
-          <h6 className="fw-bold mb-0" style={{ color: '#223a5e' }}>
+          <h6 className="fw-bold mb-0" style={{ color: 'var(--rc-ink)' }}>
             <i className="bi bi-cone-striped me-2 text-warning" />
-            Datas Bloqueadas (Manuais/Externas) ({bloqueios.length})
+            {t('Datas Bloqueadas (Manuais/Externas) ({n})', { n: bloqueios.length })}
           </h6>
         </div>
 
         {bloqueios.length === 0 ? (
-          <p className="text-muted small mb-0">Nenhum bloqueio cadastrado. Todas as datas livres estão disponíveis para reservas.</p>
+          <p className="text-muted small mb-0">{t("Nenhum bloqueio cadastrado. Todas as datas livres estão disponíveis para reservas.")}</p>
         ) : (
           <div className="d-flex flex-column gap-2">
             {bloqueios.map(b => (
               <div key={b.id} className="item-bloqueio-card">
                 <div className="d-flex align-items-center gap-3">
-                  <div className="avatar-checkin" style={{ background: '#f59e0b', width: 36, height: 36, fontSize: '0.9rem' }}>
+                  <div className="avatar-checkin" style={{ background: 'var(--adm-star)', width: 36, height: 36, fontSize: '0.9rem' }}>
                     <i className="bi bi-tools" />
                   </div>
                   <div>
-                    <div className="fw-bold" style={{ color: '#78350f' }}>{b.motivo}</div>
+                    <div className="fw-bold" style={{ color: 'var(--adm-warn-fg)' }}>{b.motivo}</div>
                     <div className="text-muted small">
                       <i className="bi bi-calendar-event me-1" />
-                      {fmtData(b.data || b.dataInicio)} (1 dia bloqueado)
+                      {fmtData(b.data || b.dataInicio)} {t('(1 dia bloqueado)')}
                     </div>
                   </div>
                 </div>
@@ -1545,9 +1566,9 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
                   size="sm"
                   style={{ borderRadius: '50px' }}
                   onClick={() => aoRemoverBloqueio(b.id)}
-                  title="Remover bloqueio e liberar datas"
+                  title={t("Remover bloqueio e liberar datas")}
                 >
-                  <i className="bi bi-trash3 me-1" /> Desbloquear
+                  <i className="bi bi-trash3 me-1" /> {t("Desbloquear")}
                 </Button>
               </div>
             ))}
@@ -1569,6 +1590,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
 
 // ─── Modal Criar Novo Cupom ──────────────────────────────────────────────────
 function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
+  const { t } = usePreferencias();
   const [codigo, setCodigo] = useState('');
   const [tipo, setTipo] = useState('PERCENTUAL');
   const [valor, setValor] = useState('');
@@ -1654,7 +1676,7 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
     if (!codigo.trim() || !valor || !validade || enviando) return;
 
     if (publico === 'CLIENTE_ESPECIFICO' && !hospedeSelecionado && !buscaHospede.trim()) {
-      setErro('Por favor, selecione um hóspede da lista para este cupom específico.');
+      setErro(t('Por favor, selecione um hóspede da lista para este cupom específico.'));
       return;
     }
 
@@ -1678,44 +1700,44 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
       });
       aoFechar();
     } catch (err) {
-      setErro(err.message || 'Erro ao criar cupom.');
+      setErro(err.message || t('Erro ao criar cupom.'));
     } finally {
       setEnviando(false);
     }
   };
 
   return (
-    <Modal show={show} onHide={aoFechar} centered backdrop={enviando ? 'static' : true}>
+    <Modal show={show} onHide={aoFechar} centered backdrop={enviando ? 'static' : true} className="adm-modal">
       <form onSubmit={submeter}>
         <Modal.Header closeButton={!enviando} className="modal-header-admin">
-          <Modal.Title><i className="bi bi-tag-fill me-2" /> Criar Novo Cupom de Desconto</Modal.Title>
+          <Modal.Title><i className="bi bi-tag-fill me-2" /> {t("Criar Novo Cupom de Desconto")}</Modal.Title>
         </Modal.Header>
         <Modal.Body className="p-4">
           {erro && <Alert variant="danger">{erro}</Alert>}
 
           <Row className="g-3 mb-3">
             <Col sm={6}>
-              <label htmlFor="cupom-codigo" className="form-label fw-semibold small text-muted">Código do Cupom *</label>
+              <label htmlFor="cupom-codigo" className="form-label fw-semibold small text-muted">{t("Código do Cupom *")}</label>
               <input
                 id="cupom-codigo"
                 type="text"
                 className="form-control text-uppercase fw-bold"
-                placeholder="Ex.: PEREGRINO10"
+                placeholder={t("Ex.: PEREGRINO10")}
                 value={codigo}
                 onChange={e => setCodigo(e.target.value.toUpperCase())}
                 required
               />
             </Col>
             <Col sm={6}>
-              <label htmlFor="cupom-tipo" className="form-label fw-semibold small text-muted">Tipo de Desconto *</label>
+              <label htmlFor="cupom-tipo" className="form-label fw-semibold small text-muted">{t("Tipo de Desconto *")}</label>
               <select
                 id="cupom-tipo"
                 className="form-select"
                 value={tipo}
                 onChange={e => setTipo(e.target.value)}
               >
-                <option value="PERCENTUAL">Percentual (%)</option>
-                <option value="FIXO">Valor Fixo (R$)</option>
+                <option value="PERCENTUAL">{t("Percentual (%)")}</option>
+                <option value="FIXO">{t("Valor Fixo (R$)")}</option>
               </select>
             </Col>
           </Row>
@@ -1723,7 +1745,7 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
           <Row className="g-3 mb-3">
             <Col sm={6}>
               <label htmlFor="cupom-valor" className="form-label fw-semibold small text-muted">
-                Valor do Desconto {tipo === 'PERCENTUAL' ? '(%)' : '(R$)'} *
+                {t('Valor do Desconto')} {tipo === 'PERCENTUAL' ? '(%)' : '(R$)'} *
               </label>
               <input
                 id="cupom-valor"
@@ -1731,14 +1753,14 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                 step="any"
                 min="1"
                 className="form-control"
-                placeholder={tipo === 'PERCENTUAL' ? 'Ex.: 10' : 'Ex.: 50'}
+                placeholder={tipo === 'PERCENTUAL' ? t('Ex.: 10') : t('Ex.: 50')}
                 value={valor}
                 onChange={e => setValor(e.target.value)}
                 required
               />
             </Col>
             <Col sm={6}>
-              <label htmlFor="cupom-publico" className="form-label fw-semibold small text-muted">Público-Alvo & Elegibilidade *</label>
+              <label htmlFor="cupom-publico" className="form-label fw-semibold small text-muted">{t("Público-Alvo & Elegibilidade *")}</label>
               <select
                 id="cupom-publico"
                 className="form-select"
@@ -1757,11 +1779,11 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                   }
                 }}
               >
-                <option value="TODOS">🌐 Todos os Clientes (Geral)</option>
-                <option value="PRIMEIRA_RESERVA">🎉 Cliente Novo (1ª Reserva)</option>
-                <option value="CLIENTE_RETORNANTE">🔄 Cliente Retornante (&gt; 6 meses sem reserva)</option>
-                <option value="CLIENTE_RECORRENTE">⭐ Cliente Recorrente (2+ reservas)</option>
-                <option value="CLIENTE_ESPECIFICO">🎯 Hóspede Específico (Fidelidade)</option>
+                <option value="TODOS">{t("Todos os Clientes (Geral)")}</option>
+                <option value="PRIMEIRA_RESERVA">{t("Cliente Novo (1ª Reserva)")}</option>
+                <option value="CLIENTE_RETORNANTE">{t('Cliente Retornante (> 6 meses sem reserva)')}</option>
+                <option value="CLIENTE_RECORRENTE">{t("Cliente Recorrente (2+ reservas)")}</option>
+                <option value="CLIENTE_ESPECIFICO">{t("Hóspede Específico (Fidelidade)")}</option>
               </select>
             </Col>
           </Row>
@@ -1769,14 +1791,14 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
           {publico === 'CLIENTE_ESPECIFICO' && (
             <div className="mb-3 position-relative" ref={dropdownRef}>
               <label htmlFor="cupom-cliente" className="form-label fw-semibold small text-muted d-flex justify-content-between">
-                <span>Hóspede Específico *</span>
+                <span>{t("Hóspede Específico *")}</span>
                 <span className="text-primary fw-normal" style={{ fontSize: '0.78rem' }}>
-                  <i className="bi bi-person-check me-1" /> Selecione da lista abaixo
+                  <i className="bi bi-person-check me-1" /> {t("Selecione da lista abaixo")}
                 </span>
               </label>
 
               {hospedeSelecionado ? (
-                <div className="p-2 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between shadow-sm" style={{ borderColor: '#bbf7d0' }}>
+                <div className="p-2 px-3 rounded-3 border bg-light d-flex align-items-center justify-content-between shadow-sm" style={{ borderColor: 'var(--adm-ok-bd)' }}>
                   <div className="d-flex align-items-center gap-2">
                     <div className="rounded-circle bg-success text-white d-flex align-items-center justify-content-center fw-bold shadow-sm" style={{ width: 34, height: 34, fontSize: '0.85rem' }}>
                       {hospedeSelecionado.nome.charAt(0).toUpperCase()}
@@ -1785,13 +1807,13 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                       <div className="fw-bold text-dark" style={{ fontSize: '0.9rem' }}>
                         {hospedeSelecionado.nome}
                         <span className="badge bg-success-subtle text-success border border-success-subtle ms-2" style={{ fontSize: '0.72rem' }}>
-                          ✓ Selecionado
+                          {t("✓ Selecionado")}
                         </span>
                       </div>
                       <div className="text-muted" style={{ fontSize: '0.78rem' }}>
                         {hospedeSelecionado.email}
                         {hospedeSelecionado.telefone ? ` • ${fmtTelefone(hospedeSelecionado.telefone)}` : ''}
-                        {hospedeSelecionado.totalReservas > 0 ? ` • ${hospedeSelecionado.totalReservas} reserva(s)` : ''}
+                        {hospedeSelecionado.totalReservas > 0 ? ` • ${t('{n} reserva(s)', { n: hospedeSelecionado.totalReservas })}` : ''}
                       </div>
                     </div>
                   </div>
@@ -1807,7 +1829,7 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                       setMostrarDropdown(true);
                     }}
                   >
-                    <i className="bi bi-arrow-repeat me-1" /> Trocar
+                    <i className="bi bi-arrow-repeat me-1" /> {t("Trocar")}
                   </Button>
                 </div>
               ) : (
@@ -1820,7 +1842,7 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                       id="cupom-cliente"
                       type="text"
                       className="form-control border-start-0"
-                      placeholder="Digite o nome ou e-mail (ex.: Felipe)..."
+                      placeholder={t("Digite o nome ou e-mail (ex.: Felipe)...")}
                       value={buscaHospede}
                       onChange={e => {
                         setBuscaHospede(e.target.value);
@@ -1852,18 +1874,18 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                     >
                       {carregandoSugestoes ? (
                         <div className="p-3 text-center text-muted small">
-                          <span className="spinner-border spinner-border-sm me-2" /> Buscando hóspedes...
+                          <span className="spinner-border spinner-border-sm me-2" /> {t("Buscando hóspedes...")}
                         </div>
                       ) : sugestoesHospedes.length > 0 ? (
                         <div className="py-1">
                           <div className="px-3 py-1 bg-light border-bottom text-muted text-uppercase fw-bold" style={{ fontSize: '0.68rem', letterSpacing: '0.5px' }}>
-                            {buscaHospede ? `Hóspedes encontrados (${sugestoesHospedes.length})` : 'Hóspedes no sistema (clique para escolher)'}
+                            {buscaHospede ? t('Hóspedes encontrados ({n})', { n: sugestoesHospedes.length }) : t('Hóspedes no sistema (clique para escolher)')}
                           </div>
                           {sugestoesHospedes.map(h => (
                             <div
                               key={h.id}
                               className="px-3 py-2 btn-sugestao-hospede d-flex align-items-center justify-content-between"
-                              style={{ cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                              style={{ cursor: 'pointer', borderBottom: '1px solid var(--rc-line)' }}
                               onClick={() => {
                                 setHospedeSelecionado(h);
                                 setBuscaHospede(h.nome);
@@ -1885,14 +1907,14 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
                                 </div>
                               </div>
                               <span className="badge bg-light text-secondary border" style={{ fontSize: '0.72rem' }}>
-                                {h.totalReservas} reserva(s)
+                                {t('{n} reserva(s)', { n: h.totalReservas })}
                               </span>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <div className="p-3 text-center text-muted small">
-                          <i className="bi bi-person-x me-1 text-danger" /> Nenhum hóspede cadastrado encontrado para "{buscaHospede}".
+                          <i className="bi bi-person-x me-1 text-danger" /> {t('Nenhum hóspede cadastrado encontrado para "{busca}".', { busca: buscaHospede })}
                         </div>
                       )}
                     </div>
@@ -1904,7 +1926,7 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
 
           <Row className="g-3 mb-3">
             <Col sm={6}>
-              <label htmlFor="cupom-noites" className="form-label fw-semibold small text-muted">Mínimo de Noites</label>
+              <label htmlFor="cupom-noites" className="form-label fw-semibold small text-muted">{t("Mínimo de Noites")}</label>
               <input
                 id="cupom-noites"
                 type="number"
@@ -1915,14 +1937,14 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
               />
             </Col>
             <Col sm={6}>
-              <label htmlFor="cupom-valormin" className="form-label fw-semibold small text-muted">Valor Mínimo Reserva (R$)</label>
+              <label htmlFor="cupom-valormin" className="form-label fw-semibold small text-muted">{t("Valor Mínimo Reserva (R$)")}</label>
               <input
                 id="cupom-valormin"
                 type="number"
                 step="any"
                 min="0"
                 className="form-control"
-                placeholder="Opcional"
+                placeholder={t("Opcional")}
                 value={valorMinimo}
                 onChange={e => setValorMinimo(e.target.value)}
               />
@@ -1931,7 +1953,7 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
 
           <Row className="g-3 mb-2">
             <Col sm={6}>
-              <label htmlFor="cupom-validade" className="form-label fw-semibold small text-muted">Data de Validade *</label>
+              <label htmlFor="cupom-validade" className="form-label fw-semibold small text-muted">{t("Data de Validade *")}</label>
               <input
                 id="cupom-validade"
                 type="date"
@@ -1942,13 +1964,13 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
               />
             </Col>
             <Col sm={6}>
-              <label htmlFor="cupom-limite" className="form-label fw-semibold small text-muted">Quantidade de Usos</label>
+              <label htmlFor="cupom-limite" className="form-label fw-semibold small text-muted">{t("Quantidade de Usos")}</label>
               <input
                 id="cupom-limite"
                 type="number"
                 min="1"
                 className="form-control"
-                placeholder={publico === 'CLIENTE_ESPECIFICO' ? '1 (Exclusivo)' : 'Opcional (Ilimitado)'}
+                placeholder={publico === 'CLIENTE_ESPECIFICO' ? t('1 (Exclusivo)') : t('Opcional (Ilimitado)')}
                 value={limiteUso}
                 onChange={e => setLimiteUso(e.target.value)}
               />
@@ -1957,10 +1979,10 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="outline-secondary" onClick={aoFechar} disabled={enviando} style={{ borderRadius: '50px' }}>
-            Cancelar
+            {t("Cancelar")}
           </Button>
           <Button variant="primary" type="submit" disabled={enviando} style={{ borderRadius: '50px' }}>
-            {enviando ? 'Criando…' : 'Salvar Cupom'}
+            {enviando ? t('Criando…') : t('Salvar Cupom')}
           </Button>
         </Modal.Footer>
       </form>
@@ -1970,6 +1992,7 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
 
 // ─── Aba de Gestão de Cupons ─────────────────────────────────────────────────
 function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
+  const { t } = usePreferencias();
   const [copiadoId, setCopiadoId] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
@@ -1985,26 +2008,26 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
     <div>
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
-          <h5 className="mb-0 fw-bold" style={{ color: '#223a5e' }}>Cupons Promocionais de Desconto</h5>
-          <span className="text-muted small">Crie e gerencie vouchers especiais para os peregrinos</span>
+          <h5 className="mb-0 fw-bold" style={{ color: 'var(--rc-ink)' }}>{t("Cupons Promocionais de Desconto")}</h5>
+          <span className="text-muted small">{t("Crie e gerencie vouchers especiais para os peregrinos")}</span>
         </div>
         <Button
           variant="primary"
           className="d-inline-flex align-items-center gap-2 fw-semibold"
-          style={{ borderRadius: '50px', background: '#ff9211', borderColor: '#ff9211' }}
+          style={{ borderRadius: '50px', background: 'var(--rc-u1)', borderColor: 'var(--rc-u1)' }}
           onClick={() => setShowModal(true)}
         >
-          <i className="bi bi-plus-lg" /> Criar Novo Cupom
+          <i className="bi bi-plus-lg" /> {t("Criar Novo Cupom")}
         </Button>
       </div>
 
       {cupons.length === 0 ? (
         <div className="text-center py-5 bg-white rounded-4 shadow-sm border p-4">
           <i className="bi bi-ticket-perforated fs-1 text-muted opacity-50 d-block mb-3" />
-          <h5 className="fw-bold" style={{ color: '#223a5e' }}>Nenhum cupom ativo no momento</h5>
-          <p className="text-muted small mb-3">Crie um cupom para incentivar reservas de peregrinos e famílias.</p>
+          <h5 className="fw-bold" style={{ color: 'var(--rc-ink)' }}>{t("Nenhum cupom ativo no momento")}</h5>
+          <p className="text-muted small mb-3">{t("Crie um cupom para incentivar reservas de peregrinos e famílias.")}</p>
           <Button variant="primary" onClick={() => setShowModal(true)} style={{ borderRadius: '50px' }}>
-            Criar Primeiro Cupom
+            {t("Criar Primeiro Cupom")}
           </Button>
         </div>
       ) : (
@@ -2018,20 +2041,20 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                   <div className="d-flex align-items-center justify-content-between mb-2">
                     <span className={publicoCfg.classeBadge}>
                       <i className={`bi ${publicoCfg.icone} me-1`} />
-                      {publicoCfg.label}
+                      {t(publicoCfg.label)}
                     </span>
                     <div className="d-flex gap-1 align-items-center">
                       {c.expirado ? (
                         <span className="badge bg-danger-subtle text-danger border border-danger-subtle small">
-                          Vencido
+                          {t("Vencido")}
                         </span>
                       ) : esgotado ? (
                         <span className="badge bg-secondary-subtle text-secondary border border-secondary-subtle small">
-                          {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? 'Utilizado' : 'Esgotado'}
+                          {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? t('Utilizado') : t('Esgotado')}
                         </span>
                       ) : null}
                       <span className="badge bg-light text-muted border small">
-                        {c.tipoDesconto === 'PERCENTUAL' ? 'Desconto %' : 'Desconto R$'}
+                        {c.tipoDesconto === 'PERCENTUAL' ? t('Desconto %') : t('Desconto R$')}
                       </span>
                     </div>
                   </div>
@@ -2043,10 +2066,10 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                   {(c.clienteNome || c.clienteId) && (
                     <div
                       className="text-muted small mb-2 text-truncate"
-                      title={c.clienteEmail ? `${c.clienteNome || 'Hóspede'} (${c.clienteEmail})` : (c.clienteNome || undefined)}
+                      title={c.clienteEmail ? `${c.clienteNome || t('Hóspede')} (${c.clienteEmail})` : (c.clienteNome || undefined)}
                     >
                       <i className="bi bi-person me-1" />
-                      Para: <strong>{c.clienteNome || c.clienteEmail || `Hóspede #${c.clienteId}`}</strong>
+                      {t("Para:")} <strong>{c.clienteNome || c.clienteEmail || t('Hóspede #{id}', { id: c.clienteId })}</strong>
                     </div>
                   )}
 
@@ -2058,9 +2081,9 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                       onClick={() => copiarCodigo(c.codigo, c.id)}
                     >
                       {copiadoId === c.id ? (
-                        <><i className="bi bi-check2 text-success" /> Copiado!</>
+                        <><i className="bi bi-check2 text-success" /> {t('Copiado!')}</>
                       ) : (
-                        <><i className="bi bi-clipboard" /> Copiar</>
+                        <><i className="bi bi-clipboard" /> {t('Copiar')}</>
                       )}
                     </button>
                   </div>
@@ -2068,24 +2091,24 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                   <div className="d-flex flex-column gap-1 text-muted small mt-2">
                     <span>
                       <i className="bi bi-moon-stars me-1 text-primary" />
-                      {c.minimoNoites > 1 ? `Mínimo de ${c.minimoNoites} noites` : 'Sem mínimo de noites'}
+                      {c.minimoNoites > 1 ? t('Mínimo de {n} noites', { n: c.minimoNoites }) : t('Sem mínimo de noites')}
                     </span>
                     {c.valorMinimo > 0 && (
                       <span>
                         <i className="bi bi-cash me-1 text-success" />
-                        Em reservas a partir de {fmtMoeda(c.valorMinimo)}
+                        {t('Em reservas a partir de {valor}', { valor: fmtMoeda(c.valorMinimo) })}
                       </span>
                     )}
                     <span>
                       <i className="bi bi-ticket-perforated me-1 text-primary" />
                       {c.limiteUso && c.limiteUso < 999999
-                        ? `Limite: ${c.limiteUso} ${c.limiteUso === 1 ? 'uso' : 'usos'} (Utilizado: ${c.totalUsos})`
-                        : `Utilizações: ${c.totalUsos} (Ilimitado)`
+                        ? t('Limite: {n} {usos} (Utilizado: {total})', { n: c.limiteUso, usos: c.limiteUso === 1 ? t('uso') : t('usos'), total: c.totalUsos })
+                        : t('Utilizações: {total} (Ilimitado)', { total: c.totalUsos })
                       }
                     </span>
                     <span>
                       <i className={`bi bi-calendar3 me-1 ${c.expirado ? 'text-danger' : 'text-warning'}`} />
-                      Válido até: <strong className={c.expirado ? 'text-danger' : ''}>{fmtData(c.validoAte)} {c.expirado && '(Expirado)'}</strong>
+                      {t('Válido até:')} <strong className={c.expirado ? 'text-danger' : ''}>{fmtData(c.validoAte)} {c.expirado && t('(Expirado)')}</strong>
                     </span>
                   </div>
                 </div>
@@ -2094,26 +2117,26 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                   {c.expirado ? (
                     <span className="fw-semibold small text-danger">
                       <i className="bi bi-x-circle-fill me-1" style={{ fontSize: '0.55rem' }} />
-                      Cupom Expirado
+                      {t("Cupom Expirado")}
                     </span>
                   ) : esgotado ? (
                     <span className="fw-semibold small text-secondary">
                       <i className="bi bi-check-circle-fill me-1 text-secondary" style={{ fontSize: '0.65rem' }} />
-                      {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? `Já Utilizado (${c.totalUsos}/${c.limiteUso})` : `Esgotado (${c.totalUsos}/${c.limiteUso})`}
+                      {c.publicoAlvo === 'CLIENTE_ESPECIFICO' ? t('Já Utilizado ({total}/{limite})', { total: c.totalUsos, limite: c.limiteUso }) : t('Esgotado ({total}/{limite})', { total: c.totalUsos, limite: c.limiteUso })}
                     </span>
                   ) : (
                     <span className={`fw-semibold small ${c.ativo ? 'text-success' : 'text-muted'}`}>
                       <i className={`bi bi-circle-fill me-1 ${c.ativo ? 'text-success' : 'text-secondary'}`} style={{ fontSize: '0.45rem' }} />
-                      {c.ativo ? 'Cupom Ativo' : 'Cupom Pausado'}
+                      {c.ativo ? t('Cupom Ativo') : t('Cupom Pausado')}
                     </span>
                   )}
                   <div
                     className="form-check form-switch m-0"
                     title={
                       c.expirado
-                        ? 'Cupom expirado pela data de validade'
+                        ? t('Cupom expirado pela data de validade')
                         : esgotado
-                        ? 'Cupom já atingiu o limite de utilizações'
+                        ? t('Cupom já atingiu o limite de utilizações')
                         : ''
                     }
                   >
@@ -2126,10 +2149,10 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
                       onChange={() => aoAlternarStatus(c.id, c.ativo)}
                       aria-label={
                         c.expirado
-                          ? `Cupom ${c.codigo} expirado`
+                          ? t('Cupom {codigo} expirado', { codigo: c.codigo })
                           : esgotado
-                          ? `Cupom ${c.codigo} esgotado`
-                          : `Ativar ou pausar cupom ${c.codigo}`
+                          ? t('Cupom {codigo} esgotado', { codigo: c.codigo })
+                          : t('Ativar ou pausar cupom {codigo}', { codigo: c.codigo })
                       }
                     />
                   </div>
@@ -2151,6 +2174,7 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
 
 // ─── Tabela de Gerenciamento de Reservas ───────────────────────────────────────
 function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reservasGerais }) {
+  const { t } = usePreferencias();
   const baseContagem = reservasGerais || reservas;
   const lista = filtro === 'todas' ? reservas : reservas.filter(r => r.status === filtro);
   const cnt   = s => s === 'todas' ? baseContagem.length : baseContagem.filter(r => r.status === s).length;
@@ -2158,7 +2182,7 @@ function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reserv
   return (
     <div className="tabela-wrapper-admin mb-4">
       <div className="tabela-header-admin">
-        <h5 className="mb-0 fw-bold" style={{ color: '#223a5e' }}>Gerenciar Reservas</h5>
+        <h5 className="mb-0 fw-bold" style={{ color: 'var(--rc-ink)' }}>{t("Gerenciar Reservas")}</h5>
         <div className="filtros-status-admin">
           {['todas', 'pendente', 'pagamento pendente', 'aprovada', 'concluida', 'recusada', 'cancelada'].map(f => (
             <button
@@ -2167,7 +2191,7 @@ function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reserv
               className={`filtro-btn-admin${filtro === f ? ' ativo' : ''}`}
               onClick={() => setFiltro(f)}
             >
-              {f === 'todas' ? 'Todas' : STATUS_CFG[f]?.label}
+              {f === 'todas' ? t('Todas') : t(STATUS_CFG[f]?.label)}
               <span className="filtro-count">{cnt(f)}</span>
             </button>
           ))}
@@ -2178,15 +2202,15 @@ function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reserv
         <table className="tabela-admin">
           <thead>
             <tr>
-              <th>ID</th><th>Hóspede</th><th>Check-in</th><th>Check-out</th>
-              <th className="d-none d-md-table-cell">Noites</th>
-              <th>Total</th><th>Status</th><th>Ações</th>
+              <th>ID</th><th>{t('Hóspede')}</th><th>{t("Check-in")}</th><th>{t("Check-out")}</th>
+              <th className="d-none d-md-table-cell">{t("Noites")}</th>
+              <th>{t('Total')}</th><th>Status</th><th>{t("Ações")}</th>
             </tr>
           </thead>
           <tbody>
             {lista.length === 0 ? (
               <tr><td colSpan={8} className="text-center py-5 text-muted">
-                <i className="bi bi-calendar-x fs-2 d-block mb-2 opacity-50" />Nenhuma reserva encontrada
+                <i className="bi bi-calendar-x fs-2 d-block mb-2 opacity-50" />{t("Nenhuma reserva encontrada")}
               </td></tr>
             ) : lista.map(r => (
               <tr key={r.id} className="linha-tabela-admin">
@@ -2196,30 +2220,30 @@ function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reserv
                     <div className="mini-avatar">{(r.nome || r.hospede || '?').charAt(0)}</div>
                     <div>
                       <div className="fw-semibold" style={{ fontSize: '0.875rem' }}>{r.nome || r.hospede}</div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{r.hospedes} pessoa(s)</div>
+                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{t('{n} pessoa(s)', { n: r.hospedes })}</div>
                     </div>
                   </div>
                 </td>
                 <td style={{ fontSize: '0.875rem' }}>{fmtData(r.checkin)}</td>
                 <td style={{ fontSize: '0.875rem' }}>{fmtData(r.checkout)}</td>
                 <td className="d-none d-md-table-cell text-center" style={{ fontSize: '0.875rem' }}>{noites(r.checkin, r.checkout)}</td>
-                <td className="fw-bold" style={{ color: '#198754', fontSize: '0.875rem' }}>{fmtMoeda(r.total || r.valorTotal)}</td>
+                <td className="fw-bold" style={{ color: 'var(--adm-ok-fg)', fontSize: '0.875rem' }}>{fmtMoeda(r.total || r.valorTotal)}</td>
                 <td>
                   <BadgeStatus status={r.status} />
                   {r.status === 'cancelada' && Number(r.valorReembolsado) > 0 && (
                     <div className="small fw-semibold text-success mt-1" style={{ fontSize: '0.72rem' }}>
                       <i className="bi bi-arrow-counterclockwise me-1" />
-                      Estorno: {fmtMoeda(r.valorReembolsado)}
+                      {t('Estorno:')} {fmtMoeda(r.valorReembolsado)}
                     </div>
                   )}
                 </td>
                 <td>
                   <div className="acoes-tabela">
-                    <button className="btn-acao-tabela ver" onClick={() => onVer(r)} title="Ver detalhes"><i className="bi bi-eye" /></button>
+                    <button className="btn-acao-tabela ver" onClick={() => onVer(r)} title={t("Ver detalhes")}><i className="bi bi-eye" /></button>
                     {r.status === 'aprovada' && (
                       <>
-                        <button className="btn-acao-tabela text-danger" onClick={() => onCancelar && onCancelar(r)} title="Cancelar com Estorno"><i className="bi bi-x-circle" /></button>
-                        <button className="btn-acao-tabela concluir text-primary" onClick={() => onVer(r)} title="Concluir Estadia"><i className="bi bi-check2-circle" /></button>
+                        <button className="btn-acao-tabela text-danger" onClick={() => onCancelar && onCancelar(r)} title={t("Cancelar com Estorno")}><i className="bi bi-x-circle" /></button>
+                        <button className="btn-acao-tabela concluir text-primary" onClick={() => onVer(r)} title={t("Concluir Estadia")}><i className="bi bi-check2-circle" /></button>
                       </>
                     )}
                   </div>
@@ -2235,11 +2259,12 @@ function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reserv
 
 // ─── Painel de Avaliações ────────────────────────────────────────────────────
 function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoResponder }) {
+  const { t } = usePreferencias();
   if (carregando) {
     return (
       <div className="estado-avaliacoes-admin" role="status" aria-live="polite">
         <span className="spinner-border text-primary" aria-hidden="true" />
-        <span>Carregando avaliações...</span>
+        <span>{t("Carregando avaliações...")}</span>
       </div>
     );
   }
@@ -2248,9 +2273,9 @@ function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoR
     return (
       <div className="estado-avaliacoes-admin erro" role="alert">
         <i className="bi bi-exclamation-triangle" aria-hidden="true" />
-        <h5>Não foi possível carregar as avaliações</h5>
+        <h5>{t("Não foi possível carregar as avaliações")}</h5>
         <p>{erro}</p>
-        <Button variant="outline-primary" onClick={aoTentarNovamente}>Tentar novamente</Button>
+        <Button variant="outline-primary" onClick={aoTentarNovamente}>{t('Tentar novamente')}</Button>
       </div>
     );
   }
@@ -2259,8 +2284,8 @@ function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoR
     return (
       <div className="estado-avaliacoes-admin">
         <i className="bi bi-chat-square-heart" aria-hidden="true" />
-        <h5>Nenhuma avaliação aguardando resposta</h5>
-        <p>Quando um hóspede avaliar uma estadia concluída, ela aparecerá aqui para você responder.</p>
+        <h5>{t("Nenhuma avaliação aguardando resposta")}</h5>
+        <p>{t("Quando um hóspede avaliar uma estadia concluída, ela aparecerá aqui para você responder.")}</p>
       </div>
     );
   }
@@ -2273,19 +2298,19 @@ function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoR
         <Col xs={12} sm={6} xl={4}>
           <CardKpiModerno
             icone={<i className="bi bi-chat-square-dots fs-4" aria-hidden="true" />}
-            titulo="Aguardando Resposta"
+            titulo={t("Aguardando Resposta")}
             valor={avaliacoes.length}
-            sub="avaliações pendentes"
-            cor="#f59e0b"
+            sub={t("avaliações pendentes")}
+            cor="var(--adm-star)"
           />
         </Col>
         <Col xs={12} sm={6} xl={4}>
           <CardKpiModerno
             icone={<i className="bi bi-star-fill fs-4" aria-hidden="true" />}
-            titulo="Média Recebida"
+            titulo={t("Média Recebida")}
             valor={media.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-            sub="entre as pendentes"
-            cor="#f37321"
+            sub={t("entre as pendentes")}
+            cor="var(--rc-u1)"
           />
         </Col>
       </Row>
@@ -2297,11 +2322,11 @@ function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoR
               <div className="d-flex align-items-center gap-2">
                 <div className="avatar-avaliacao-admin">{(avaliacao.hospede?.nome || '?').charAt(0)}</div>
                 <div>
-                  <div className="fw-bold" style={{ color: '#223a5e' }}>{avaliacao.hospede?.nome}</div>
-                  <div className="text-muted small">Reserva #{avaliacao.reserva?.id}</div>
+                  <div className="fw-bold" style={{ color: 'var(--rc-ink)' }}>{avaliacao.hospede?.nome}</div>
+                  <div className="text-muted small">{t('Reserva #{id}', { id: avaliacao.reserva?.id })}</div>
                 </div>
               </div>
-              <span className="badge-resposta-pendente">A responder</span>
+              <span className="badge-resposta-pendente">{t("A responder")}</span>
             </div>
 
             <div className="d-flex align-items-center justify-content-between gap-2 flex-wrap my-3">
@@ -2317,7 +2342,7 @@ function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoR
             </div>
 
             <button type="button" className="btn-responder-avaliacao" onClick={() => aoResponder(avaliacao)}>
-              <i className="bi bi-reply me-2" aria-hidden="true" />Responder & Avaliar Hóspede
+              <i className="bi bi-reply me-2" aria-hidden="true" />{t("Responder & Avaliar Hóspede")}
             </button>
           </article>
         ))}
@@ -2328,11 +2353,12 @@ function PainelAvaliacoes({ avaliacoes, carregando, erro, aoTentarNovamente, aoR
 
 // ─── Previsão de Receita (Aba dedicada) ───────────────────────────────────────
 function PrevisaoReceita({ reservas }) {
+  const { t, idioma } = usePreferencias();
   const hoje = new Date();
   const meses = Array.from({ length: 4 }, (_, i) => {
     const d = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1);
     return {
-      label: d.toLocaleString('pt-BR', { month: 'short' }).replace('.', ''),
+      label: d.toLocaleString(localeDe(idioma), { month: 'short' }).replace('.', ''),
       ano: d.getFullYear(),
       mes: d.getMonth(),
     };
@@ -2358,12 +2384,12 @@ function PrevisaoReceita({ reservas }) {
       <Row className="g-3 mb-4">
         <Col xs={12} md={4}>
           <div className="card-previsao-mini">
-            <div className="card-previsao-icone" style={{ background: '#dbeafe', color: '#1e40af' }}>
+            <div className="card-previsao-icone" style={{ background: 'var(--adm-info-bg)', color: 'var(--adm-info-fg)' }}>
               <i className="bi bi-graph-up-arrow fs-5" />
             </div>
             <div>
               <div className="card-previsao-valor">{fmtMoeda(receitaPrevista)}</div>
-              <div className="card-previsao-label">Receita prevista total</div>
+              <div className="card-previsao-label">{t("Receita prevista total")}</div>
             </div>
           </div>
         </Col>
@@ -2371,10 +2397,10 @@ function PrevisaoReceita({ reservas }) {
 
       <div className="grafico-wrapper-admin">
         <div className="grafico-header-admin">
-          <h6 className="fw-bold mb-0" style={{ color: '#223a5e', fontSize: '0.9rem' }}>Receita por Mês (próx. 4 meses)</h6>
+          <h6 className="fw-bold mb-0" style={{ color: 'var(--rc-ink)', fontSize: '0.9rem' }}>{t("Receita por Mês (próx. 4 meses)")}</h6>
           <div className="legenda-grafico">
-            <span className="legenda-item"><span className="dot" style={{ background: '#3b6399' }} />Confirmada (paga)</span>
-            <span className="legenda-item"><span className="dot" style={{ background: '#fbbf24' }} />Potencial (pendente/aguardando pgto)</span>
+            <span className="legenda-item"><span className="dot" style={{ background: 'var(--adm-blue)' }} />{t("Confirmada (paga)")}</span>
+            <span className="legenda-item"><span className="dot" style={{ background: 'var(--adm-star)' }} />{t("Potencial (pendente/aguardando pgto)")}</span>
           </div>
         </div>
         <div className="grafico-barras">
@@ -2383,9 +2409,9 @@ function PrevisaoReceita({ reservas }) {
               <div className="grafico-valor-topo">{total > 0 ? fmtMoeda(total).replace('R$\u00a0', 'R$ ') : '—'}</div>
               <div className="grafico-barra-container">
                 <div className="grafico-barra-stack">
-                  <div className="grafico-barra confirmada" style={{ height: `${(confirmada / maxValor) * 100}%` }} title={`Confirmada: ${fmtMoeda(confirmada)}`} />
+                  <div className="grafico-barra confirmada" style={{ height: `${(confirmada / maxValor) * 100}%` }} title={`${t('Confirmada')}: ${fmtMoeda(confirmada)}`} />
                   {potencial > 0 && (
-                    <div className="grafico-barra potencial" style={{ height: `${(potencial / maxValor) * 100}%` }} title={`Potencial: ${fmtMoeda(potencial)}`} />
+                    <div className="grafico-barra potencial" style={{ height: `${(potencial / maxValor) * 100}%` }} title={`${t('Potencial')}: ${fmtMoeda(potencial)}`} />
                   )}
                 </div>
               </div>
@@ -2400,6 +2426,8 @@ function PrevisaoReceita({ reservas }) {
 
 // ─── Componente Principal DashboardAdministrador ──────────────────────────────
 function DashboardAdministrador() {
+  const { t, tema, idioma, alternarTema, alternarIdioma } = usePreferencias();
+  const escuro = tema === 'escuro';
   const { usuario, tipo, logout } = useAutenticacao();
   const navigate = useNavigate();
   const usuarioId = usuario?.id ?? null;
@@ -2565,10 +2593,10 @@ function DashboardAdministrador() {
       });
       if (res.ok) {
         await buscarBloqueios();
-        fb('sucesso', 'Datas bloqueadas para manutenção com sucesso.');
+        fb('sucesso', t('Datas bloqueadas para manutenção com sucesso.'));
       } else {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro ao registrar bloqueio no servidor.');
+        throw new Error(err.error || t('Erro ao registrar bloqueio no servidor.'));
       }
     } catch (erro) {
       throw erro; // Repassa para o Modal não fechar sozinho
@@ -2582,9 +2610,9 @@ function DashboardAdministrador() {
         method: 'DELETE',
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Erro ao remover bloqueio.');
+      if (!res.ok) throw new Error(t('Erro ao remover bloqueio.'));
       setBloqueios(prev => prev.filter(b => b.id !== id));
-      fb('sucesso', 'Bloqueio de datas removido com sucesso.');
+      fb('sucesso', t('Bloqueio de datas removido com sucesso.'));
     } catch (erro) {
       fb('erro', erro.message);
     }
@@ -2600,9 +2628,9 @@ function DashboardAdministrador() {
         credentials: 'include',
         body: JSON.stringify({ ativo: novoStatus }),
       });
-      if (!res.ok) throw new Error('Falha ao atualizar status do cupom no servidor.');
+      if (!res.ok) throw new Error(t('Falha ao atualizar status do cupom no servidor.'));
       setCupons(prev => prev.map(c => c.id === id ? { ...c, ativo: novoStatus } : c));
-      fb('sucesso', `Cupom ${novoStatus ? 'ativado' : 'pausado'} com sucesso.`);
+      fb('sucesso', novoStatus ? t('Cupom ativado com sucesso.') : t('Cupom pausado com sucesso.'));
     } catch (erro) {
       fb('erro', erro.message);
     }
@@ -2620,10 +2648,10 @@ function DashboardAdministrador() {
       if (res.ok) {
         // Recarrega do servidor para garantir que o ID real e todos os campos batam
         await buscarCupons();
-        fb('sucesso', `Cupom criado com sucesso!`);
+        fb('sucesso', t('Cupom criado com sucesso!'));
       } else {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Erro ao registrar cupom no banco de dados.');
+        throw new Error(err.error || t('Erro ao registrar cupom no banco de dados.'));
       }
     } catch (err) {
       // Re-throw para o modal mostrar a mensagem de erro vermelha
@@ -2634,7 +2662,7 @@ function DashboardAdministrador() {
   // Decidir Reserva
   async function decidirReserva(id, acao, motivo) {
     const sessao = sessaoReservasRef.current;
-    if (!sessao?.ativa) throw new Error('Faça login novamente para decidir a reserva.');
+    if (!sessao?.ativa) throw new Error(t('Faça login novamente para decidir a reserva.'));
     const resposta = await fetch(`${API_BASE}/api/proprietario/reservas/${id}/${acao}`, {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2643,7 +2671,7 @@ function DashboardAdministrador() {
     });
     const dados = await resposta.json().catch(() => ({}));
     if (!sessao.ativa || sessaoReservasRef.current !== sessao) return;
-    if (!resposta.ok) throw new Error(dados.error || 'Não foi possível salvar a decisão.');
+    if (!resposta.ok) throw new Error(dados.error || t('Não foi possível salvar a decisão.'));
     const statusSalvo = dados.status === 'CONFIRMADA'
       ? 'aprovada'
       : (dados.status === 'PAGAMENTO_PENDENTE'
@@ -2651,14 +2679,14 @@ function DashboardAdministrador() {
         : (dados.status === 'CONCLUIDA' ? 'concluida' : 'recusada'));
     setReservas(atuais => atuais.map(r => String(r.id) === String(id) ? { ...r, status: statusSalvo } : r));
     setSelecionada(null);
-    fb('sucesso', dados.message || 'Decisão salva com sucesso.');
+    fb('sucesso', dados.message || t('Decisão salva com sucesso.'));
     await buscarReservas();
   }
 
   // Cancelar Reserva com Estorno Automático
   async function cancelarReservaComEstorno(id, motivo) {
     const sessao = sessaoReservasRef.current;
-    if (!sessao?.ativa) throw new Error('Faça login novamente para cancelar a reserva.');
+    if (!sessao?.ativa) throw new Error(t('Faça login novamente para cancelar a reserva.'));
     const resposta = await fetch(`${API_BASE}/api/proprietario/reservas/${id}/cancelar`, {
       method: 'PATCH', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -2667,10 +2695,10 @@ function DashboardAdministrador() {
     });
     const dados = await resposta.json().catch(() => ({}));
     if (!sessao.ativa || sessaoReservasRef.current !== sessao) return;
-    if (!resposta.ok) throw new Error(dados.error || 'Não foi possível cancelar a reserva.');
+    if (!resposta.ok) throw new Error(dados.error || t('Não foi possível cancelar a reserva.'));
     setSelecionada(null);
     setReservaParaCancelar(null);
-    fb('sucesso', dados.message || 'Reserva cancelada e estorno processado.');
+    fb('sucesso', dados.message || t('Reserva cancelada e estorno processado.'));
     await buscarReservas();
     return dados;
   }
@@ -2685,12 +2713,12 @@ function DashboardAdministrador() {
         signal,
       });
       const dados = await resposta.json().catch(() => ({}));
-      if (!resposta.ok) throw new Error(dados.error || 'Não foi possível carregar as avaliações.');
-      if (!Array.isArray(dados)) throw new Error('Formato inválido retornado pelo servidor.');
+      if (!resposta.ok) throw new Error(dados.error || t('Não foi possível carregar as avaliações.'));
+      if (!Array.isArray(dados)) throw new Error(t('Formato inválido retornado pelo servidor.'));
       setAvaliacoesPendentes(dados);
     } catch (falha) {
       if (falha.name !== 'AbortError') {
-        setErroAvaliacoes(falha.message || 'Não foi possível carregar as avaliações.');
+        setErroAvaliacoes(falha.message || t('Não foi possível carregar as avaliações.'));
       }
     } finally {
       if (!signal?.aborted) setCarregandoAvaliacoes(false);
@@ -2721,7 +2749,7 @@ function DashboardAdministrador() {
     setAvaliacoesPendentes(atuais => atuais.filter(item => item.id !== id));
     setAvaliacaoSelecionada(null);
     buscarAvaliacoesPublicas();
-    fb('sucesso', 'Resposta e avaliação interna do hóspede enviadas com sucesso.');
+    fb('sucesso', t('Resposta e avaliação interna do hóspede enviadas com sucesso.'));
   }, [buscarAvaliacoesPublicas]);
 
   // Cálculos do Dashboard
@@ -2795,13 +2823,13 @@ function DashboardAdministrador() {
 
         return (
           <>
-            <p className="dash-section-label">Indicadores Principais (KPIs)</p>
+            <p className="dash-section-label">{t("Indicadores Principais (KPIs)")}</p>
             <Row className="g-3 mb-4">
               {/* 1. Faturamento Mensal com badge de variação vs mês anterior */}
               <Col xs={12} sm={6} xl={3}>
                 <CardKpiModerno
                   icone={<i className="bi bi-currency-dollar fs-4" />}
-                  titulo="Faturamento Mensal"
+                  titulo={t("Faturamento Mensal")}
                   valor={fmtMoeda(faturamentoMesAtual)}
                   badge={
                     (faturamentoMesAtual === 0 && faturamentoMesAnterior === 0) ? null : (
@@ -2811,8 +2839,8 @@ function DashboardAdministrador() {
                       </span>
                     )
                   }
-                  sub={(faturamentoMesAtual === 0 && faturamentoMesAnterior === 0) ? 'Sem faturamento no período' : 'vs mês anterior'}
-                  cor="#ff9211"
+                  sub={(faturamentoMesAtual === 0 && faturamentoMesAnterior === 0) ? t('Sem faturamento no período') : t('vs mês anterior')}
+                  cor="var(--rc-u1)"
                 />
               </Col>
 
@@ -2820,11 +2848,11 @@ function DashboardAdministrador() {
               <Col xs={12} sm={6} xl={3}>
                 <CardKpiModerno
                   icone={<i className="bi bi-house-check fs-4" />}
-                  titulo="Ocupação no Mês"
+                  titulo={t("Ocupação no Mês")}
                   valor={`${ocupacao}%`}
                   barraProgresso={ocupacao}
-                  sub={`${diasOcupados} de ${diasNoMes} diárias reservadas`}
-                  cor="#ff9211"
+                  sub={t('{ocupados} de {total} diárias reservadas', { ocupados: diasOcupados, total: diasNoMes })}
+                  cor="var(--rc-u1)"
                 />
               </Col>
 
@@ -2832,7 +2860,7 @@ function DashboardAdministrador() {
               <Col xs={12} sm={6} xl={3}>
                 <CardKpiModerno
                   icone={<i className="bi bi-star-fill fs-4" />}
-                  titulo="Avaliação Média"
+                  titulo={t("Avaliação Média")}
                   valor={
                     <span className="d-flex align-items-center gap-2">
                       {notaMediaReal.toFixed(1)}
@@ -2840,10 +2868,10 @@ function DashboardAdministrador() {
                     </span>
                   }
                   sub={totalAvaliacoesPublicas === 0
-                    ? 'Nota inicial de estreia'
-                    : `${totalAvaliacoesPublicas} ${totalAvaliacoesPublicas === 1 ? 'avaliação de hóspede' : 'avaliações de hóspedes'}`
+                    ? t('Nota inicial de estreia')
+                    : (totalAvaliacoesPublicas === 1 ? t('{n} avaliação de hóspede', { n: totalAvaliacoesPublicas }) : t('{n} avaliações de hóspedes', { n: totalAvaliacoesPublicas }))
                   }
-                  cor="#f59e0b"
+                  cor="var(--adm-star)"
                 />
               </Col>
 
@@ -2851,24 +2879,24 @@ function DashboardAdministrador() {
               <Col xs={12} sm={6} xl={3}>
                 <CardKpiModerno
                   icone={<i className="bi bi-calendar-check fs-4" />}
-                  titulo="Total de Reservas"
+                  titulo={t("Total de Reservas")}
                   valor={reservas.length}
-                  sub={`${aprovadas} confirmadas · ${reservas.filter(r => r.status === 'pendente' || r.status === 'pagamento pendente').length} pendentes`}
-                  cor="#223a5e"
+                  sub={t('{a} confirmadas · {p} pendentes', { a: aprovadas, p: reservas.filter(r => r.status === 'pendente' || r.status === 'pagamento pendente').length })}
+                  cor="var(--rc-ink)"
                 />
               </Col>
             </Row>
 
             {/* Gráfico SVG Moderno de Evolução dos Últimos 6 Meses */}
-            <p className="dash-section-label">Desempenho Financeiro Recente</p>
+            <p className="dash-section-label">{t("Desempenho Financeiro Recente")}</p>
             <GraficoFaturamentoSVG reservas={reservas} />
 
             {/* Card de Próximos Check-ins com botão direto de WhatsApp */}
-            <p className="dash-section-label">Operação & Acolhimento</p>
+            <p className="dash-section-label">{t("Operação & Acolhimento")}</p>
             <CardProximosCheckins reservas={reservas} />
 
             {/* Tabela de Reservas Mantida com Filtros */}
-            <p className="dash-section-label">Gerenciamento de Reservas</p>
+            <p className="dash-section-label">{t("Gerenciamento de Reservas")}</p>
             <TabelaReservas
               reservas={ultimasReservas}
               reservasGerais={reservas}
@@ -2883,7 +2911,7 @@ function DashboardAdministrador() {
 
       case 'reservas': return (
         <>
-          <p className="dash-section-label">Gerenciamento de Reservas</p>
+          <p className="dash-section-label">{t("Gerenciamento de Reservas")}</p>
           <TabelaReservas
             reservas={reservas}
             onVer={setSelecionada}
@@ -2896,7 +2924,7 @@ function DashboardAdministrador() {
 
       case 'calendario': return (
         <>
-          <p className="dash-section-label">Calendário de Ocupação & Manutenção</p>
+          <p className="dash-section-label">{t("Calendário de Ocupação & Manutenção")}</p>
           <CalendarioOcupacao
             reservas={reservas}
             bloqueios={bloqueios}
@@ -2908,7 +2936,7 @@ function DashboardAdministrador() {
 
       case 'cupons': return (
         <>
-          <p className="dash-section-label">Gestão de Cupons Promocionais</p>
+          <p className="dash-section-label">{t("Gestão de Cupons Promocionais")}</p>
           <PainelCupons
             cupons={cupons}
             aoAlternarStatus={alternarStatusCupom}
@@ -2919,14 +2947,14 @@ function DashboardAdministrador() {
 
       case 'previsao': return (
         <>
-          <p className="dash-section-label">Previsão de Receita</p>
+          <p className="dash-section-label">{t("Previsão de Receita")}</p>
           <PrevisaoReceita reservas={reservas} />
         </>
       );
 
       case 'avaliacoes': return (
         <>
-          <p className="dash-section-label">Avaliações dos Hóspedes</p>
+          <p className="dash-section-label">{t("Avaliações dos Hóspedes")}</p>
           <PainelAvaliacoes
             avaliacoes={avaliacoesPendentes}
             carregando={carregandoAvaliacoes}
@@ -2959,25 +2987,25 @@ function DashboardAdministrador() {
               type="button"
               className={`sidebar-item${abaAtiva === a.id ? ' ativo' : ''}`}
               onClick={() => irAba(a.id)}
-              title={!sidebarAberta ? a.label : ''}
+              title={!sidebarAberta ? t(a.label) : ''}
             >
               <span className="sidebar-icone">{a.icone}</span>
-              {sidebarAberta && <span className="sidebar-label">{a.label}</span>}
+              {sidebarAberta && <span className="sidebar-label">{t(a.label)}</span>}
             </button>
           ))}
         </nav>
         <div className="sidebar-rodape">
-          <Link to="/" className="sidebar-item sidebar-item-link" title={!sidebarAberta ? 'Voltar ao site' : ''}>
+          <Link to="/" className="sidebar-item sidebar-item-link" title={!sidebarAberta ? t('Voltar ao site') : ''}>
             <span className="sidebar-icone"><Ico.Voltar /></span>
-            {sidebarAberta && <span className="sidebar-label">Voltar ao site</span>}
+            {sidebarAberta && <span className="sidebar-label">{t('Voltar ao site')}</span>}
           </Link>
-          <button type="button" className="sidebar-item" onClick={() => navigate('/Configuracoes')} title={!sidebarAberta ? 'Configurações' : ''}>
+          <button type="button" className="sidebar-item" onClick={() => navigate('/Configuracoes')} title={!sidebarAberta ? t('Configurações') : ''}>
             <span className="sidebar-icone"><Ico.Config /></span>
-            {sidebarAberta && <span className="sidebar-label">Configurações</span>}
+            {sidebarAberta && <span className="sidebar-label">{t('Configurações')}</span>}
           </button>
-          <button type="button" className="sidebar-item sair" onClick={() => { logout(); navigate('/'); }} title={!sidebarAberta ? 'Sair' : ''}>
+          <button type="button" className="sidebar-item sair" onClick={() => { logout(); navigate('/'); }} title={!sidebarAberta ? t('Sair') : ''}>
             <span className="sidebar-icone"><Ico.Sair /></span>
-            {sidebarAberta && <span className="sidebar-label">Sair</span>}
+            {sidebarAberta && <span className="sidebar-label">{t('Sair')}</span>}
           </button>
         </div>
       </aside>
@@ -2990,16 +3018,37 @@ function DashboardAdministrador() {
               type="button"
               className="btn-menu-topbar me-3"
               onClick={() => setSidebarAberta(s => !s)}
-              aria-label="Alternar menu"
+              aria-label={t("Alternar menu")}
             >
               <Ico.Menu />
             </button>
             <div>
-              <h4 className="topbar-titulo mb-0">{abas.find(a => a.id === abaAtiva)?.label}</h4>
-              <span className="topbar-sub">Olá, {usuario?.nome?.split(' ')[0] || 'Anfitrião'}!</span>
+              <h4 className="topbar-titulo mb-0">{t(abas.find(a => a.id === abaAtiva)?.label)}</h4>
+              <span className="topbar-sub">{t('Olá, {nome}!', { nome: usuario?.nome?.split(' ')[0] || t('Anfitrião') })}</span>
             </div>
           </div>
           <div className="topbar-direita">
+            <div className="adm-prefs">
+              <button
+                type="button"
+                className="rc-pref"
+                onClick={alternarIdioma}
+                lang={idioma === 'en' ? 'pt' : 'en'}
+                aria-label={idioma === 'en' ? 'Mudar para português' : 'Switch to English'}
+              >
+                <i className="bi bi-translate" aria-hidden="true" />
+                <span>{idioma === 'en' ? 'PT' : 'EN'}</span>
+              </button>
+              <button
+                type="button"
+                className="rc-pref"
+                onClick={alternarTema}
+                aria-pressed={escuro}
+                aria-label={escuro ? t('Ativar tema claro') : t('Ativar tema escuro')}
+              >
+                <i className={`bi ${escuro ? 'bi-sun' : 'bi-moon-stars'}`} aria-hidden="true" />
+              </button>
+            </div>
             <Notificacoes aoNovaNotificacao={buscarReservas} aoClicarNotificacao={tratarCliqueNotificacao} />
             <div className="topbar-avatar" title={usuario?.nome}>
               {usuario?.nome?.charAt(0) || 'R'}
@@ -3010,9 +3059,10 @@ function DashboardAdministrador() {
         {feedback.msg && (
           <Alert
             variant={feedback.tipo === 'sucesso' ? 'success' : 'danger'}
-            className="alert-feedback-admin border-0 shadow-sm mx-4 mt-3"
+            className={`alert-feedback-admin ${feedback.tipo === 'sucesso' ? 'adm-alert-ok' : 'adm-alert-err'}`}
+            role={feedback.tipo === 'sucesso' ? 'status' : 'alert'}
           >
-            <i className={`bi ${feedback.tipo === 'sucesso' ? 'bi-check-circle' : 'bi-x-circle'} me-2`} />
+            <i className={`bi ${feedback.tipo === 'sucesso' ? 'bi-check-circle' : 'bi-x-circle'} me-2`} aria-hidden="true" />
             {feedback.msg}
           </Alert>
         )}
