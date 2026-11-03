@@ -51,6 +51,7 @@ const normalizarCupom = (cupom) => {
     icone: tipoDesconto === 'PERCENTUAL' ? 'bi-gift' : 'bi-tag',
     ativo: true,
     usado: Boolean(cupom.usado),
+    emReservaPendente: Boolean(cupom.emReservaPendente),
   };
 };
 
@@ -1084,7 +1085,9 @@ function MeusCupons({ cupons, carregando, erro }) {
               <div className="cli-cupom-topo">
                 <span className="cli-cupom-icone"><i className={`bi ${c.icone}`} aria-hidden="true"></i></span>
                 <div className="cli-cupom-status">
-                  {c.usado && <span className="cli-cupom-tag usado">{t('Usado')}</span>}
+                  {c.usado && (c.emReservaPendente
+                    ? <span className="cli-cupom-tag usado" title={t('Volta a valer se a reserva for recusada ou cancelada.')}>{t('Em uma reserva')}</span>
+                    : <span className="cli-cupom-tag usado">{t('Usado')}</span>)}
                   {exp && !c.usado && <span className="cli-cupom-tag expirado">{t('Expirado')}</span>}
                   {!inativo && <span className="cli-cupom-tag ativo">{t('Ativo')}</span>}
                 </div>

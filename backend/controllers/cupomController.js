@@ -30,7 +30,14 @@ exports.listarMeus = async (req, res) => {
                     WHERE usada.Cup_Id = c.Cup_Id
                       AND usada.Hos_Hospede_Usu_Id = ?
                       AND usada.Res_Status NOT IN ('CANCELADA', 'RECUSADA')
-                ) AS Cup_Usado
+                ) AS Cup_Usado,
+                NOT EXISTS (
+                    SELECT 1
+                    FROM res_reserva firme
+                    WHERE firme.Cup_Id = c.Cup_Id
+                      AND firme.Hos_Hospede_Usu_Id = ?
+                      AND firme.Res_Status IN ('CONFIRMADA', 'CONCLUIDA')
+                ) AS Cup_SoPendente
              FROM cup_cupom c
              WHERE c.Cup_Ativo = 1
                AND c.Cup_DataValidade >= CURDATE()
@@ -70,7 +77,7 @@ exports.listarMeus = async (req, res) => {
                    WHERE UPPER(duplicado.Cup_Codigo) = UPPER(c.Cup_Codigo)
                ) = ?
              ORDER BY c.Cup_DataValidade ASC, c.Cup_Id ASC`,
-            [req.usuario.id, 0, 'PERCENTUAL', 100, 'FIXO', req.usuario.id, req.usuario.id, req.usuario.id, req.usuario.id, req.usuario.id, 1]
+            [req.usuario.id, req.usuario.id, 0, 'PERCENTUAL', 100, 'FIXO', req.usuario.id, req.usuario.id, req.usuario.id, req.usuario.id, req.usuario.id, 1]
         );
 
         const resposta = cupons.map(cupom => {
@@ -84,7 +91,9 @@ exports.listarMeus = async (req, res) => {
                 publicoAlvo: normalizado.publicoAlvo,
                 minimoNoites: normalizado.minimoNoites,
                 valorMinimo: normalizado.valorMinimo,
-                usado: Number(cupom.Cup_Usado) === 1
+                usado: Number(cupom.Cup_Usado) === 1,
+                // Está preso a uma reserva ainda não confirmada: volta a valer se ela for recusada ou cancelada.
+                emReservaPendente: Number(cupom.Cup_Usado) === 1 && Number(cupom.Cup_SoPendente) === 1
             };
         });
 
