@@ -47,6 +47,90 @@ function normalizarIdPositivo(valor, nomeCampo) {
     return Number(valor);
 }
 
+// Imóvel usado quando a requisição não informa qual unidade (compatibilidade com o front antigo).
+const IMOVEL_PADRAO_ID = 1;
+
+// Resolve o imóvel da requisição: valida o id, confirma que existe e (opcionalmente) que está ativo
+// e pertence ao proprietário. Retorna { id, valorDiaria, nome }.
+async function resolverImovel(executor, valor, { proprietarioId = null, somenteAtivo = true, bloquear = false } = {}) {
+    const id = (valor === undefined || valor === null || valor === '')
+        ? IMOVEL_PADRAO_ID
+        : normalizarIdPositivo(valor, 'Identificador do imóvel');
+
+    const filtros = ['Imo_Id = ?'];
+    const params = [id];
+    if (somenteAtivo) { filtros.push('Imo_Status = ?'); params.push('ATIVO'); }
+    if (proprietarioId !== null) { filtros.push('Pro_Proprietario_Usu_Id = ?'); params.push(proprietarioId); }
+
+    const [imoveis] = await executor.query(
+        `SELECT Imo_Id, Imo_Nome, Imo_ValorFixo FROM imo_imovel WHERE ${filtros.join(' AND ')} LIMIT 1${bloquear ? ' FOR UPDATE' : ''}`,
+        params
+    );
+    if (imoveis.length === 0) {
+        throw new ErroHttp(404, 'Imóvel não encontrado.');
+    }
+    return { id: imoveis[0].Imo_Id, nome: imoveis[0].Imo_Nome, valorDiaria: Number(imoveis[0].Imo_ValorFixo) };
+}
+
+const TAXA_LIMPEZA = 80;
+
+// Noites de sexta e sábado usam o preço de fim de semana (getUTCDay: 5 = sexta, 6 = sábado).
+const DIAS_FIM_DE_SEMANA = [5, 6];
+
+function somarDias(dataIso, dias) {
+    const dt = new Date(`${dataIso}T12:00:00Z`);
+    dt.setUTCDate(dt.getUTCDate() + dias);
+    return dt.toISOString().slice(0, 10);
+}
+
+// Calcula o valor de cada noite da estadia. Prioridade: data especial (dat_datadinamica) >
+// fim de semana > dia de semana. A noite é identificada pela data de entrada daquela noite.
+async function calcularValorEstadia(executor, imoId, checkinStr, checkoutStr) {
+    const [imoveis] = await executor.query(
+        'SELECT Imo_ValorFixo, Imo_ValorFimSemana FROM imo_imovel WHERE Imo_Id = ? LIMIT 1',
+        [imoId]
+    );
+    if (imoveis.length === 0) throw new ErroHttp(404, 'Imóvel não encontrado.');
+
+    const valorSemana = Number(imoveis[0].Imo_ValorFixo);
+    const valorFimSemana = imoveis[0].Imo_ValorFimSemana !== null && imoveis[0].Imo_ValorFimSemana !== undefined
+        ? Number(imoveis[0].Imo_ValorFimSemana)
+        : valorSemana;
+
+    const ultimaNoite = somarDias(checkoutStr, -1);
+    const [especiais] = await executor.query(
+        `SELECT DATE_FORMAT(Dat_Inicio, '%Y-%m-%d') AS inicio, DATE_FORMAT(Dat_Fim, '%Y-%m-%d') AS fim,
+                Dat_NomeEvento AS nome, Dat_PrecoDiaria AS preco
+         FROM dat_datadinamica
+         WHERE Imo_Id = ? AND Dat_Inicio <= ? AND Dat_Fim >= ?
+         ORDER BY Dat_Inicio ASC`,
+        [imoId, ultimaNoite, checkinStr]
+    );
+
+    const itens = [];
+    for (let noite = checkinStr; noite < checkoutStr; noite = somarDias(noite, 1)) {
+        const especial = especiais.find(e => noite >= e.inicio && noite <= e.fim);
+        if (especial) {
+            itens.push({ data: noite, tipo: 'DATA_ESPECIAL', evento: especial.nome, valor: Number(especial.preco) });
+            continue;
+        }
+        const diaSemana = new Date(`${noite}T12:00:00Z`).getUTCDay();
+        const fimDeSemana = DIAS_FIM_DE_SEMANA.includes(diaSemana);
+        itens.push({ data: noite, tipo: fimDeSemana ? 'FIM_SEMANA' : 'SEMANA', valor: fimDeSemana ? valorFimSemana : valorSemana });
+    }
+
+    const subtotalCentavos = itens.reduce((acc, i) => acc + Math.round(i.valor * 100), 0);
+    return {
+        noites: itens.length,
+        itens,
+        valorSemana,
+        valorFimSemana,
+        subtotal: subtotalCentavos / 100,
+        taxaLimpeza: TAXA_LIMPEZA,
+        total: (subtotalCentavos + TAXA_LIMPEZA * 100) / 100,
+    };
+}
+
 function normalizarNota(valor) {
     const nota = typeof valor === 'number'
         ? valor
@@ -370,5 +454,9 @@ module.exports = {
     buscarCupomPorCodigo,
     buscarCupomPorIdComLock,
     validarRegrasCupom,
-    conciliarReservasConcluidas
+    conciliarReservasConcluidas,
+    resolverImovel,
+    IMOVEL_PADRAO_ID,
+    calcularValorEstadia,
+    TAXA_LIMPEZA
 };

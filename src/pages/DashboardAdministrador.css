@@ -2144,3 +2144,25 @@
   .diaria-input { max-width:none; }
   .btn-diaria-salvar { align-self:stretch; }
 }
+
+/* ─── Unidades no admin ────────────────────────────────────── */
+.seletor-unidade-admin { display:inline-flex; gap:6px; padding:5px; margin-bottom:1rem; background:var(--rc-card); border:1px solid var(--rc-line); border-radius:999px; flex-wrap:wrap; }
+.seletor-unidade-admin button { display:inline-flex; align-items:center; gap:8px; min-height:40px; padding:0 16px; border:0; border-radius:999px; background:transparent; color:var(--rc-ink); font-weight:600; font-size:.88rem; cursor:pointer; }
+.seletor-unidade-admin button:hover { background:var(--rc-fill); }
+.seletor-unidade-admin button.ativo { background:var(--rc-ink); color:var(--rc-bg); }
+.seletor-unidade-admin .dot-unidade { width:10px; height:10px; border-radius:50%; background:var(--cor-unidade); display:inline-block; }
+:root[data-theme="dark"] .seletor-unidade-admin .dot-unidade { box-shadow:0 0 0 1px rgba(255,255,255,.35); }
+.selo-unidade-admin { display:inline-flex; align-items:center; justify-content:center; padding:0 6px; height:18px; border-radius:6px; font-size:.68rem; font-weight:800; color:#fff; background:var(--cor-unidade); letter-spacing:.02em; }
+:root[data-theme="dark"] .selo-unidade-admin { box-shadow:0 0 0 1px rgba(255,255,255,.25); }
+.diaria-form-especial { display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto; gap:.75rem; align-items:end; margin-top:.5rem; }
+.diaria-campo { display:flex; flex-direction:column; gap:.35rem; min-width:0; }
+.btn-diaria-remover { width:36px; height:36px; border:1px solid var(--rc-line); border-radius:999px; background:transparent; color:var(--adm-err-fg); display:grid; place-items:center; cursor:pointer; }
+.btn-diaria-remover:hover { background:var(--adm-err-bg); }
+@media (max-width: 991.98px) {
+  .diaria-form-especial { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .diaria-campo-nome { grid-column:1 / -1; }
+  .diaria-form-especial .btn-diaria-salvar { grid-column:1 / -1; }
+}
+@media (max-width: 575.98px) {
+  .diaria-form-especial { grid-template-columns:minmax(0,1fr); }
+}

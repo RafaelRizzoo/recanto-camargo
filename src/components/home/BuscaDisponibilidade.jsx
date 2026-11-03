@@ -60,6 +60,7 @@ function BuscaDisponibilidade({
           </button>
         </div>
         <CalendarioCustom
+          imovelId={busca.unidade}
           valor={
             busca.checkin && busca.checkout
               ? [new Date(`${busca.checkin}T12:00:00`), new Date(`${busca.checkout}T12:00:00`)]

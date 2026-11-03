@@ -283,7 +283,7 @@ export const mapaEmbedSrc =
 
 export const fotoBasilica = BasilicaArte;
 
-// consultaOnline: só o imóvel 1 existe na API de disponibilidade atual
+// consultaOnline: unidades com reserva pelo sistema (imóveis 1 e 2 cadastrados no banco)
 export const unidades = [
   {
     id: 1,
@@ -317,7 +317,7 @@ export const unidades = [
       { icone: "bi-fire", texto: "Churrasqueira" },
       { icone: "bi-sun", texto: "Varanda" },
     ],
-    consultaOnline: false,
+    consultaOnline: true,
   },
 ];
 

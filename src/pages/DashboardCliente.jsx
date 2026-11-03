@@ -258,8 +258,8 @@ function ModalDetalheReserva({ reserva, aoFechar, aoCancelar, aoPagar, pagando =
               </div>
               <div className="d-flex gap-2">
                 <div className="cli-bloco-dado flex-fill">
-                  <div className="cli-bloco-label">{t('Diária')}</div>
-                  <div className="cli-bloco-valor">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}</div>
+                  <div className="cli-bloco-label">{t('Total')}</div>
+                  <div className="cli-bloco-valor">{fmtMoeda(reserva.total ?? reserva.valorTotal)}</div>
                 </div>
                 <div className="cli-bloco-dado flex-fill">
                   <div className="cli-bloco-label">{t('Método')}</div>
@@ -728,7 +728,7 @@ function CardReserva({ reserva, onVer, onCancelar, onAvaliar, onPagar, pagando =
         <div className="cli-card-rodape">
           <div>
             <div className="cli-card-valor">{fmtMoeda(reserva.total ?? reserva.valorTotal)}</div>
-            <div className="cli-card-valor-diaria">{fmtMoeda(reserva.diaria ?? reserva.valorDiaria)}{t('/noite')}</div>
+            <div className="cli-card-valor-diaria">{textoNoites(t, n)} · {t('com taxa de limpeza')}</div>
           </div>
           <div className="cli-card-acoes">
             {reserva.status === 'pagamento pendente' && onPagar && (
