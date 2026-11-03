@@ -58,7 +58,7 @@ export function useConsultaDisponibilidade() {
 
       setCarregando(true);
       try {
-        const resposta = await fetch(`${API_BASE}/api/reservas/disponibilidade?checkin=${checkin}&checkout=${checkout}`);
+        const resposta = await fetch(`${API_BASE}/api/reservas/disponibilidade?checkin=${checkin}&checkout=${checkout}&imovelId=${unidade.id}`);
         const dados = await resposta.json();
         if (!dados.disponivel) return falha("Período indisponível. Escolha outras datas.");
 
@@ -74,7 +74,7 @@ export function useConsultaDisponibilidade() {
           origem,
         });
         temporizador.current = setTimeout(() => {
-          navigate(`/Reserva?checkin=${checkin}&checkout=${checkout}&hospedes=${hospedes}`);
+          navigate(`/Reserva?unidade=${unidade.id}&checkin=${checkin}&checkout=${checkout}&hospedes=${hospedes}`);
         }, 2000);
       } catch (erro) {
         console.error(erro);

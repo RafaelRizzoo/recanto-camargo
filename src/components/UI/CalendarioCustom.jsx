@@ -6,13 +6,13 @@ import { API_BASE, IS_API_AVAILABLE } from '../../utils/api';
 
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 
-function CalendarioCustom({ valor, onChange, minDate }) {
+function CalendarioCustom({ valor, onChange, minDate, imovelId = 1 }) {
   const [reservas, setReservas] = useState([]);
   const [erroConflito, setErroConflito] = useState('');
 
   useEffect(() => {
     if (IS_API_AVAILABLE) {
-      fetch(`${API_BASE}/api/reservas/datas-ocupadas`)
+      fetch(`${API_BASE}/api/reservas/datas-ocupadas?imovelId=${encodeURIComponent(imovelId)}`)
         .then(res => res.json())
         .then(data => setReservas(Array.isArray(data) ? data : []))
         .catch(err => console.error('Erro ao carregar datas ocupadas:', err));
@@ -24,7 +24,7 @@ function CalendarioCustom({ valor, onChange, minDate }) {
         setReservas([]);
       }
     }
-  }, []);
+  }, [imovelId]);
 
   const handleCalendarChange = (range) => {
     setErroConflito('');

@@ -9,13 +9,15 @@ import MosaicoFotos from '../components/home/MosaicoFotos';
 import { linkWhats } from '../components/home/links';
 import { useAjustarPopover } from '../components/home/useAjustarPopover';
 import { useAvaliacoesGoogle } from '../hooks/useAvaliacoesGoogle';
-import { API_BASE } from '../utils/api';
+import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 import '../components/home/home.css';
 import './Reserva.css';
 
-const DIARIA = 270;
+// Valores de referência só para quando a API não responde; o valor real vem de /api/reservas/cotacao.
+const DIARIA_REFERENCIA = { semana: 350, fimSemana: 450 };
 const TAXA_LIMPEZA = 80;
 const MAPS_URL = 'https://www.google.com/maps?q=Recanto+Camargo+Aparecida+SP';
+const MAPS_URL_R2 = 'https://www.google.com/maps?q=' + encodeURIComponent('Américo Ferreira Iria, 240 - Ponte Alta, Aparecida - SP');
 
 function calcularNoites(checkin, checkout) {
   if (!checkin || !checkout) return 0;
@@ -34,7 +36,12 @@ function Reserva() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [unidadeId, setUnidadeId] = useState(1);
+  const [unidadeId, setUnidadeId] = useState(() => {
+    const id = Number(searchParams.get('unidade'));
+    return unidades.some((u) => u.id === id) ? id : 1;
+  });
+  const [precosUnidades, setPrecosUnidades] = useState({});
+  const [cotacao, setCotacao] = useState(null);
   const unidade = unidades.find((u) => u.id === unidadeId) ?? unidades[0];
   const { nota: notaMedia, total: totalGoogle, erro: erroGoogle, carregando: carregandoGoogle } = useAvaliacoesGoogle();
   const areaCalendario = useRef(null);
@@ -54,8 +61,69 @@ function Reserva() {
   const [erroCupom, setErroCupom] = useState('');
   const [validandoCupom, setValidandoCupom] = useState(false);
 
+  // Quando a busca do rodapé muda a URL já estando nesta página, aplica os valores e leva até o card de reserva.
+  const parametrosBusca = searchParams.toString();
+  const primeiraCarga = useRef(true);
+  useEffect(() => {
+    if (primeiraCarga.current) { primeiraCarga.current = false; return; }
+    const id = Number(searchParams.get('unidade'));
+    if (unidades.some((u) => u.id === id)) setUnidadeId(id);
+    const ci = searchParams.get('checkin');
+    const co = searchParams.get('checkout');
+    if (ci && co) setDatas({ checkin: ci, checkout: co });
+    const h = searchParams.get('hospedes');
+    if (h) setHospedes(h);
+    document.querySelector('.rc-res-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parametrosBusca]);
+
   const noites = calcularNoites(datas.checkin, datas.checkout);
-  const subtotal = noites * DIARIA;
+  const precoUnidade = precosUnidades[unidadeId] || DIARIA_REFERENCIA;
+
+  // Preços por unidade (semana e fim de semana), para o cabeçalho do card.
+  useEffect(() => {
+    if (!IS_API_AVAILABLE) return undefined;
+    let ativo = true;
+    fetch(`${API_BASE}/api/imoveis`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((lista) => {
+        if (!ativo || !Array.isArray(lista)) return;
+        const mapa = {};
+        lista.forEach((i) => {
+          const semana = Number(i.Imo_ValorFixo);
+          mapa[Number(i.Imo_Id)] = { semana, fimSemana: i.Imo_ValorFimSemana != null ? Number(i.Imo_ValorFimSemana) : semana };
+        });
+        setPrecosUnidades(mapa);
+      })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, []);
+
+  // Cotação noite a noite calculada pelo servidor (semana, fim de semana ou data especial).
+  useEffect(() => {
+    setCotacao(null);
+    if (!IS_API_AVAILABLE || noites <= 0) return undefined;
+    let ativo = true;
+    const params = new URLSearchParams({ imovelId: String(unidadeId), checkin: datas.checkin, checkout: datas.checkout });
+    fetch(`${API_BASE}/api/reservas/cotacao?${params}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((dados) => { if (ativo && dados && Number.isFinite(Number(dados.subtotal))) setCotacao(dados); })
+      .catch(() => {});
+    return () => { ativo = false; };
+  }, [unidadeId, datas.checkin, datas.checkout, noites]);
+
+  const subtotal = cotacao ? Number(cotacao.subtotal) : noites * precoUnidade.semana;
+  const linhasNoites = (() => {
+    if (!cotacao) return noites > 0 ? [{ chave: 'semana', valor: precoUnidade.semana, qtd: noites, rotulo: '' }] : [];
+    const grupos = new Map();
+    cotacao.itens.forEach((item) => {
+      const chave = item.tipo === 'DATA_ESPECIAL' ? `esp-${item.evento}-${item.valor}` : `${item.tipo}-${item.valor}`;
+      const atual = grupos.get(chave) || { chave, valor: item.valor, qtd: 0, tipo: item.tipo, evento: item.evento };
+      atual.qtd += 1;
+      grupos.set(chave, atual);
+    });
+    return [...grupos.values()];
+  })();
 
   // Apenas PREVIEW para o usuário; o valor definitivo é sempre recalculado no servidor.
   const valorBasePreview = subtotal + TAXA_LIMPEZA;
@@ -219,6 +287,7 @@ function Reserva() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // ESSENCIAL: Envia o Cookie JWT do usuário!
         body: JSON.stringify({
+          imovelId: unidadeId,
           checkin: datas.checkin + ' 14:00:00', // Check-in a partir das 14h
           checkout: datas.checkout + ' 11:00:00', // Check-out até as 11h
           hospedes: parseInt(hospedes, 10),
@@ -245,7 +314,7 @@ function Reserva() {
 
   const reservaOnline = unidade.consultaOnline;
   const notaGoogle = !carregandoGoogle && !erroGoogle && notaMedia != null && totalGoogle;
-  const localTexto = unidade.id === 1 ? 'Ponte Alta, Aparecida - SP' : 'Aparecida, SP';
+  const localTexto = 'Ponte Alta, Aparecida - SP';
 
   return (
     <div className="rc-home rc-reserva">
@@ -332,6 +401,11 @@ function Reserva() {
                   </a>
                 </>
               )}
+              {unidade.id === 2 && (
+                <a href={MAPS_URL_R2} target="_blank" rel="noopener noreferrer" className="rc-res-local rc-res-maps">
+                  <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {t('Ver no Google Maps')}
+                </a>
+              )}
             </section>
           </div>
 
@@ -355,7 +429,12 @@ function Reserva() {
               ) : (
                 <>
                   <div className="rc-res-preco">
-                    <strong>{formatarMoeda(DIARIA)}</strong> <span>/ {t('noite')}</span>
+                    <strong>{formatarMoeda(precoUnidade.semana)}</strong> <span>/ {t('noite')}</span>
+                    {precoUnidade.fimSemana !== precoUnidade.semana && (
+                      <small className="rc-res-preco-fds">
+                        {t('{valor} nas noites de sexta e sábado', { valor: formatarMoeda(precoUnidade.fimSemana) })}
+                      </small>
+                    )}
                   </div>
 
                   <div className="rc-res-datas-wrap" ref={areaCalendario}>
@@ -389,6 +468,7 @@ function Reserva() {
                             </button>
                           </div>
                           <CalendarioCustom
+                            imovelId={unidadeId}
                             onChange={handleCalendarChange}
                             valor={(datas.checkin && datas.checkout) ? [new Date(datas.checkin + 'T12:00:00'), new Date(datas.checkout + 'T12:00:00')] : null}
                           />
@@ -433,7 +513,16 @@ function Reserva() {
 
                   {noites > 0 && (
                     <div className="rc-res-valores">
-                      <div><span>{formatarMoeda(DIARIA)} × {t(noites === 1 ? '{n} noite' : '{n} noites', { n: noites })}</span><span>{formatarMoeda(subtotal)}</span></div>
+                      {linhasNoites.map((linha) => (
+                        <div key={linha.chave}>
+                          <span>
+                            {formatarMoeda(linha.valor)} × {t(linha.qtd === 1 ? '{n} noite' : '{n} noites', { n: linha.qtd })}
+                            {linha.tipo === 'FIM_SEMANA' && <small> · {t('fim de semana')}</small>}
+                            {linha.tipo === 'DATA_ESPECIAL' && <small> · {linha.evento}</small>}
+                          </span>
+                          <span>{formatarMoeda(linha.valor * linha.qtd)}</span>
+                        </div>
+                      ))}
                       <div><span>{t('Taxa de limpeza')}</span><span>{formatarMoeda(TAXA_LIMPEZA)}</span></div>
                       {cupomAplicado && (
                         <div className="rc-res-desconto"><span>{t('Desconto')} ({cupomAplicado.codigo})</span><span>-{formatarMoeda(desconto)}</span></div>

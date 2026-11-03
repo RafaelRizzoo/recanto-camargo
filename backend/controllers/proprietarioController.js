@@ -6,7 +6,8 @@ const {
     normalizarComentario,
     normalizarAvaliacao,
     garantirProprietario,
-    conciliarReservasConcluidas
+    conciliarReservasConcluidas,
+    resolverImovel
 } = require('../services/helpers');
 const { calcularPoliticaCancelamento, calcularCancelamentoProprietario } = require('../services/politicaCancelamento');
 const { reembolsarPagamento } = require('../services/mercadoPagoService');
@@ -542,6 +543,8 @@ exports.listarReservas = async (req, res) => {
         const query = `
             SELECT 
                 r.Res_Id as id,
+                r.Imo_Id as imovelId,
+                i.Imo_Nome as imovelNome,
                 u.Usu_Nome as hospede,
                 u.Usu_Email as email,
                 u.Usu_Telefone as telefone,
@@ -803,7 +806,7 @@ exports.criarBloqueio = async (req, res) => {
     let conexao;
     try {
         const proprietarioId = req.usuario.id;
-        const { dataInicio, dataFim, motivo, observacao } = req.body || {};
+        const { dataInicio, dataFim, motivo, observacao, imovelId } = req.body || {};
 
         if (!dataInicio) {
             return res.status(400).json({ error: 'Informe a data de início do bloqueio.' });
@@ -827,7 +830,7 @@ exports.criarBloqueio = async (req, res) => {
         conexao = await db.getConnection();
         await garantirProprietario(db, proprietarioId);
 
-        const imoId = 1;
+        const { id: imoId } = await resolverImovel(conexao, imovelId, { proprietarioId, somenteAtivo: false });
 
         // Se dataInicio === fim (bloqueio de 1 dia), o fim efetivo para o intervalo [inicio, fim) é o dia seguinte.
         // Se dataInicio < fim, o intervalo é [dataInicio, fim) onde fim é a data de término/desocupação do bloqueio.
@@ -889,6 +892,7 @@ exports.criarBloqueio = async (req, res) => {
             message: 'Período bloqueado com sucesso.',
             dataInicio,
             dataFim: fim,
+            imovelId: imoId,
             totalDias: dias.length,
             motivo: motivoCompleto
         });
@@ -908,7 +912,7 @@ exports.listarBloqueios = async (req, res) => {
         const proprietarioId = req.usuario.id;
         await garantirProprietario(db, proprietarioId);
 
-        const imoId = 1;
+        const { id: imoId } = await resolverImovel(db, req.query.imovelId, { proprietarioId, somenteAtivo: false });
         const [bloqueios] = await db.query(
             `SELECT
                 Bld_Id AS id,
@@ -935,8 +939,11 @@ exports.removerBloqueio = async (req, res) => {
 
         const bloqueioId = normalizarIdPositivo(req.params.id, 'Identificador do bloqueio');
         const [resultado] = await db.query(
-            "UPDATE bld_bloqueiodata SET Bld_Status = \'CANCELADO\' WHERE Bld_Id = ?",
-            [bloqueioId]
+            `UPDATE bld_bloqueiodata b
+             JOIN imo_imovel i ON i.Imo_Id = b.Imo_Id
+             SET b.Bld_Status = 'CANCELADO'
+             WHERE b.Bld_Id = ? AND i.Pro_Proprietario_Usu_Id = ?`,
+            [bloqueioId, proprietarioId]
         );
 
         if (resultado.affectedRows === 0) {
@@ -1318,7 +1325,7 @@ exports.obterMetricasDashboard = async (req, res) => {
     try {
         const proprietarioId = req.usuario.id;
         await garantirProprietario(db, proprietarioId);
-        const imoId = 1;
+        const { id: imoId } = await resolverImovel(db, req.query.imovelId, { proprietarioId, somenteAtivo: false });
 
         // 1. Receita total confirmada / concluída
         const [recTotal] = await db.query(
@@ -1433,7 +1440,11 @@ exports.atualizarValorDiaria = async (req, res) => {
     let conexaoDestruida = false;
 
     try {
-        const { novoValor } = req.body;
+        const { novoValor, imovelId, tipo = 'SEMANA' } = req.body || {};
+        if (!['SEMANA', 'FIM_SEMANA'].includes(tipo)) {
+            throw new ErroHttp(400, 'Tipo de preço inválido.');
+        }
+        const coluna = tipo === 'FIM_SEMANA' ? 'Imo_ValorFimSemana' : 'Imo_ValorFixo';
         const valorNumerico = Number(novoValor);
 
         if (!Number.isFinite(valorNumerico) || valorNumerico <= 0 || valorNumerico > 999999.99) {
@@ -1448,9 +1459,10 @@ exports.atualizarValorDiaria = async (req, res) => {
         await conexao.beginTransaction();
         transacaoAtiva = true;
 
+        const { id: imoIdAlvo } = await resolverImovel(conexao, imovelId, { proprietarioId: req.usuario.id, somenteAtivo: false });
         const [imoveis] = await conexao.query(
-            'SELECT Imo_Id, Imo_ValorFixo FROM imo_imovel WHERE Pro_Proprietario_Usu_Id = ? FOR UPDATE',
-            [req.usuario.id]
+            `SELECT Imo_Id, Imo_ValorFixo, ${coluna} AS valorAtual FROM imo_imovel WHERE Imo_Id = ? AND Pro_Proprietario_Usu_Id = ? FOR UPDATE`,
+            [imoIdAlvo, req.usuario.id]
         );
 
         if (imoveis.length === 0) {
@@ -1458,7 +1470,7 @@ exports.atualizarValorDiaria = async (req, res) => {
         }
 
         const imovel = imoveis[0];
-        const valorAntigo = Number(imovel.Imo_ValorFixo);
+        const valorAntigo = Number(imovel.valorAtual ?? imovel.Imo_ValorFixo);
 
         if (valorAntigo === valorFormatado) {
             throw new ErroHttp(400, 'O novo valor da diária deve ser diferente do valor atual.');
@@ -1466,16 +1478,16 @@ exports.atualizarValorDiaria = async (req, res) => {
 
         // 1. Atualiza o valor fixo no imóvel
         await conexao.query(
-            'UPDATE imo_imovel SET Imo_ValorFixo = ? WHERE Imo_Id = ?',
+            `UPDATE imo_imovel SET ${coluna} = ? WHERE Imo_Id = ?`,
             [valorFormatado, imovel.Imo_Id]
         );
 
         // 2. Registra na tabela de auditoria hit_historicovalores
         await conexao.query(
             `INSERT INTO hit_historicovalores 
-             (Imo_Id, Dat_Id, Hit_ValorAntigo, Hit_ValorNovo, Hit_DataAlteracao)
-             VALUES (?, NULL, ?, ?, NOW())`,
-            [imovel.Imo_Id, valorAntigo, valorFormatado]
+             (Imo_Id, Dat_Id, Hit_Tipo, Hit_ValorAntigo, Hit_ValorNovo, Hit_DataAlteracao)
+             VALUES (?, NULL, ?, ?, ?, NOW())`,
+            [imovel.Imo_Id, tipo, valorAntigo, valorFormatado]
         );
 
         await conexao.commit();
@@ -1484,6 +1496,7 @@ exports.atualizarValorDiaria = async (req, res) => {
         res.json({
             message: 'Valor da diária atualizado com sucesso e registrado na auditoria.',
             imovelId: imovel.Imo_Id,
+            tipo,
             valorAntigo,
             valorNovo: valorFormatado
         });
@@ -1517,17 +1530,12 @@ exports.listarHistoricoValores = async (req, res) => {
         conexao = await db.getConnection();
         await garantirProprietario(conexao, req.usuario.id);
 
-        const [imoveis] = await conexao.query(
-            'SELECT Imo_Id FROM imo_imovel WHERE Pro_Proprietario_Usu_Id = ? LIMIT 1',
-            [req.usuario.id]
-        );
-
-        if (imoveis.length === 0) {
-            throw new ErroHttp(404, 'Nenhum imóvel encontrado para este proprietário.');
-        }
+        const { id: imoIdHistorico } = await resolverImovel(conexao, req.query.imovelId, { proprietarioId: req.usuario.id, somenteAtivo: false });
+        const imoveis = [{ Imo_Id: imoIdHistorico }];
 
         const [historico] = await conexao.query(
             `SELECT Hit_id AS id,
+                    Hit_Tipo AS tipo,
                     Hit_ValorAntigo AS valorAntigo,
                     Hit_ValorNovo AS valorNovo,
                     DATE_FORMAT(Hit_DataAlteracao, '%Y-%m-%d %H:%i:%s') AS dataAlteracao
@@ -1539,6 +1547,7 @@ exports.listarHistoricoValores = async (req, res) => {
 
         res.json(historico.map(item => ({
             id: item.id,
+            tipo: item.tipo || 'SEMANA',
             valorAntigo: Number(item.valorAntigo),
             valorNovo: Number(item.valorNovo),
             dataAlteracao: item.dataAlteracao
@@ -1555,4 +1564,94 @@ exports.listarHistoricoValores = async (req, res) => {
     }
 };
 
+// =============================================================================
+// DATAS ESPECIAIS (feriados, festas): preço próprio por noite, tabela dat_datadinamica
+// =============================================================================
+function validarDataIso(valor, nome) {
+    if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+        throw new ErroHttp(400, `${nome} inválida. Use AAAA-MM-DD.`);
+    }
+    return valor;
+}
 
+exports.listarDatasEspeciais = async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        await garantirProprietario(db, req.usuario.id);
+        const { id: imoId } = await resolverImovel(db, req.query.imovelId, { proprietarioId: req.usuario.id, somenteAtivo: false });
+        const [linhas] = await db.query(
+            `SELECT Dat_Id AS id, DATE_FORMAT(Dat_Inicio, '%Y-%m-%d') AS inicio, DATE_FORMAT(Dat_Fim, '%Y-%m-%d') AS fim,
+                    Dat_NomeEvento AS nome, Dat_PrecoDiaria AS preco
+             FROM dat_datadinamica
+             WHERE Imo_Id = ? AND Dat_Fim >= CURDATE()
+             ORDER BY Dat_Inicio ASC`,
+            [imoId]
+        );
+        res.json(linhas.map(l => ({ ...l, preco: Number(l.preco) })));
+    } catch (error) {
+        if (error instanceof ErroHttp) return res.status(error.status).json({ error: error.message });
+        console.error('Erro ao listar datas especiais:', error);
+        res.status(500).json({ error: 'Não foi possível carregar as datas especiais.' });
+    }
+};
+
+exports.criarDataEspecial = async (req, res) => {
+    try {
+        await garantirProprietario(db, req.usuario.id);
+        const { imovelId, inicio, fim, nome, preco } = req.body || {};
+        const { id: imoId } = await resolverImovel(db, imovelId, { proprietarioId: req.usuario.id, somenteAtivo: false });
+
+        const dataInicio = validarDataIso(inicio, 'Data inicial');
+        const dataFim = validarDataIso(fim || inicio, 'Data final');
+        if (dataFim < dataInicio) throw new ErroHttp(400, 'A data final não pode ser antes da inicial.');
+
+        const nomeEvento = typeof nome === 'string' ? nome.trim().slice(0, 100) : '';
+        if (!nomeEvento) throw new ErroHttp(400, 'Informe o nome da data (ex.: Feriado da Padroeira).');
+
+        const valor = Number(preco);
+        if (!Number.isFinite(valor) || valor <= 0 || valor > 999999.99) {
+            throw new ErroHttp(400, 'Informe um preço por noite válido.');
+        }
+
+        const [sobrepostas] = await db.query(
+            `SELECT Dat_Id FROM dat_datadinamica WHERE Imo_Id = ? AND Dat_Inicio <= ? AND Dat_Fim >= ? LIMIT 1`,
+            [imoId, dataFim, dataInicio]
+        );
+        if (sobrepostas.length > 0) {
+            throw new ErroHttp(409, 'Já existe uma data especial nesse período. Remova a anterior ou escolha outras datas.');
+        }
+
+        const [resultado] = await db.query(
+            `INSERT INTO dat_datadinamica (Imo_Id, Dat_Inicio, Dat_Fim, Dat_NomeEvento, Dat_PrecoDiaria) VALUES (?, ?, ?, ?, ?)`,
+            [imoId, dataInicio, dataFim, nomeEvento, Number(valor.toFixed(2))]
+        );
+        res.status(201).json({ id: resultado.insertId, imovelId: imoId, inicio: dataInicio, fim: dataFim, nome: nomeEvento, preco: Number(valor.toFixed(2)) });
+    } catch (error) {
+        if (error instanceof ErroHttp) return res.status(error.status).json({ error: error.message });
+        console.error('Erro ao criar data especial:', error);
+        res.status(500).json({ error: 'Não foi possível salvar a data especial.' });
+    }
+};
+
+exports.removerDataEspecial = async (req, res) => {
+    try {
+        await garantirProprietario(db, req.usuario.id);
+        const id = normalizarIdPositivo(req.params.id, 'Identificador da data especial');
+        const [historicos] = await db.query('SELECT 1 FROM hit_historicovalores WHERE Dat_Id = ? LIMIT 1', [id]);
+        if (historicos.length > 0) {
+            await db.query('UPDATE hit_historicovalores SET Dat_Id = NULL WHERE Dat_Id = ?', [id]);
+        }
+        const [resultado] = await db.query(
+            `DELETE d FROM dat_datadinamica d
+             JOIN imo_imovel i ON i.Imo_Id = d.Imo_Id
+             WHERE d.Dat_Id = ? AND i.Pro_Proprietario_Usu_Id = ?`,
+            [id, req.usuario.id]
+        );
+        if (resultado.affectedRows === 0) return res.status(404).json({ error: 'Data especial não encontrada.' });
+        res.json({ message: 'Data especial removida.', id });
+    } catch (error) {
+        if (error instanceof ErroHttp) return res.status(error.status).json({ error: error.message });
+        console.error('Erro ao remover data especial:', error);
+        res.status(500).json({ error: 'Não foi possível remover a data especial.' });
+    }
+};

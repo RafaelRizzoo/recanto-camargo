@@ -85,3 +85,4 @@ backend_backup/
 backend/migrations/20260928_*.sql
 *.sql
 !backend/migrations/20260904_001_not_notificacao.sql
+!backend/migrations/20261103_001_recanto2_precos.sql

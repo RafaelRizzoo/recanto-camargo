@@ -146,11 +146,12 @@ function Avaliacoes() {
     }
 
     try {
-      const resposta = await fetch(`${API_BASE}/api/avaliacoes/imovel/1`, { signal });
-      const dados = await resposta.json().catch(() => ({}));
-
-      if (!resposta.ok) throw new Error(dados.error || 'Não foi possível carregar as avaliações.');
-      if (!Array.isArray(dados)) throw new Error('O servidor retornou um formato de avaliações inválido.');
+      // Avaliações das duas unidades, mais recentes primeiro.
+      const respostas = await Promise.all([1, 2].map(id => fetch(`${API_BASE}/api/avaliacoes/imovel/${id}`, { signal })));
+      const listas = await Promise.all(respostas.map(r => r.json().catch(() => ({}))));
+      if (respostas.some(r => !r.ok)) throw new Error('Não foi possível carregar as avaliações.');
+      if (listas.some(l => !Array.isArray(l))) throw new Error('O servidor retornou um formato de avaliações inválido.');
+      const dados = listas.flat().sort((x, y) => String(y.data || '').localeCompare(String(x.data || '')));
 
       setAvaliacoes(dados.length > 0 ? dados : obterFallback());
     } catch (falha) {

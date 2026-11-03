@@ -28,5 +28,9 @@ router.get('/cupons', verificarToken, verificarProprietario, proprietarioControl
 router.post('/cupons', verificarToken, verificarProprietario, proprietarioController.criarCupom);
 router.patch('/cupons/:id/status', verificarToken, verificarProprietario, proprietarioController.atualizarStatusCupom);
 
+router.get('/imovel/datas-especiais', verificarToken, verificarProprietario, proprietarioController.listarDatasEspeciais);
+router.post('/imovel/datas-especiais', verificarToken, verificarProprietario, proprietarioController.criarDataEspecial);
+router.delete('/imovel/datas-especiais/:id', verificarToken, verificarProprietario, proprietarioController.removerDataEspecial);
+
 module.exports = router;
 

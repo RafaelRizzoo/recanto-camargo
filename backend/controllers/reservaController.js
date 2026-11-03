@@ -3,7 +3,9 @@ const { ErroHttp } = require('../middlewares/errorHandler');
 const {
     garantirHospede,
     buscarCupomPorIdComLock,
-    validarRegrasCupom
+    validarRegrasCupom,
+    resolverImovel,
+    calcularValorEstadia
 } = require('../services/helpers');
 const { processarLembretesPreCheckin, processarConvitesPosCheckoutAvaliacao } = require('../services/lembreteService');
 const { processarCancelamentoReservasAbandonadas } = require('../services/housekeepingService');
@@ -29,7 +31,7 @@ exports.checarDisponibilidade = async (req, res) => {
         const checkinComHora = `${checkinStr} 14:00:00`;
         const checkoutComHora = `${checkoutStr} 11:00:00`;
 
-        const imoId = 1;
+        const { id: imoId } = await resolverImovel(db, req.query.imovelId);
         const queryConflito = `
             SELECT Res_Id FROM res_reserva 
             WHERE Imo_Id = ? 
@@ -57,14 +59,36 @@ exports.checarDisponibilidade = async (req, res) => {
         
         return res.json({ disponivel: true });
     } catch (error) {
+        if (error instanceof ErroHttp) return res.status(error.status).json({ error: error.message });
         console.error('Erro ao checar disponibilidade:', error);
         res.status(500).json({ error: 'Erro interno ao checar disponibilidade.' });
     }
 };
 
+// Prévia de valores para o front (mesma regra usada ao criar a reserva).
+exports.cotacao = async (req, res) => {
+    try {
+        const checkinStr = String(req.query.checkin || '').slice(0, 10);
+        const checkoutStr = String(req.query.checkout || '').slice(0, 10);
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(checkinStr) || !/^\d{4}-\d{2}-\d{2}$/.test(checkoutStr)) {
+            return res.status(400).json({ error: 'Formato de data inválido. Use AAAA-MM-DD.' });
+        }
+        if (checkoutStr <= checkinStr) {
+            return res.status(400).json({ error: 'A data de checkout deve ser maior que o check-in.' });
+        }
+        const { id: imoId } = await resolverImovel(db, req.query.imovelId);
+        const cotacao = await calcularValorEstadia(db, imoId, checkinStr, checkoutStr);
+        res.json({ imovelId: imoId, ...cotacao });
+    } catch (error) {
+        if (error instanceof ErroHttp) return res.status(error.status).json({ error: error.message });
+        console.error('Erro ao calcular cotação:', error);
+        res.status(500).json({ error: 'Erro interno ao calcular o valor da estadia.' });
+    }
+};
+
 exports.datasOcupadas = async (req, res) => {
     try {
-        const imoId = 1;
+        const { id: imoId } = await resolverImovel(db, req.query.imovelId);
         const query = `
             SELECT 
                 DATE_FORMAT(Res_DataCheckIn, '%Y-%m-%d') as checkin, 
@@ -93,15 +117,16 @@ exports.datasOcupadas = async (req, res) => {
 
         res.json([...datas, ...bloqueiosFormatados]);
     } catch (error) {
+        if (error instanceof ErroHttp) return res.status(error.status).json({ error: error.message });
         console.error('Erro ao buscar datas ocupadas:', error);
         res.status(500).json({ error: 'Erro interno ao buscar datas ocupadas.' });
     }
 };
 
 exports.criarReserva = async (req, res) => {
-    const { checkin, checkout, hospedes, observacoes, cupomId } = req.body || {};
+    const { checkin, checkout, hospedes, observacoes, cupomId, imovelId } = req.body || {};
     
-    const imoId = 1;
+    let imoId;
     const hospedeId = req.usuario.id;
 
     const cupomFoiInformado = cupomId !== undefined && cupomId !== null;
@@ -121,6 +146,7 @@ exports.criarReserva = async (req, res) => {
 
     try {
         await garantirHospede(conexao, hospedeId);
+        imoId = (await resolverImovel(conexao, imovelId)).id;
 
         if (!checkin || !checkout || !hospedes) {
             conexao.release();
@@ -154,7 +180,7 @@ exports.criarReserva = async (req, res) => {
         await conexao.beginTransaction();
 
         const [imoveis] = await conexao.query(
-            'SELECT Imo_ValorFixo FROM imo_imovel WHERE Imo_Id = ? AND Imo_Status = "ATIVO" FOR UPDATE', 
+            'SELECT Imo_Id FROM imo_imovel WHERE Imo_Id = ? AND Imo_Status = "ATIVO" FOR UPDATE', 
             [imoId]
         );
 
@@ -163,7 +189,6 @@ exports.criarReserva = async (req, res) => {
             conexao.release();
             return res.status(404).json({ error: 'Imóvel não encontrado ou inativo.' });
         }
-        const precoDiariaDb = parseFloat(imoveis[0].Imo_ValorFixo);
 
         const queryConflito = `
             SELECT Res_Id FROM res_reserva 
@@ -207,12 +232,10 @@ exports.criarReserva = async (req, res) => {
             return res.status(403).json({ error: 'Você possui restrição de reserva com o proprietário deste imóvel.' });
         }
 
-        const msPorDia = 1000 * 60 * 60 * 24;
-        const diffTime = Math.abs(dataCheckout - dataCheckin);
-        const quantidadeNoites = Math.ceil(diffTime / msPorDia);
-        
-        const TAXA_LIMPEZA = 80;
-        let valorFinalSeguro = (quantidadeNoites * precoDiariaDb) + TAXA_LIMPEZA;
+        // Valor calculado sempre no servidor: dia de semana, fim de semana (sex/sáb) ou data especial.
+        const cotacao = await calcularValorEstadia(conexao, imoId, checkinStr, checkoutStr);
+        const quantidadeNoites = cotacao.noites;
+        let valorFinalSeguro = cotacao.total;
         let cupomAplicadoId = null;
 
         if (cupomIdSeguro !== null) {
@@ -369,8 +392,12 @@ exports.buscarPorId = async (req, res) => {
         const { id } = req.params;
         const query = `
             SELECT r.Res_Id as id, r.Res_DataCheckIn as checkin, r.Res_DataCheckOut as checkout, r.Res_ValorTotal as total, u.Usu_Nome as nome,
+                   i.Imo_Nome as imovel,
                    r.Hos_Hospede_Usu_Id as titularId
-            FROM res_reserva r JOIN usu_usuario u ON r.Hos_Hospede_Usu_Id = u.Usu_Id WHERE r.Res_Id = ?
+            FROM res_reserva r
+            JOIN usu_usuario u ON r.Hos_Hospede_Usu_Id = u.Usu_Id
+            JOIN imo_imovel i ON i.Imo_Id = r.Imo_Id
+            WHERE r.Res_Id = ?
         `;
         const [rows] = await db.query(query, [id]);
         if (rows.length === 0) return res.status(404).json({ error: 'Reserva não encontrada no banco' });

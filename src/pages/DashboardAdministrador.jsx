@@ -519,7 +519,7 @@ function ModalReserva({ reserva, aoFechar, aoDecidir, aoAbrirCancelamento }) {
                         <i className="bi bi-telephone me-1" />{fmtTelefone(r.telefone)}
                       </div>
                     )}
-                    <div className="mt-1"><BadgeStatus status={r.status} /></div>
+                    <div className="mt-1 d-flex align-items-center gap-2"><BadgeStatus status={r.status} /> <span className="small fw-semibold" style={{ color: 'var(--rc-ink)' }}>{r.imovelNome || UNIDADES_ADMIN.find(u => u.id === Number(r.imovelId))?.nome}</span></div>
                   </div>
                 </div>
                 {r.criadaEm && (
@@ -2221,7 +2221,7 @@ function TabelaReservas({ reservas, onVer, onCancelar, filtro, setFiltro, reserv
                     <div className="mini-avatar">{(r.nome || r.hospede || '?').charAt(0)}</div>
                     <div>
                       <div className="fw-semibold" style={{ fontSize: '0.875rem' }}>{r.nome || r.hospede}</div>
-                      <div className="text-muted" style={{ fontSize: '0.75rem' }}>{t('{n} pessoa(s)', { n: r.hospedes })}</div>
+                      <div className="text-muted d-flex align-items-center gap-1" style={{ fontSize: '0.75rem' }}><SeloUnidade imovelId={r.imovelId} /> {t('{n} pessoa(s)', { n: r.hospedes })}</div>
                     </div>
                   </div>
                 </td>
@@ -2425,39 +2425,45 @@ function PrevisaoReceita({ reservas }) {
   );
 }
 
-// ─── Painel de Diária (valor por noite + histórico de alterações) ────────────
-function PainelDiaria() {
+// ─── Unidades (Recanto 1 e 2) ───────────────────────────────────────────────
+const UNIDADES_ADMIN = [
+  { id: 1, nome: 'Recanto Camargo 1', selo: 'R1', cor: 'var(--rc-u1)' },
+  { id: 2, nome: 'Recanto Camargo 2', selo: 'R2', cor: 'var(--rc-u2)' },
+];
+
+function SeloUnidade({ imovelId }) {
+  const u = UNIDADES_ADMIN.find(x => x.id === Number(imovelId)) || UNIDADES_ADMIN[0];
+  return <span className="selo-unidade-admin" style={{ '--cor-unidade': u.cor }} title={u.nome}>{u.selo}</span>;
+}
+
+function SeletorUnidade({ valor, aoMudar }) {
   const { t } = usePreferencias();
-  const [valorAtual, setValorAtual] = useState(null);
-  const [historico, setHistorico] = useState([]);
-  const [carregando, setCarregando] = useState(true);
-  const [erroCarga, setErroCarga] = useState('');
+  return (
+    <div className="seletor-unidade-admin" role="tablist" aria-label={t('Unidade')}>
+      {UNIDADES_ADMIN.map(u => (
+        <button
+          key={u.id}
+          type="button"
+          role="tab"
+          aria-selected={valor === u.id}
+          className={valor === u.id ? 'ativo' : ''}
+          style={{ '--cor-unidade': u.cor }}
+          onClick={() => aoMudar(u.id)}
+        >
+          <i className="dot-unidade" aria-hidden="true" /> {u.nome}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Painel de Diária (valor por noite + histórico de alterações) ────────────
+function CartaoPreco({ titulo, ajuda, valorAtual, tipo, imovelId, aoSalvar }) {
+  const { t } = usePreferencias();
   const [novoValor, setNovoValor] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
-
-  const carregar = useCallback(async () => {
-    setCarregando(true);
-    setErroCarga('');
-    try {
-      const [rImoveis, rHist] = await Promise.all([
-        fetch(`${API_BASE}/api/imoveis`, { credentials: 'include' }),
-        fetch(`${API_BASE}/api/proprietario/imovel/historico-valores`, { credentials: 'include' }),
-      ]);
-      if (!rImoveis.ok || !rHist.ok) throw new Error();
-      const imoveis = await rImoveis.json();
-      const hist = await rHist.json();
-      const imovel = Array.isArray(imoveis) ? (imoveis.find(i => Number(i.Imo_Id) === 1) || imoveis[0]) : null;
-      setValorAtual(imovel ? Number(imovel.Imo_ValorFixo) : null);
-      setHistorico(Array.isArray(hist) ? hist : []);
-    } catch {
-      setErroCarga(t('Não foi possível carregar o valor da diária.'));
-    } finally {
-      setCarregando(false);
-    }
-  }, [t]);
-
-  useEffect(() => { carregar(); }, [carregar]);
+  const idCampo = `preco-${tipo}-${imovelId}`;
 
   const valorNumerico = Number(String(novoValor).replace(',', '.'));
   const valorValido = Number.isFinite(valorNumerico) && valorNumerico > 0 && valorNumerico <= 999999.99;
@@ -2473,12 +2479,87 @@ function PainelDiaria() {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ novoValor: Number(valorNumerico.toFixed(2)) }),
+        body: JSON.stringify({ imovelId, tipo, novoValor: Number(valorNumerico.toFixed(2)) }),
       });
       const dados = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(dados.error || t('Não foi possível atualizar o valor da diária.'));
       setNovoValor('');
-      setMensagem({ tipo: 'sucesso', texto: t('Diária atualizada. As próximas reservas já usam o novo valor.') });
+      setMensagem({ tipo: 'sucesso', texto: t('Valor atualizado. As próximas reservas já usam o novo preço.') });
+      await aoSalvar();
+    } catch (err) {
+      setMensagem({ tipo: 'erro', texto: err.message });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <form className="diaria-card" onSubmit={salvar} noValidate>
+      <div className="diaria-rotulo">{t(titulo)}</div>
+      <div className="diaria-valor-atual">{valorAtual !== null ? fmtMoeda(valorAtual) : '—'}</div>
+      <p className="diaria-ajuda">{t(ajuda)}</p>
+      <label htmlFor={idCampo} className="diaria-rotulo mt-1">{t('Novo valor')}</label>
+      <div className="diaria-input-linha">
+        <span className="diaria-prefixo" aria-hidden="true">R$</span>
+        <input
+          id={idCampo}
+          className="form-control diaria-input"
+          type="number"
+          inputMode="decimal"
+          min="1"
+          max="999999.99"
+          step="0.01"
+          placeholder={valorAtual !== null ? Number(valorAtual).toFixed(2) : ''}
+          value={novoValor}
+          onChange={(e) => { setNovoValor(e.target.value); setMensagem({ tipo: '', texto: '' }); }}
+        />
+      </div>
+      {igualAtual && <div className="diaria-msg aviso">{t('Esse já é o valor atual.')}</div>}
+      {mensagem.texto && <div className={`diaria-msg ${mensagem.tipo}`} role="status">{mensagem.texto}</div>}
+      <button type="submit" className="btn-diaria-salvar" disabled={!valorValido || igualAtual || salvando}>
+        {salvando ? t('Salvando...') : t('Salvar')}
+      </button>
+    </form>
+  );
+}
+
+function DatasEspeciais({ imovelId }) {
+  const { t } = usePreferencias();
+  const [lista, setLista] = useState([]);
+  const [form, setForm] = useState({ nome: '', inicio: '', fim: '', preco: '' });
+  const [salvando, setSalvando] = useState(false);
+  const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
+
+  const carregar = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/imovel/datas-especiais?imovelId=${imovelId}`, { credentials: 'include' });
+      if (res.ok) setLista(await res.json());
+    } catch {
+      // mantém a lista atual
+    }
+  }, [imovelId]);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const preco = Number(String(form.preco).replace(',', '.'));
+  const valido = form.nome.trim() && form.inicio && (!form.fim || form.fim >= form.inicio) && Number.isFinite(preco) && preco > 0;
+
+  const salvar = async (e) => {
+    e.preventDefault();
+    if (!valido || salvando) return;
+    setSalvando(true);
+    setMensagem({ tipo: '', texto: '' });
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/imovel/datas-especiais`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imovelId, nome: form.nome.trim(), inicio: form.inicio, fim: form.fim || form.inicio, preco: Number(preco.toFixed(2)) }),
+      });
+      const dados = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(dados.error || t('Não foi possível salvar a data especial.'));
+      setForm({ nome: '', inicio: '', fim: '', preco: '' });
+      setMensagem({ tipo: 'sucesso', texto: t('Data especial salva.') });
       await carregar();
     } catch (err) {
       setMensagem({ tipo: 'erro', texto: err.message });
@@ -2486,6 +2567,106 @@ function PainelDiaria() {
       setSalvando(false);
     }
   };
+
+  const remover = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/imovel/datas-especiais/${id}`, { method: 'DELETE', credentials: 'include' });
+      if (!res.ok) throw new Error();
+      setLista(l => l.filter(d => d.id !== id));
+    } catch {
+      setMensagem({ tipo: 'erro', texto: t('Não foi possível remover a data especial.') });
+    }
+  };
+
+  return (
+    <div className="diaria-card mt-3">
+      <h6 className="fw-bold mb-0" style={{ color: 'var(--rc-ink)', fontSize: '0.95rem' }}>{t('Datas especiais (feriados e festas)')}</h6>
+      <p className="diaria-ajuda">{t('Nessas noites vale o preço definido aqui, no lugar do preço de semana ou de fim de semana.')}</p>
+
+      {lista.length > 0 && (
+        <ul className="diaria-historico">
+          {lista.map(d => (
+            <li key={d.id}>
+              <span>
+                <strong style={{ color: 'var(--rc-ink)' }}>{d.nome}</strong>
+                <span className="diaria-hist-data d-block">
+                  {d.inicio === d.fim ? fmtData(d.inicio) : `${fmtData(d.inicio)} – ${fmtData(d.fim)}`}
+                </span>
+              </span>
+              <span className="d-flex align-items-center gap-3">
+                <strong className="diaria-hist-valores">{fmtMoeda(d.preco)} <small className="diaria-hist-data">/ {t('noite')}</small></strong>
+                <button type="button" className="btn-diaria-remover" onClick={() => remover(d.id)} aria-label={t('Remover {nome}', { nome: d.nome })}>
+                  <i className="bi bi-trash" aria-hidden="true" />
+                </button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form className="diaria-form-especial" onSubmit={salvar} noValidate>
+        <div className="diaria-campo diaria-campo-nome">
+          <label htmlFor={`esp-nome-${imovelId}`} className="diaria-rotulo">{t('Nome')}</label>
+          <input id={`esp-nome-${imovelId}`} className="form-control" type="text" maxLength={100}
+            placeholder={t('Ex.: Feriado da Padroeira')}
+            value={form.nome} onChange={(e) => setForm(f => ({ ...f, nome: e.target.value }))} />
+        </div>
+        <div className="diaria-campo">
+          <label htmlFor={`esp-ini-${imovelId}`} className="diaria-rotulo">{t('Primeira noite')}</label>
+          <input id={`esp-ini-${imovelId}`} className="form-control" type="date"
+            value={form.inicio} onChange={(e) => setForm(f => ({ ...f, inicio: e.target.value }))} />
+        </div>
+        <div className="diaria-campo">
+          <label htmlFor={`esp-fim-${imovelId}`} className="diaria-rotulo">{t('Última noite')}</label>
+          <input id={`esp-fim-${imovelId}`} className="form-control" type="date" min={form.inicio || undefined}
+            value={form.fim} onChange={(e) => setForm(f => ({ ...f, fim: e.target.value }))} />
+        </div>
+        <div className="diaria-campo">
+          <label htmlFor={`esp-preco-${imovelId}`} className="diaria-rotulo">{t('Preço por noite')}</label>
+          <input id={`esp-preco-${imovelId}`} className="form-control" type="number" inputMode="decimal" min="1" step="0.01"
+            value={form.preco} onChange={(e) => setForm(f => ({ ...f, preco: e.target.value }))} />
+        </div>
+        <button type="submit" className="btn-diaria-salvar" disabled={!valido || salvando}>
+          {salvando ? t('Salvando...') : t('Adicionar data especial')}
+        </button>
+      </form>
+      {mensagem.texto && <div className={`diaria-msg ${mensagem.tipo}`} role="status">{mensagem.texto}</div>}
+    </div>
+  );
+}
+
+const ROTULO_TIPO_PRECO = { SEMANA: 'Dia de semana', FIM_SEMANA: 'Fim de semana' };
+
+function PainelDiaria({ imovelId }) {
+  const { t } = usePreferencias();
+  const [precos, setPrecos] = useState({ semana: null, fimSemana: null });
+  const [historico, setHistorico] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarga, setErroCarga] = useState('');
+
+  const carregar = useCallback(async () => {
+    setErroCarga('');
+    try {
+      const [rImoveis, rHist] = await Promise.all([
+        fetch(`${API_BASE}/api/imoveis`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/proprietario/imovel/historico-valores?imovelId=${imovelId}`, { credentials: 'include' }),
+      ]);
+      if (!rImoveis.ok || !rHist.ok) throw new Error();
+      const imoveis = await rImoveis.json();
+      const hist = await rHist.json();
+      const imovel = Array.isArray(imoveis) ? imoveis.find(i => Number(i.Imo_Id) === Number(imovelId)) : null;
+      if (!imovel) throw new Error();
+      const semana = Number(imovel.Imo_ValorFixo);
+      setPrecos({ semana, fimSemana: imovel.Imo_ValorFimSemana != null ? Number(imovel.Imo_ValorFimSemana) : semana });
+      setHistorico(Array.isArray(hist) ? hist : []);
+    } catch {
+      setErroCarga(t('Não foi possível carregar o valor da diária.'));
+    } finally {
+      setCarregando(false);
+    }
+  }, [imovelId, t]);
+
+  useEffect(() => { carregar(); }, [carregar]);
 
   if (carregando) {
     return <div className="diaria-card text-center py-5" style={{ color: 'var(--rc-muted)' }}>{t('Carregando...')}</div>;
@@ -2495,7 +2676,7 @@ function PainelDiaria() {
     return (
       <div className="diaria-card text-center py-5">
         <p style={{ color: 'var(--rc-muted)' }}>{erroCarga}</p>
-        <button type="button" className="btn-diaria-salvar" onClick={carregar}>{t('Tentar novamente')}</button>
+        <button type="button" className="btn-diaria-salvar align-self-center" onClick={carregar}>{t('Tentar novamente')}</button>
       </div>
     );
   }
@@ -2503,48 +2684,38 @@ function PainelDiaria() {
   return (
     <div className="diaria-wrapper">
       <div className="diaria-grid">
-        <div className="diaria-card">
-          <div className="diaria-rotulo">{t('Valor atual por noite')}</div>
-          <div className="diaria-valor-atual">{valorAtual !== null ? fmtMoeda(valorAtual) : '—'}</div>
-          <p className="diaria-ajuda">
-            {t('Vale para novas reservas. Reservas já feitas mantêm o valor combinado. A taxa de limpeza é cobrada à parte.')}
-          </p>
-        </div>
-
-        <form className="diaria-card" onSubmit={salvar} noValidate>
-          <label htmlFor="novo-valor-diaria" className="diaria-rotulo">{t('Novo valor da diária')}</label>
-          <div className="diaria-input-linha">
-            <span className="diaria-prefixo" aria-hidden="true">R$</span>
-            <input
-              id="novo-valor-diaria"
-              className="form-control diaria-input"
-              type="number"
-              inputMode="decimal"
-              min="1"
-              max="999999.99"
-              step="0.01"
-              placeholder={valorAtual !== null ? String(valorAtual.toFixed(2)) : '270.00'}
-              value={novoValor}
-              onChange={(e) => { setNovoValor(e.target.value); setMensagem({ tipo: '', texto: '' }); }}
-            />
-          </div>
-          {igualAtual && <div className="diaria-msg aviso">{t('Esse já é o valor atual.')}</div>}
-          {mensagem.texto && <div className={`diaria-msg ${mensagem.tipo}`} role="status">{mensagem.texto}</div>}
-          <button type="submit" className="btn-diaria-salvar" disabled={!valorValido || igualAtual || salvando}>
-            {salvando ? t('Salvando...') : t('Salvar novo valor')}
-          </button>
-        </form>
+        <CartaoPreco
+          titulo="Dia de semana"
+          ajuda="Noites de domingo a quinta. A taxa de limpeza é cobrada à parte."
+          valorAtual={precos.semana}
+          tipo="SEMANA"
+          imovelId={imovelId}
+          aoSalvar={carregar}
+        />
+        <CartaoPreco
+          titulo="Fim de semana"
+          ajuda="Noites de sexta e de sábado."
+          valorAtual={precos.fimSemana}
+          tipo="FIM_SEMANA"
+          imovelId={imovelId}
+          aoSalvar={carregar}
+        />
       </div>
 
+      <DatasEspeciais imovelId={imovelId} />
+
       <div className="diaria-card mt-3">
-        <h6 className="fw-bold mb-3" style={{ color: 'var(--rc-ink)', fontSize: '0.95rem' }}>{t('Histórico de alterações')}</h6>
+        <h6 className="fw-bold mb-0" style={{ color: 'var(--rc-ink)', fontSize: '0.95rem' }}>{t('Histórico de alterações')}</h6>
+        <p className="diaria-ajuda">{t('Reservas já feitas mantêm o valor combinado.')}</p>
         {historico.length === 0 ? (
           <p className="mb-0" style={{ color: 'var(--rc-muted)', fontSize: '0.9rem' }}>{t('Nenhuma alteração registrada ainda.')}</p>
         ) : (
           <ul className="diaria-historico">
             {historico.map(h => (
               <li key={h.id}>
-                <span className="diaria-hist-data">{fmtDataHora(h.dataAlteracao, t)}</span>
+                <span className="diaria-hist-data">
+                  {fmtDataHora(h.dataAlteracao, t)} · {t(ROTULO_TIPO_PRECO[h.tipo] || 'Dia de semana')}
+                </span>
                 <span className="diaria-hist-valores">
                   <s>{fmtMoeda(h.valorAntigo)}</s> <i className="bi bi-arrow-right" aria-hidden="true" /> <strong>{fmtMoeda(h.valorNovo)}</strong>
                 </span>
@@ -2608,6 +2779,7 @@ function DashboardAdministrador() {
 
   // Bloqueios de Calendário
   const [bloqueios, setBloqueios] = useState([]);
+  const [unidadeAdmin, setUnidadeAdmin] = useState(1);
 
   // Cupons Promocionais
   const [cupons, setCupons] = useState([]);
@@ -2687,7 +2859,7 @@ function DashboardAdministrador() {
   // Buscar Bloqueios
   const buscarBloqueios = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/proprietario/bloqueios`, { credentials: 'include' });
+      const res = await fetch(`${API_BASE}/api/proprietario/bloqueios?imovelId=${unidadeAdmin}`, { credentials: 'include' });
       if (res.ok) {
         const dados = await res.json();
         if (Array.isArray(dados)) setBloqueios(dados);
@@ -2695,7 +2867,7 @@ function DashboardAdministrador() {
     } catch {
       // Mantém estado fallback inicial se offline
     }
-  }, []);
+  }, [unidadeAdmin]);
 
   // Buscar Cupons
   const buscarCupons = useCallback(async () => {
@@ -2722,7 +2894,7 @@ function DashboardAdministrador() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(novo),
+        body: JSON.stringify({ ...novo, imovelId: unidadeAdmin }),
       });
       if (res.ok) {
         await buscarBloqueios();
@@ -2861,11 +3033,9 @@ function DashboardAdministrador() {
   // Buscar Avaliações Públicas e Nota Real do Imóvel (Opção B)
   const buscarAvaliacoesPublicas = useCallback(async (signal) => {
     try {
-      const resposta = await fetch(`${API_BASE}/api/avaliacoes/imovel/1`, { signal });
-      const dados = await resposta.json().catch(() => []);
-      if (Array.isArray(dados)) {
-        setAvaliacoesPublicas(dados);
-      }
+      const respostas = await Promise.all([1, 2].map(id => fetch(`${API_BASE}/api/avaliacoes/imovel/${id}`, { signal })));
+      const listas = await Promise.all(respostas.map(r => r.json().catch(() => [])));
+      setAvaliacoesPublicas(listas.filter(Array.isArray).flat());
     } catch {
       // Ignora falha de conexão se offline
     }
@@ -3059,8 +3229,9 @@ function DashboardAdministrador() {
       case 'calendario': return (
         <>
           <p className="dash-section-label">{t("Calendário de Ocupação & Manutenção")}</p>
+          <SeletorUnidade valor={unidadeAdmin} aoMudar={setUnidadeAdmin} />
           <CalendarioOcupacao
-            reservas={reservas}
+            reservas={reservas.filter(r => Number(r.imovelId || 1) === unidadeAdmin)}
             bloqueios={bloqueios}
             aoCriarBloqueio={criarBloqueio}
             aoRemoverBloqueio={removerBloqueio}
@@ -3089,7 +3260,8 @@ function DashboardAdministrador() {
       case 'diaria': return (
         <>
           <p className="dash-section-label">{t("Valor da Diária")}</p>
-          <PainelDiaria />
+          <SeletorUnidade valor={unidadeAdmin} aoMudar={setUnidadeAdmin} />
+          <PainelDiaria key={unidadeAdmin} imovelId={unidadeAdmin} />
         </>
       );
 

@@ -2,7 +2,7 @@ const db = require('../config/db');
 
 exports.listarImoveis = async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT Imo_Id, Imo_Nome, Imo_ValorFixo, Imo_NotaMedial FROM imo_imovel WHERE Imo_Status = ?', ['ATIVO']);
+        const [rows] = await db.query('SELECT Imo_Id, Imo_Nome, Imo_Endereco, Imo_Descricao, Imo_ValorFixo, Imo_ValorFimSemana, Imo_NotaMedial FROM imo_imovel WHERE Imo_Status = ? ORDER BY Imo_Id', ['ATIVO']);
         res.json(rows);
     } catch (error) {
         console.error(error);

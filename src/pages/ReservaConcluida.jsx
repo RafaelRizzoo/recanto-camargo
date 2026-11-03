@@ -91,6 +91,7 @@ function ReservaConcluida() {
 
         <dl className="rc-conc-detalhes">
           <div><dt>{t("Código")}</dt><dd>#{reserva.id}</dd></div>
+          {reserva.imovel && <div><dt>{t("Hospedagem")}</dt><dd>{reserva.imovel}</dd></div>}
           <div><dt>{t("Hóspede")}</dt><dd>{reserva.nome}</dd></div>
           <div><dt>{t("Check-in")}</dt><dd>{formatarData(reserva.checkin)} <small>({t("a partir das 14h")})</small></dd></div>
           <div><dt>{t("Check-out")}</dt><dd>{formatarData(reserva.checkout)} <small>({t("até às 11h")})</small></dd></div>

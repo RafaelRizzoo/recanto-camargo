@@ -5,6 +5,7 @@ const { verificarToken, verificarProprietario } = require('../middlewares/authMi
 
 router.get('/disponibilidade', reservaController.checarDisponibilidade);
 router.get('/datas-ocupadas', reservaController.datasOcupadas);
+router.get('/cotacao', reservaController.cotacao);
 router.post('/', verificarToken, reservaController.criarReserva);
 router.post('/lembretes-checkin', verificarToken, verificarProprietario, reservaController.dispararLembretesCheckin);
 router.post('/convites-avaliacao', verificarToken, verificarProprietario, reservaController.dispararConvitesAvaliacao);
