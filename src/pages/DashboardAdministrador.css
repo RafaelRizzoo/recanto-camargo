@@ -2116,3 +2116,31 @@
 @media (max-width: 360px) {
   .topbar-direita { gap: 0.3rem; }
 }
+
+/* ─── Painel de Diária ─────────────────────────────────────── */
+.diaria-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:1rem; }
+.diaria-card { background:var(--rc-card); border:1px solid var(--rc-line); border-radius:16px; padding:1.5rem; box-shadow:0 2px 12px rgba(0,0,0,0.06); display:flex; flex-direction:column; gap:.75rem; }
+.diaria-rotulo { font-size:.75rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--rc-muted); }
+.diaria-valor-atual { font-family:var(--rc-serif); font-size:2.4rem; font-weight:700; color:var(--rc-ink); line-height:1.1; }
+.diaria-ajuda { font-size:.88rem; color:var(--rc-muted); margin:0; line-height:1.5; }
+.diaria-input-linha { display:flex; align-items:center; gap:.5rem; }
+.diaria-prefixo { font-weight:700; color:var(--rc-muted); }
+.diaria-input { font-size:1.15rem; font-weight:600; max-width:220px; }
+.diaria-msg { font-size:.86rem; border-radius:10px; padding:.55rem .8rem; }
+.diaria-msg.sucesso { background:var(--adm-ok-bg); color:var(--adm-ok-fg); border:1px solid var(--adm-ok-bd); }
+.diaria-msg.erro { background:var(--adm-err-bg); color:var(--adm-err-fg); border:1px solid var(--adm-err-bd); }
+.diaria-msg.aviso { background:var(--adm-warn-bg); color:var(--adm-warn-fg); border:1px solid var(--adm-warn-bd); }
+.btn-diaria-salvar { align-self:flex-start; background:var(--rc-u1); color:#fff; border:0; border-radius:999px; padding:.65rem 1.4rem; font-weight:700; min-height:44px; transition:opacity .2s; }
+.btn-diaria-salvar:disabled { opacity:.45; cursor:not-allowed; }
+.diaria-historico { list-style:none; margin:0; padding:0; }
+.diaria-historico li { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; padding:.7rem 0; border-top:1px solid var(--rc-line); font-size:.9rem; }
+.diaria-historico li:first-child { border-top:0; }
+.diaria-hist-data { color:var(--rc-muted); }
+.diaria-hist-valores { color:var(--rc-ink); }
+.diaria-hist-valores s { color:var(--rc-muted); }
+@media (max-width: 767.98px) {
+  .diaria-grid { grid-template-columns:minmax(0,1fr); }
+  .diaria-valor-atual { font-size:2rem; }
+  .diaria-input { max-width:none; }
+  .btn-diaria-salvar { align-self:stretch; }
+}

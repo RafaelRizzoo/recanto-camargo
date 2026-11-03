@@ -332,6 +332,12 @@ exports.receberWebhook = async (req, res) => {
  * POST /api/pagamentos/simular-aprovacao/:reservaId
  */
 exports.simularAprovacao = async (req, res) => {
+    // Só existe para testes locais. Sem PAGAMENTO_SIMULADO=true no .env, a rota se comporta como inexistente,
+    // impedindo que um hóspede confirme a própria reserva sem pagar em produção.
+    if (process.env.PAGAMENTO_SIMULADO !== 'true') {
+        return res.status(404).json({ error: 'Rota não encontrada.' });
+    }
+
     try {
         const { reservaId } = req.params;
         const usuarioId = req.usuario.id;
