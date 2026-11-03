@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useId } from 'react';
 import PropTypes from 'prop-types';
 import { useNotificacoes } from '../../hooks/useNotificacoes';
+import { usePreferencias } from '../../hooks/usePreferencias';
 import './Notificacoes.css';
 
 const CFG_TIPO = {
@@ -19,17 +20,18 @@ const ICONES = new Set([
   'bi-arrow-counterclockwise', 'bi-clock-history', 'bi-hourglass-split'
 ]);
 
-function tempoRelativo(iso) {
+function tempoRelativo(iso, t) {
   const data = new Date(iso).getTime();
   if (!Number.isFinite(data)) return '';
   const diff = Math.max(0, Math.floor((Date.now() - data) / 1000));
-  if (diff < 60) return 'agora mesmo';
-  if (diff < 3600) return `há ${Math.floor(diff / 60)} min`;
-  if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`;
-  return `há ${Math.floor(diff / 86400)}d`;
+  if (diff < 60) return t('agora mesmo');
+  if (diff < 3600) return t('há {n} min', { n: Math.floor(diff / 60) });
+  if (diff < 86400) return t('há {n}h', { n: Math.floor(diff / 3600) });
+  return t('há {n}d', { n: Math.floor(diff / 86400) });
 }
 
 function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
+  const { t } = usePreferencias();
   const [aberto, setAberto] = useState(false);
   const [posicao, setPosicao] = useState(null);
   const ref = useRef(null);
@@ -97,28 +99,28 @@ function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
         ref={sinoRef}
         className={`notif-sino ${aberto ? 'ativo' : ''}`}
         onClick={() => setAberto(atual => !atual)}
-        aria-label={`Notificações${naoLidas > 0 ? ` — ${naoLidas} não lidas` : ''}`}
+        aria-label={`${t('Notificações')}${naoLidas > 0 ? ` — ${t('{n} não lidas', { n: naoLidas })}` : ''}`}
         aria-expanded={aberto}
         aria-controls={aberto ? dropdownId : undefined}
         aria-haspopup="dialog"
-        title="Notificações"
+        title={t('Notificações')}
       >
         <i className="bi bi-bell-fill" aria-hidden="true" />
         {naoLidas > 0 && <span className="notif-badge" aria-hidden="true">{naoLidas > 9 ? '9+' : naoLidas}</span>}
       </button>
 
       {aberto && (
-        <div id={dropdownId} className="notif-dropdown" style={posicao} role="dialog" aria-label="Notificações">
+        <div id={dropdownId} className="notif-dropdown" style={posicao} role="dialog" aria-label={t('Notificações')}>
           <div className="notif-header">
             <div className="d-flex align-items-center gap-2">
-              <span className="notif-header-titulo">Notificações</span>
-              {naoLidas > 0 && <span className="notif-header-badge">{naoLidas} nova{naoLidas > 1 ? 's' : ''}</span>}
+              <span className="notif-header-titulo">{t('Notificações')}</span>
+              {naoLidas > 0 && <span className="notif-header-badge">{naoLidas > 1 ? t('{n} novas', { n: naoLidas }) : t('{n} nova', { n: naoLidas })}</span>}
             </div>
             {naoLidas > 0 && (
               <div className="notif-header-acoes">
                 <button type="button" className="notif-btn-texto" disabled={salvando}
-                  onClick={marcarTodasLidas} title="Marcar todas como lidas">
-                  <i className="bi bi-check-all" aria-hidden="true" /> Todas lidas
+                  onClick={marcarTodasLidas} title={t('Marcar todas como lidas')}>
+                  <i className="bi bi-check-all" aria-hidden="true" /> {t('Todas lidas')}
                 </button>
               </div>
             )}
@@ -126,9 +128,9 @@ function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
 
           {erro && (
             <div className="notif-footer" role="alert">
-              <p className="mb-1 text-danger">{erro}</p>
+              <p className="mb-1 text-danger">{t(erro)}</p>
               {!sessaoEncerrada && <button type="button" className="notif-btn-texto" disabled={atualizando || salvando} onClick={atualizar}>
-                {atualizando ? 'Atualizando...' : 'Tentar novamente'}
+                {atualizando ? t('Atualizando...') : t('Tentar novamente')}
               </button>}
             </div>
           )}
@@ -136,9 +138,9 @@ function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
           <div className="notif-lista" aria-busy={carregando || salvando}
             style={{ maxHeight: 'min(340px, calc(100dvh - 240px))' }}>
             {carregando ? (
-              <div className="notif-vazia" role="status"><p>Carregando notificações...</p></div>
+              <div className="notif-vazia" role="status"><p>{t('Carregando notificações...')}</p></div>
             ) : notificacoes.length === 0 ? (
-              !erro && <div className="notif-vazia"><i className="bi bi-bell-slash" aria-hidden="true" /><p>Nenhuma notificação</p></div>
+              !erro && <div className="notif-vazia"><i className="bi bi-bell-slash" aria-hidden="true" /><p>{t('Nenhuma notificação')}</p></div>
             ) : (
               <div role="list">
                 {notificacoes.map(n => {
@@ -150,7 +152,7 @@ function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
                         onClick={() => tratarCliqueItem(n)}
                         role="button"
                         aria-disabled={salvando}
-                        aria-label={`${n.titulo}. Clique para abrir`}
+                        aria-label={`${n.titulo}. ${t('Clique para abrir')}`}
                         tabIndex={0}
                         onKeyDown={evento => {
                           if (evento.key === 'Enter' || evento.key === ' ') {
@@ -164,9 +166,9 @@ function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
                         <div className="notif-conteudo" style={{ overflowWrap: 'anywhere' }}>
                           <div className="notif-titulo-item">{n.titulo}</div>
                           <div className="notif-mensagem">{n.mensagem}</div>
-                          <div className="notif-tempo">{tempoRelativo(n.criadaEm)}</div>
+                          <div className="notif-tempo">{tempoRelativo(n.criadaEm, t)}</div>
                         </div>
-                        {!n.lida && <div className="notif-acoes-item"><span className="notif-dot" title="Não lida" /></div>}
+                        {!n.lida && <div className="notif-acoes-item"><span className="notif-dot" title={t('Não lida')} /></div>}
                       </div>
                     </div>
                   );
@@ -177,7 +179,11 @@ function Notificacoes({ aoNovaNotificacao, aoClicarNotificacao }) {
 
           {notificacoes.length > 0 && (
             <div className="notif-footer">
-              {notificacoes.length === 50 ? 'Exibindo as 50 notificações mais recentes' : `${notificacoes.length} ${notificacoes.length === 1 ? 'notificação' : 'notificações'} no histórico`}
+              {notificacoes.length === 50
+                ? t('Exibindo as 50 notificações mais recentes')
+                : (notificacoes.length === 1
+                  ? t('{n} notificação no histórico', { n: notificacoes.length })
+                  : t('{n} notificações no histórico', { n: notificacoes.length }))}
             </div>
           )}
         </div>

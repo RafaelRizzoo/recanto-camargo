@@ -1,4 +1,5 @@
 import { Container, Row, Col } from 'react-bootstrap';
+import { usePreferencias } from '../../hooks/usePreferencias';
 import { Link } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import './LayoutAutenticacao.css';
@@ -14,6 +15,7 @@ const IconeSetaEsquerda = () => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
+    aria-hidden="true"
   >
     <line x1="19" y1="12" x2="5" y2="12" />
     <polyline points="12 19 5 12 12 5" />
@@ -31,40 +33,66 @@ function LayoutAutenticacao({
   textoBotaoVoltar = 'Voltar para o site',
   compacto = false
 }) {
+  const { t, tema, idioma, alternarTema, alternarIdioma } = usePreferencias();
+  const escuro = tema === 'escuro';
   return (
     <Container fluid className="container-autenticacao">
       <Row className="linha-autenticacao">
-        <Col md={8} className="d-none d-md-block coluna-imagem">
+        <Col md={7} className="d-none d-md-block coluna-imagem">
           {mostrarBotaoVoltar && (
             <Link to={linkVoltar} className="btn-voltar">
               <IconeSetaEsquerda />
-              {textoBotaoVoltar}
+              {t(textoBotaoVoltar)}
             </Link>
           )}
 
           {imagemFundo && (
             <img
               src={imagemFundo}
-              alt="Santuário Nacional de Aparecida"
+              alt={t("Basílica Nacional de Aparecida")}
               className="imagem-autenticacao"
             />
           )}
+
+          {/* O logo é branco: só funciona sobre a foto escurecida. */}
+          {imagemLogo && (
+            <img src={imagemLogo} alt="Recanto Camargo" className="logo-sobre-imagem" />
+          )}
         </Col>
 
-        <Col xs={12} md={4} className="coluna-formulario">
+        <Col xs={12} md={5} className="coluna-formulario">
+          <div className="rc-auth-prefs">
+            <button
+              type="button"
+              className="rc-pref"
+              onClick={alternarIdioma}
+              lang={idioma === 'en' ? 'pt' : 'en'}
+              aria-label={idioma === 'en' ? 'Mudar para português' : 'Switch to English'}
+            >
+              <i className="bi bi-translate" aria-hidden="true" />
+              <span>{idioma === 'en' ? 'PT' : 'EN'}</span>
+            </button>
+            <button
+              type="button"
+              className="rc-pref"
+              onClick={alternarTema}
+              aria-pressed={escuro}
+              aria-label={escuro ? t('Ativar tema claro') : t('Ativar tema escuro')}
+            >
+              <i className={`bi ${escuro ? 'bi-sun' : 'bi-moon-stars'}`} aria-hidden="true" />
+            </button>
+          </div>
           <div className={`container-formulario${compacto ? ' formulario-compacto' : ''}`}>
-            {imagemLogo && (
-              <div className="container-logo">
-                <img src={imagemLogo} alt="Recanto Camargo" className="logo" />
-              </div>
-            )}
+            <Link to="/" className="marca-autenticacao fonte-logo" aria-label={t("Recanto Camargo, ir ao início")}>
+              Recanto Camargo
+            </Link>
 
             {titulo && (
-              <h2 className="titulo-autenticacao">{titulo}</h2>
+              <h1 className="titulo-autenticacao">{titulo}</h1>
             )}
 
             {subtitulo && (
-              <p className="subtitulo-autenticacao">{subtitulo}</p>
+              <p className="subtitulo-autenticacao">{t(subtitulo)}</p>
             )}
 
             {children}

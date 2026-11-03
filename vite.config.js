@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/recanto-camargo/',
+  // GitHub Pages serve em /recanto-camargo/; Vercel/Netlify (previews) servem na raiz.
+  base: process.env.VERCEL || process.env.NETLIFY ? '/' : '/recanto-camargo/',
   build: {
     outDir: 'dist',
     sourcemap: false,
