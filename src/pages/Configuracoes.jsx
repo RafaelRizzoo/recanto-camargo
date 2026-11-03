@@ -1,15 +1,50 @@
 import { useState, useEffect } from 'react';
-import { Container, Row, Col, Nav, Form, Card, Alert } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
-import Botao from '../components/UI/Botao';
-import EntradaSenha from '../components/UI/EntradaSenha';
+import { usePreferencias } from '../hooks/usePreferencias';
 import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
+import '../components/home/home.css';
+import './Configuracoes.css';
 
-const CHAVE_DB = 'recanto_camargo_db';
-const CHAVE_SESSION = 'recanto_camargo_session';
+const REGRAS_SENHA = [
+  { teste: (s) => s.length >= 8, msg: 'A nova senha deve ter no mínimo 8 caracteres.' },
+  { teste: (s) => /[A-Z]/.test(s), msg: 'A nova senha deve conter pelo menos uma letra maiúscula.' },
+  { teste: (s) => /[a-z]/.test(s), msg: 'A nova senha deve conter pelo menos uma letra minúscula.' },
+  { teste: (s) => /\d/.test(s), msg: 'A nova senha deve conter pelo menos um número.' },
+  { teste: (s) => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(s), msg: 'A nova senha deve conter pelo menos um caractere especial (!@#$%...).' },
+];
+
+function CampoSenha({ id, rotulo, valor, onChange, autoComplete }) {
+  const { t } = usePreferencias();
+  const [visivel, setVisivel] = useState(false);
+  return (
+    <div className="cfg-campo">
+      <label htmlFor={id}>{t(rotulo)}</label>
+      <div className="cfg-senha">
+        <input
+          id={id}
+          type={visivel ? 'text' : 'password'}
+          value={valor}
+          onChange={onChange}
+          autoComplete={autoComplete}
+        />
+        <button
+          type="button"
+          className="cfg-olho"
+          onClick={() => setVisivel(v => !v)}
+          aria-label={visivel ? t('Ocultar senha') : t('Mostrar senha')}
+        >
+          <i className={`bi ${visivel ? 'bi-eye-slash' : 'bi-eye'}`} aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Configuracoes() {
   const { usuario, tipo, atualizarUsuario } = useAutenticacao();
+  const { t } = usePreferencias();
+  const ehProprietario = tipo === 'proprietario';
   const [abaAtiva, setAbaAtiva] = useState('perfil');
   const [feedback, setFeedback] = useState({ tipo: '', msg: '' });
   const [salvando, setSalvando] = useState(false);
@@ -19,18 +54,13 @@ function Configuracoes() {
     email: usuario?.email || '',
     telefone: usuario?.telefone || '',
   });
-
   const [senhas, setSenhas] = useState({ atual: '', nova: '', confirmar: '' });
 
   useEffect(() => {
-    if (!IS_API_AVAILABLE) return;
+    if (!IS_API_AVAILABLE) return undefined;
     let ativo = true;
-
     fetch(`${API_BASE}/api/usuarios/perfil`, { credentials: 'include' })
-      .then(res => {
-        if (!res.ok) throw new Error('Não foi possível carregar os dados do perfil.');
-        return res.json();
-      })
+      .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (ativo && data?.usuario) {
           setPerfil({
@@ -41,35 +71,23 @@ function Configuracoes() {
         }
       })
       .catch(() => {});
-
     return () => { ativo = false; };
   }, []);
 
-  const [notificacoes, setNotificacoes] = useState({
-    emailReserva: true,
-    whatsReserva: tipo === 'admin',
-    lembreteCheckin: true,
-    marketing: tipo === 'hospede',
-    pagamentoRecebido: tipo === 'admin'
-  });
+  const mostrarFeedback = (tipoMsg, msg) => {
+    setFeedback({ tipo: tipoMsg, msg });
+    setTimeout(() => setFeedback({ tipo: '', msg: '' }), 4000);
+  };
 
-  const [preferencias, setPreferencias] = useState({
-    observacaoPadrao: ''
-  });
-
-  const mostrarFeedback = (t, msg) => {
-    setFeedback({ tipo: t, msg });
-    setTimeout(() => setFeedback({ tipo: '', msg: '' }), 3500);
+  const trocarAba = (id) => {
+    setAbaAtiva(id);
+    setFeedback({ tipo: '', msg: '' });
   };
 
   const salvarPerfil = async (e) => {
     e.preventDefault();
-    if (!perfil.nome.trim()) return mostrarFeedback('erro', 'Nome não pode estar vazio.');
-
-    if (!IS_API_AVAILABLE) {
-      mostrarFeedback('sucesso', 'Perfil atualizado (modo demonstração)!');
-      return;
-    }
+    if (!perfil.nome.trim()) return mostrarFeedback('erro', t('Nome não pode estar vazio.'));
+    if (!IS_API_AVAILABLE) return mostrarFeedback('sucesso', t('Perfil atualizado (modo demonstração)!'));
 
     setSalvando(true);
     try {
@@ -77,63 +95,35 @@ function Configuracoes() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          nome: perfil.nome.trim(),
-          telefone: perfil.telefone.trim(),
-        }),
+        body: JSON.stringify({ nome: perfil.nome.trim(), telefone: perfil.telefone.trim() }),
       });
-
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao salvar perfil.');
-      }
-
-      if (atualizarUsuario) {
-        atualizarUsuario({ nome: perfil.nome.trim(), telefone: perfil.telefone.trim() });
-      }
-
-      mostrarFeedback('sucesso', 'Perfil atualizado com sucesso!');
+      if (!res.ok) throw new Error(data.error || t('Erro ao salvar perfil.'));
+      if (atualizarUsuario) atualizarUsuario({ nome: perfil.nome.trim(), telefone: perfil.telefone.trim() });
+      mostrarFeedback('sucesso', t('Perfil atualizado com sucesso!'));
     } catch (err) {
-      mostrarFeedback('erro', err.message || 'Erro ao salvar perfil. Tente novamente.');
+      mostrarFeedback('erro', err.message || t('Erro ao salvar perfil. Tente novamente.'));
     } finally {
       setSalvando(false);
     }
+    return undefined;
   };
 
   const alterarSenha = async (e) => {
     e.preventDefault();
     if (!senhas.atual || !senhas.nova || !senhas.confirmar) {
-      return mostrarFeedback('erro', 'Preencha todos os campos de senha.');
+      return mostrarFeedback('erro', t('Preencha todos os campos de senha.'));
     }
     if (senhas.nova !== senhas.confirmar) {
-      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
-      return mostrarFeedback('erro', 'A nova senha e a confirmação não coincidem.');
+      setSenhas(p => ({ ...p, confirmar: '' }));
+      return mostrarFeedback('erro', t('A nova senha e a confirmação não coincidem.'));
     }
-    if (senhas.nova.length < 8) {
-      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
-      return mostrarFeedback('erro', 'A nova senha deve ter no mínimo 8 caracteres.');
-    }
-    if (!/[A-Z]/.test(senhas.nova)) {
-      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
-      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos uma letra maiúscula.');
-    }
-    if (!/[a-z]/.test(senhas.nova)) {
-      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
-      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos uma letra minúscula.');
-    }
-    if (!/\d/.test(senhas.nova)) {
-      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
-      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos um número.');
-    }
-    if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(senhas.nova)) {
-      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
-      return mostrarFeedback('erro', 'A nova senha deve conter pelo menos um caractere especial (!@#$%...).');
-    }
+    const falha = REGRAS_SENHA.find(r => !r.teste(senhas.nova));
+    if (falha) return mostrarFeedback('erro', t(falha.msg));
 
     if (!IS_API_AVAILABLE) {
-      mostrarFeedback('sucesso', 'Senha alterada (modo demonstração)!');
       setSenhas({ atual: '', nova: '', confirmar: '' });
-      return;
+      return mostrarFeedback('sucesso', t('Senha alterada (modo demonstração)!'));
     }
 
     setSalvando(true);
@@ -142,315 +132,198 @@ function Configuracoes() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          senhaAtual: senhas.atual,
-          novaSenha: senhas.nova,
-        }),
+        body: JSON.stringify({ senhaAtual: senhas.atual, novaSenha: senhas.nova }),
       });
-
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao alterar senha.');
-      }
-
+      if (!res.ok) throw new Error(data.error || t('Erro ao alterar senha.'));
       setSenhas({ atual: '', nova: '', confirmar: '' });
-      mostrarFeedback('sucesso', 'Senha alterada com sucesso!');
+      mostrarFeedback('sucesso', t('Senha alterada com sucesso!'));
     } catch (err) {
-      setSenhas(p => ({ ...p, nova: '', confirmar: '' }));
-      mostrarFeedback('erro', err.message || 'Erro ao alterar senha. Tente novamente.');
+      mostrarFeedback('erro', err.message || t('Erro ao alterar senha. Tente novamente.'));
     } finally {
       setSalvando(false);
     }
-  };
-
-  const salvarNotificacoes = () => {
-    mostrarFeedback('sucesso', 'Preferências de notificação salvas!');
-  };
-
-  const salvarPreferencias = (e) => {
-    e.preventDefault();
-    mostrarFeedback('sucesso', 'Preferências atualizadas!');
+    return undefined;
   };
 
   const abas = [
     { id: 'perfil', label: 'Dados Cadastrais', icone: 'bi-person-vcard' },
     { id: 'seguranca', label: 'Senha e Acesso', icone: 'bi-shield-lock' },
     { id: 'notificacoes', label: 'Notificações', icone: 'bi-bell' },
-    ...(tipo === 'hospede' ? [{ id: 'preferencias', label: 'Preferências de Estadia', icone: 'bi-suit-heart' }] : [])
   ];
 
+  const avisoFeedback = feedback.msg ? (
+    <div className={`cfg-feedback ${feedback.tipo}`} role="status">
+      <i className={`bi ${feedback.tipo === 'sucesso' ? 'bi-check-circle' : 'bi-exclamation-triangle'}`} aria-hidden="true" />
+      {feedback.msg}
+    </div>
+  ) : null;
+
   const renderConteudo = () => {
-    switch (abaAtiva) {
-      case 'perfil':
-        return (
-          <Card className="border-0 shadow-sm config-card">
-            <Card.Body className="p-4">
-              <h5 className="mb-1 text-azul">
-                {tipo === 'admin' ? 'Dados da Empresa' : 'Dados Pessoais'}
-              </h5>
-              <p className="text-muted small mb-4">
-                {tipo === 'admin'
-                  ? 'Informações de contato do responsável pelo imóvel.'
-                  : 'Seus dados para identificação e contato durante a reserva.'}
-              </p>
-
-              <Form onSubmit={salvarPerfil}>
-                <Row>
-                  <Col md={6} className="mb-3">
-                    <Form.Label className="label-config">
-                      {tipo === 'admin' ? 'Nome / Proprietário' : 'Nome Completo'}
-                    </Form.Label>
-                    <Form.Control
-                      type="text"
-                      className="form-controle-config"
-                      value={perfil.nome}
-                      onChange={e => setPerfil(p => ({ ...p, nome: e.target.value }))}
-                    />
-                  </Col>
-
-                  <Col md={6} className="mb-3">
-                    <Form.Label className="label-config">Email de Acesso</Form.Label>
-                    <Form.Control
-                      type="email"
-                      className="form-controle-config"
-                      value={perfil.email}
-                      onChange={tipo === 'hospede' ? e => setPerfil(p => ({ ...p, email: e.target.value })) : undefined}
-                      readOnly={tipo === 'admin'}
-                      disabled={tipo === 'admin'}
-                    />
-                    {tipo === 'admin' && (
-                      <Form.Text className="text-muted">Email vinculado ao sistema — não editável.</Form.Text>
-                    )}
-                  </Col>
-
-                  <Col md={6} className="mb-3">
-                    <Form.Label className="label-config">Telefone / WhatsApp</Form.Label>
-                    <Form.Control
-                      type="tel"
-                      className="form-controle-config"
-                      value={perfil.telefone}
-                      onChange={e => setPerfil(p => ({ ...p, telefone: e.target.value }))}
-                      placeholder="(00) 00000-0000"
-                    />
-                  </Col>
-                </Row>
-                <Botao className="btn-config mt-2" tipo="submit" disabled={salvando}>
-                  {salvando ? 'Salvando...' : 'Salvar alterações'}
-                </Botao>
-              </Form>
-            </Card.Body>
-          </Card>
-        );
-
-      case 'seguranca':
-        return (
-          <Card className="border-0 shadow-sm config-card">
-            <Card.Body className="p-4">
-              <h5 className="mb-1 text-azul">Alterar Senha</h5>
-              <p className="text-muted small mb-4">
-                {tipo === 'admin'
-                  ? 'Mantenha a segurança do painel administrativo.'
-                  : 'Proteja sua conta e suas reservas.'}
-              </p>
-
-              <Form onSubmit={alterarSenha}>
-                <div className="mb-3">
-                  <Form.Label className="label-config">Senha atual</Form.Label>
-                  <EntradaSenha
-                    nome="senhaAtual"
-                    placeholder="Digite sua senha atual"
-                    valor={senhas.atual}
-                    onChange={e => setSenhas(p => ({ ...p, atual: e.target.value }))}
-                  />
-                </div>
-                <div className="mb-3">
-                  <Form.Label className="label-config">Nova senha</Form.Label>
-                  <EntradaSenha
-                    nome="novaSenha"
-                    placeholder="Mínimo 8 caracteres (A-Z, a-z, 0-9, @#$)"
-                    valor={senhas.nova}
-                    onChange={e => setSenhas(p => ({ ...p, nova: e.target.value }))}
-                    autoComplete="new-password"
-                  />
-                  <Form.Text className="text-muted d-block mt-1" style={{ fontSize: '0.8rem' }}>
-                    Requisitos: Mínimo 8 caracteres, com maiúscula, minúscula, número e símbolo especial (!@#$%).
-                  </Form.Text>
-                </div>
-                <div className="mb-4">
-                  <Form.Label className="label-config">Confirmar nova senha</Form.Label>
-                  <EntradaSenha
-                    nome="confirmarSenha"
-                    placeholder="Repita a nova senha"
-                    valor={senhas.confirmar}
-                    onChange={e => setSenhas(p => ({ ...p, confirmar: e.target.value }))}
-                    autoComplete="new-password"
-                  />
-                </div>
-                <Botao className="btn-config" tipo="submit" disabled={salvando}>
-                  {salvando ? 'Atualizando...' : 'Atualizar senha'}
-                </Botao>
-              </Form>
-            </Card.Body>
-          </Card>
-        );
-
-      case 'notificacoes':
-        return (
-          <Card className="border-0 shadow-sm config-card">
-            <Card.Body className="p-4">
-              <h5 className="mb-1 text-azul">
-                {tipo === 'admin' ? 'Alertas do Sistema' : 'Central de Notificações'}
-              </h5>
-              <p className="text-muted small mb-4">
-                {tipo === 'admin'
-                  ? 'Configure onde deseja receber atualizações sobre reservas e pagamentos.'
-                  : 'Escolha como deseja receber atualizações sobre sua estadia.'}
-              </p>
-
-              <div className="mb-3 p-3 bg-light rounded-3">
-                {tipo === 'admin' ? (
-                  <>
-                    <Form.Check
-                      type="switch"
-                      label="Nova solicitação de reserva (WhatsApp)"
-                      checked={notificacoes.whatsReserva}
-                      onChange={e => setNotificacoes(p => ({ ...p, whatsReserva: e.target.checked }))}
-                      className="mb-2"
-                    />
-                    <Form.Check
-                      type="switch"
-                      label="Confirmação de Pagamento (Email)"
-                      checked={notificacoes.pagamentoRecebido}
-                      onChange={e => setNotificacoes(p => ({ ...p, pagamentoRecebido: e.target.checked }))}
-                      className="mb-2"
-                    />
-                    <Form.Check
-                      type="switch"
-                      label="Solicitação de Cancelamento"
-                      checked={notificacoes.lembreteCheckin}
-                      onChange={e => setNotificacoes(p => ({ ...p, lembreteCheckin: e.target.checked }))}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <Form.Check
-                      type="switch"
-                      label="Confirmação de nova reserva (Email)"
-                      checked={notificacoes.emailReserva}
-                      onChange={e => setNotificacoes(p => ({ ...p, emailReserva: e.target.checked }))}
-                      className="mb-2"
-                    />
-                    <Form.Check
-                      type="switch"
-                      label="Detalhes da reserva (WhatsApp)"
-                      checked={notificacoes.whatsReserva}
-                      onChange={e => setNotificacoes(p => ({ ...p, whatsReserva: e.target.checked }))}
-                      className="mb-2"
-                    />
-                    <Form.Check
-                      type="switch"
-                      label="Lembrete 24h antes do check-in"
-                      checked={notificacoes.lembreteCheckin}
-                      onChange={e => setNotificacoes(p => ({ ...p, lembreteCheckin: e.target.checked }))}
-                      className="mb-2"
-                    />
-                    <hr className="my-3 opacity-25" />
-                    <Form.Check
-                      type="switch"
-                      label="Ofertas e novidades do Recanto"
-                      checked={notificacoes.marketing}
-                      onChange={e => setNotificacoes(p => ({ ...p, marketing: e.target.checked }))}
-                    />
-                  </>
-                )}
-              </div>
-              <Botao className="btn-config" onClick={salvarNotificacoes}>Salvar notificações</Botao>
-            </Card.Body>
-          </Card>
-        );
-
-      case 'preferencias':
-        return tipo === 'hospede' ? (
-          <Card className="border-0 shadow-sm config-card">
-            <Card.Body className="p-4">
-              <h5 className="mb-1 text-azul">Preferências de Estadia</h5>
-              <p className="text-muted small mb-4">Facilite suas próximas reservas deixando informações padrão.</p>
-
-              <Form onSubmit={salvarPreferencias}>
-                <Form.Group className="mb-4">
-                  <Form.Label className="label-config">Observação padrão para reservas</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    className="form-controle-config"
-                    placeholder="Ex: Chegada prevista para as 15h, preciso de berço, levarei meu pet..."
-                    value={preferencias.observacaoPadrao}
-                    onChange={e => setPreferencias(p => ({ ...p, observacaoPadrao: e.target.value }))}
-                  />
-                </Form.Group>
-                <Botao className="btn-config" tipo="submit">Salvar preferências</Botao>
-              </Form>
-            </Card.Body>
-          </Card>
-        ) : null;
-
-      default:
-        return null;
+    if (abaAtiva === 'perfil') {
+      return (
+        <form className="cfg-card" onSubmit={salvarPerfil}>
+          <h2>{t(ehProprietario ? 'Dados do Responsável' : 'Dados Pessoais')}</h2>
+          <p className="cfg-desc">
+            {t(ehProprietario
+              ? 'Informações de contato do responsável pelo imóvel.'
+              : 'Seus dados para identificação e contato durante a reserva.')}
+          </p>
+          <div className="cfg-grid">
+            <div className="cfg-campo">
+              <label htmlFor="cfg-nome">{t('Nome completo')}</label>
+              <input
+                id="cfg-nome"
+                type="text"
+                autoComplete="name"
+                value={perfil.nome}
+                onChange={e => setPerfil(p => ({ ...p, nome: e.target.value }))}
+              />
+            </div>
+            <div className="cfg-campo">
+              <label htmlFor="cfg-tel">{t('Telefone / WhatsApp')}</label>
+              <input
+                id="cfg-tel"
+                type="tel"
+                autoComplete="tel"
+                placeholder="(00) 00000-0000"
+                value={perfil.telefone}
+                onChange={e => setPerfil(p => ({ ...p, telefone: e.target.value }))}
+              />
+            </div>
+            <div className="cfg-campo cfg-campo-largo">
+              <label htmlFor="cfg-email">{t('E-mail de acesso')}</label>
+              <input id="cfg-email" type="email" value={perfil.email} readOnly disabled />
+              <small>{t('O e-mail é usado para entrar na conta e não pode ser alterado aqui.')}</small>
+            </div>
+          </div>
+          {avisoFeedback}
+          <button type="submit" className="rc-btn rc-btn-primary cfg-btn" disabled={salvando}>
+            {salvando ? t('Salvando...') : t('Salvar alterações')}
+          </button>
+        </form>
+      );
     }
+
+    if (abaAtiva === 'seguranca') {
+      return (
+        <form className="cfg-card" onSubmit={alterarSenha}>
+          <h2>{t('Alterar senha')}</h2>
+          <p className="cfg-desc">
+            {t(ehProprietario ? 'Mantenha a segurança do painel administrativo.' : 'Proteja sua conta e suas reservas.')}
+          </p>
+          <CampoSenha
+            id="cfg-senha-atual"
+            rotulo="Senha atual"
+            autoComplete="current-password"
+            valor={senhas.atual}
+            onChange={e => setSenhas(p => ({ ...p, atual: e.target.value }))}
+          />
+          <CampoSenha
+            id="cfg-senha-nova"
+            rotulo="Nova senha"
+            autoComplete="new-password"
+            valor={senhas.nova}
+            onChange={e => setSenhas(p => ({ ...p, nova: e.target.value }))}
+          />
+          <small className="cfg-dica">
+            {t('Mínimo de 8 caracteres, com letra maiúscula, minúscula, número e símbolo (!@#$%).')}
+          </small>
+          <CampoSenha
+            id="cfg-senha-confirmar"
+            rotulo="Confirmar nova senha"
+            autoComplete="new-password"
+            valor={senhas.confirmar}
+            onChange={e => setSenhas(p => ({ ...p, confirmar: e.target.value }))}
+          />
+          {avisoFeedback}
+          <button type="submit" className="rc-btn rc-btn-primary cfg-btn" disabled={salvando}>
+            {salvando ? t('Atualizando...') : t('Atualizar senha')}
+          </button>
+        </form>
+      );
+    }
+
+    return (
+      <div className="cfg-card">
+        <h2>{t('Como você recebe os avisos')}</h2>
+        <p className="cfg-desc">{t('Os avisos importantes chegam automaticamente, sem precisar configurar nada.')}</p>
+        <ul className="cfg-avisos">
+          <li>
+            <i className="bi bi-bell" aria-hidden="true" />
+            <div>
+              <strong>{t('No site')}</strong>
+              <span>{t('Pelo sino no topo da página, sempre que entrar na sua conta.')}</span>
+            </div>
+          </li>
+          <li>
+            <i className="bi bi-envelope" aria-hidden="true" />
+            <div>
+              <strong>{t('Por e-mail')}</strong>
+              <span>
+                {t(ehProprietario
+                  ? 'Novas solicitações de reserva, pagamentos e cancelamentos.'
+                  : 'Confirmação da reserva, pagamento e lembrete antes do check-in.')}
+              </span>
+            </div>
+          </li>
+          <li>
+            <i className="bi bi-whatsapp" aria-hidden="true" />
+            <div>
+              <strong>{t('Pelo WhatsApp')}</strong>
+              <span>{t('Para combinar detalhes da chegada, fale direto com o Recanto.')}</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    );
   };
 
   return (
-    <div className="pagina-configuracoes py-5">
-      <Container className="mt-4 pt-4">
-        <div className="mb-4">
-          <h2 className="titulo-secao-azul mb-1">Configurações</h2>
-          <p className="text-muted mb-0">Gerencie seus dados, segurança e preferências.</p>
-        </div>
+    <div className="rc-home cfg-pagina">
+      <div className="rc-wrap">
+        <header className="cfg-head">
+          <Link to={ehProprietario ? '/DashboardAdministrador' : '/DashboardCliente'} className="cfg-voltar">
+            <i className="bi bi-arrow-left" aria-hidden="true" /> {t('Voltar ao painel')}
+          </Link>
+          <span className="rc-eyebrow">{t('Sua conta')}</span>
+          <h1>{t('Configurações')}</h1>
+          <p className="rc-lead">{t('Gerencie seus dados e a segurança da sua conta.')}</p>
+        </header>
 
-        {feedback.msg && (
-          <Alert
-            variant={feedback.tipo === 'sucesso' ? 'success' : 'danger'}
-            className="mb-4 border-0 shadow-sm"
-            style={{ borderRadius: '12px' }}
-          >
-            <i className={`bi ${feedback.tipo === 'sucesso' ? 'bi-check-circle' : 'bi-exclamation-triangle'} me-2`}></i>
-            {feedback.msg}
-          </Alert>
-        )}
+        <div className="cfg-layout">
+          <nav className="cfg-nav" aria-label={t('Seções de configurações')}>
+            {abas.map(aba => (
+              <button
+                key={aba.id}
+                type="button"
+                className={`cfg-nav-item${abaAtiva === aba.id ? ' ativo' : ''}`}
+                aria-current={abaAtiva === aba.id ? 'page' : undefined}
+                onClick={() => trocarAba(aba.id)}
+              >
+                <i className={`bi ${aba.icone}`} aria-hidden="true" />
+                <span>{t(aba.label)}</span>
+              </button>
+            ))}
+          </nav>
 
-        <Row className="g-4">
-          <Col lg={3}>
-            <Nav variant="pills" className="flex-column bg-white rounded-3 p-2 shadow-sm nav-config">
-              {abas.map(aba => (
-                <Nav.Link
-                  key={aba.id}
-                  className={`d-flex align-items-center gap-2 mb-1 rounded-pill ${abaAtiva === aba.id ? 'active' : ''}`}
-                  onClick={() => setAbaAtiva(aba.id)}
-                >
-                  <i className={`bi ${aba.icone}`}></i>
-                  <span>{aba.label}</span>
-                </Nav.Link>
-              ))}
-            </Nav>
-          </Col>
-
-          <Col lg={9}>
+          <div className="cfg-conteudo">
             {renderConteudo()}
 
-            <Card className="border-0 shadow-sm config-card mt-4 bg-light">
-              <Card.Body className="p-3 d-flex align-items-center gap-3">
-                <i className="bi bi-shield-check text-warning fs-4"></i>
-                <div>
-                  <strong>Proteção de Dados (LGPD)</strong>
-                  <p className="mb-0 small text-muted">
-                    Seus dados são armazenados localmente neste dispositivo e não são compartilhados com terceiros.
-                  </p>
-                </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
-      </Container>
+            <aside className="cfg-lgpd">
+              <i className="bi bi-shield-check" aria-hidden="true" />
+              <div>
+                <strong>{t('Proteção de dados (LGPD)')}</strong>
+                <p>
+                  {t('Seus dados ficam guardados com segurança no sistema do Recanto Camargo e são usados apenas para suas reservas. O CPF é armazenado criptografado e nada é compartilhado para fins de marketing.')}
+                  {' '}
+                  <Link to="/Privacidade">{t('Ver Política de Privacidade')}</Link>
+                </p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

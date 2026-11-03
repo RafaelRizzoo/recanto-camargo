@@ -33,6 +33,7 @@ const ROTAS_COM_TEMA = [
   '/reservaconcluida',
   '/dashboardcliente',
   '/dashboardadministrador',
+  '/configuracoes',
 ];
 
 const ROTAS_SEM_LAYOUT = [

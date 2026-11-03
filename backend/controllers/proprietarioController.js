@@ -1437,7 +1437,7 @@ exports.atualizarValorDiaria = async (req, res) => {
         const valorNumerico = Number(novoValor);
 
         if (!Number.isFinite(valorNumerico) || valorNumerico <= 0 || valorNumerico > 999999.99) {
-            throw new ErroHttp(400, 'O valor da di+�ria deve ser um n+�mero positivo v+�lido de até� R$ 999.999,99.');
+            throw new ErroHttp(400, 'O valor da diária deve ser um número positivo válido de até R$ 999.999,99.');
         }
 
         const valorFormatado = Number(valorNumerico.toFixed(2));
@@ -1454,17 +1454,17 @@ exports.atualizarValorDiaria = async (req, res) => {
         );
 
         if (imoveis.length === 0) {
-            throw new ErroHttp(404, 'Nenhum im+�vel encontrado para este propriet+�rio.');
+            throw new ErroHttp(404, 'Nenhum imóvel encontrado para este proprietário.');
         }
 
         const imovel = imoveis[0];
         const valorAntigo = Number(imovel.Imo_ValorFixo);
 
         if (valorAntigo === valorFormatado) {
-            throw new ErroHttp(400, 'O novo valor da di+�ria deve ser diferente do valor atual.');
+            throw new ErroHttp(400, 'O novo valor da diária deve ser diferente do valor atual.');
         }
 
-        // 1. Atualiza o valor fixo no im+�vel
+        // 1. Atualiza o valor fixo no imóvel
         await conexao.query(
             'UPDATE imo_imovel SET Imo_ValorFixo = ? WHERE Imo_Id = ?',
             [valorFormatado, imovel.Imo_Id]
@@ -1482,7 +1482,7 @@ exports.atualizarValorDiaria = async (req, res) => {
         transacaoAtiva = false;
 
         res.json({
-            message: 'Valor da di+�ria atualizado com sucesso e registrado na auditoria.',
+            message: 'Valor da diária atualizado com sucesso e registrado na auditoria.',
             imovelId: imovel.Imo_Id,
             valorAntigo,
             valorNovo: valorFormatado
@@ -1492,7 +1492,7 @@ exports.atualizarValorDiaria = async (req, res) => {
             try {
                 await conexao.rollback();
             } catch (rollbackError) {
-                console.error('Erro ao desfazer atualiza+�+�o de valor:', rollbackError);
+                console.error('Erro ao desfazer atualização de valor:', rollbackError);
                 conexao.destroy();
                 conexaoDestruida = true;
             }
@@ -1502,8 +1502,8 @@ exports.atualizarValorDiaria = async (req, res) => {
             return res.status(error.status).json({ error: error.message });
         }
 
-        console.error('Erro ao atualizar valor da di+�ria:', error);
-        res.status(500).json({ error: 'N+�o foi poss+�vel atualizar o valor da di+�ria.' });
+        console.error('Erro ao atualizar valor da diária:', error);
+        res.status(500).json({ error: 'Não foi possível atualizar o valor da diária.' });
     } finally {
         if (conexao && !conexaoDestruida) conexao.release();
     }
@@ -1523,7 +1523,7 @@ exports.listarHistoricoValores = async (req, res) => {
         );
 
         if (imoveis.length === 0) {
-            throw new ErroHttp(404, 'Nenhum im+�vel encontrado para este propriet+�rio.');
+            throw new ErroHttp(404, 'Nenhum imóvel encontrado para este proprietário.');
         }
 
         const [historico] = await conexao.query(
@@ -1548,8 +1548,8 @@ exports.listarHistoricoValores = async (req, res) => {
             return res.status(error.status).json({ error: error.message });
         }
 
-        console.error('Erro ao buscar hist+�rico de valores:', error);
-        res.status(500).json({ error: 'N+�o foi poss+�vel carregar o hist+�rico de valores.' });
+        console.error('Erro ao buscar histórico de valores:', error);
+        res.status(500).json({ error: 'Não foi possível carregar o histórico de valores.' });
     } finally {
         if (conexao) conexao.release();
     }

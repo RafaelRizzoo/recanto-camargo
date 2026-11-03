@@ -20,3 +20,6 @@ Thumbs.db
 desktop.ini
 *.tmp
 *.temp
+
+# Dumps do banco (contêm dados de hóspedes)
+database/*.sql

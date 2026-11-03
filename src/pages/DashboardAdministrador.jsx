@@ -102,6 +102,7 @@ const Ico = {
   Cal:      () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
   Cupom:    () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z"/><path d="M13 5v2"/><path d="M13 11v2"/><path d="M13 17v2"/></svg>,
   Previsao: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  Diaria:   () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
   Estrela:  () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
   Config:   () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
   Voltar:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
@@ -2424,6 +2425,138 @@ function PrevisaoReceita({ reservas }) {
   );
 }
 
+// ─── Painel de Diária (valor por noite + histórico de alterações) ────────────
+function PainelDiaria() {
+  const { t } = usePreferencias();
+  const [valorAtual, setValorAtual] = useState(null);
+  const [historico, setHistorico] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erroCarga, setErroCarga] = useState('');
+  const [novoValor, setNovoValor] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [mensagem, setMensagem] = useState({ tipo: '', texto: '' });
+
+  const carregar = useCallback(async () => {
+    setCarregando(true);
+    setErroCarga('');
+    try {
+      const [rImoveis, rHist] = await Promise.all([
+        fetch(`${API_BASE}/api/imoveis`, { credentials: 'include' }),
+        fetch(`${API_BASE}/api/proprietario/imovel/historico-valores`, { credentials: 'include' }),
+      ]);
+      if (!rImoveis.ok || !rHist.ok) throw new Error();
+      const imoveis = await rImoveis.json();
+      const hist = await rHist.json();
+      const imovel = Array.isArray(imoveis) ? (imoveis.find(i => Number(i.Imo_Id) === 1) || imoveis[0]) : null;
+      setValorAtual(imovel ? Number(imovel.Imo_ValorFixo) : null);
+      setHistorico(Array.isArray(hist) ? hist : []);
+    } catch {
+      setErroCarga(t('Não foi possível carregar o valor da diária.'));
+    } finally {
+      setCarregando(false);
+    }
+  }, [t]);
+
+  useEffect(() => { carregar(); }, [carregar]);
+
+  const valorNumerico = Number(String(novoValor).replace(',', '.'));
+  const valorValido = Number.isFinite(valorNumerico) && valorNumerico > 0 && valorNumerico <= 999999.99;
+  const igualAtual = valorValido && valorAtual !== null && Number(valorNumerico.toFixed(2)) === Number(valorAtual);
+
+  const salvar = async (e) => {
+    e.preventDefault();
+    if (!valorValido || igualAtual || salvando) return;
+    setSalvando(true);
+    setMensagem({ tipo: '', texto: '' });
+    try {
+      const res = await fetch(`${API_BASE}/api/proprietario/imovel/valor`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ novoValor: Number(valorNumerico.toFixed(2)) }),
+      });
+      const dados = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(dados.error || t('Não foi possível atualizar o valor da diária.'));
+      setNovoValor('');
+      setMensagem({ tipo: 'sucesso', texto: t('Diária atualizada. As próximas reservas já usam o novo valor.') });
+      await carregar();
+    } catch (err) {
+      setMensagem({ tipo: 'erro', texto: err.message });
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (carregando) {
+    return <div className="diaria-card text-center py-5" style={{ color: 'var(--rc-muted)' }}>{t('Carregando...')}</div>;
+  }
+
+  if (erroCarga) {
+    return (
+      <div className="diaria-card text-center py-5">
+        <p style={{ color: 'var(--rc-muted)' }}>{erroCarga}</p>
+        <button type="button" className="btn-diaria-salvar" onClick={carregar}>{t('Tentar novamente')}</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="diaria-wrapper">
+      <div className="diaria-grid">
+        <div className="diaria-card">
+          <div className="diaria-rotulo">{t('Valor atual por noite')}</div>
+          <div className="diaria-valor-atual">{valorAtual !== null ? fmtMoeda(valorAtual) : '—'}</div>
+          <p className="diaria-ajuda">
+            {t('Vale para novas reservas. Reservas já feitas mantêm o valor combinado. A taxa de limpeza é cobrada à parte.')}
+          </p>
+        </div>
+
+        <form className="diaria-card" onSubmit={salvar} noValidate>
+          <label htmlFor="novo-valor-diaria" className="diaria-rotulo">{t('Novo valor da diária')}</label>
+          <div className="diaria-input-linha">
+            <span className="diaria-prefixo" aria-hidden="true">R$</span>
+            <input
+              id="novo-valor-diaria"
+              className="form-control diaria-input"
+              type="number"
+              inputMode="decimal"
+              min="1"
+              max="999999.99"
+              step="0.01"
+              placeholder={valorAtual !== null ? String(valorAtual.toFixed(2)) : '270.00'}
+              value={novoValor}
+              onChange={(e) => { setNovoValor(e.target.value); setMensagem({ tipo: '', texto: '' }); }}
+            />
+          </div>
+          {igualAtual && <div className="diaria-msg aviso">{t('Esse já é o valor atual.')}</div>}
+          {mensagem.texto && <div className={`diaria-msg ${mensagem.tipo}`} role="status">{mensagem.texto}</div>}
+          <button type="submit" className="btn-diaria-salvar" disabled={!valorValido || igualAtual || salvando}>
+            {salvando ? t('Salvando...') : t('Salvar novo valor')}
+          </button>
+        </form>
+      </div>
+
+      <div className="diaria-card mt-3">
+        <h6 className="fw-bold mb-3" style={{ color: 'var(--rc-ink)', fontSize: '0.95rem' }}>{t('Histórico de alterações')}</h6>
+        {historico.length === 0 ? (
+          <p className="mb-0" style={{ color: 'var(--rc-muted)', fontSize: '0.9rem' }}>{t('Nenhuma alteração registrada ainda.')}</p>
+        ) : (
+          <ul className="diaria-historico">
+            {historico.map(h => (
+              <li key={h.id}>
+                <span className="diaria-hist-data">{fmtDataHora(h.dataAlteracao, t)}</span>
+                <span className="diaria-hist-valores">
+                  <s>{fmtMoeda(h.valorAntigo)}</s> <i className="bi bi-arrow-right" aria-hidden="true" /> <strong>{fmtMoeda(h.valorNovo)}</strong>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Componente Principal DashboardAdministrador ──────────────────────────────
 function DashboardAdministrador() {
   const { t, tema, idioma, alternarTema, alternarIdioma } = usePreferencias();
@@ -2807,6 +2940,7 @@ function DashboardAdministrador() {
     { id: 'calendario',  label: 'Calendário',  icone: <Ico.Cal /> },
     { id: 'cupons',      label: 'Cupons',      icone: <Ico.Cupom /> },
     { id: 'previsao',    label: 'Previsão',    icone: <Ico.Previsao /> },
+    { id: 'diaria',      label: 'Diária',      icone: <Ico.Diaria /> },
     { id: 'avaliacoes',  label: 'Avaliações',  icone: <Ico.Estrela /> },
   ];
 
@@ -2949,6 +3083,13 @@ function DashboardAdministrador() {
         <>
           <p className="dash-section-label">{t("Previsão de Receita")}</p>
           <PrevisaoReceita reservas={reservas} />
+        </>
+      );
+
+      case 'diaria': return (
+        <>
+          <p className="dash-section-label">{t("Valor da Diária")}</p>
+          <PainelDiaria />
         </>
       );
 
