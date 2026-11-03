@@ -1326,8 +1326,29 @@ function ModalBloquearDatas({ show, aoFechar, aoSalvar, reservasExistentes = [],
 }
 
 // ─── Calendário de Ocupação com 2 Meses Lado a Lado ───────────────────────────
+function agruparBloqueios(bloqueios) {
+  // Junta dias seguidos com o mesmo motivo num único período (o banco guarda um registro por noite).
+  const ordenados = [...bloqueios].sort((a, b) => String(a.data).localeCompare(String(b.data)));
+  const grupos = [];
+  ordenados.forEach(b => {
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.motivo === b.motivo) {
+      const seguinte = new Date(`${ultimo.fim}T12:00:00Z`);
+      seguinte.setUTCDate(seguinte.getUTCDate() + 1);
+      if (seguinte.toISOString().slice(0, 10) === b.data) {
+        ultimo.fim = b.data;
+        ultimo.ids.push(b.id);
+        return;
+      }
+    }
+    grupos.push({ inicio: b.data, fim: b.data, motivo: b.motivo, ids: [b.id] });
+  });
+  return grupos;
+}
+
 function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBloqueio }) {
   const { t, idioma } = usePreferencias();
+  const gruposBloqueio = useMemo(() => agruparBloqueios(bloqueios), [bloqueios]);
   const loc = localeDe(idioma);
   const [mesBase, setMesBase] = useState(() => new Date());
   const [showModalBloqueio, setShowModalBloqueio] = useState(false);
@@ -1539,7 +1560,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
         <div className="d-flex align-items-center justify-content-between mb-3">
           <h6 className="fw-bold mb-0" style={{ color: 'var(--rc-ink)' }}>
             <i className="bi bi-cone-striped me-2 text-warning" />
-            {t('Datas Bloqueadas (Manuais/Externas) ({n})', { n: bloqueios.length })}
+            {t('Períodos bloqueados ({n})', { n: gruposBloqueio.length })}
           </h6>
         </div>
 
@@ -1547,8 +1568,8 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
           <p className="text-muted small mb-0">{t("Nenhum bloqueio cadastrado. Todas as datas livres estão disponíveis para reservas.")}</p>
         ) : (
           <div className="d-flex flex-column gap-2">
-            {bloqueios.map(b => (
-              <div key={b.id} className="item-bloqueio-card">
+            {gruposBloqueio.map(b => (
+              <div key={b.ids.join('-')} className="item-bloqueio-card">
                 <div className="d-flex align-items-center gap-3">
                   <div className="avatar-checkin" style={{ background: 'var(--adm-star)', width: 36, height: 36, fontSize: '0.9rem' }}>
                     <i className="bi bi-tools" />
@@ -1557,7 +1578,8 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
                     <div className="fw-bold" style={{ color: 'var(--adm-warn-fg)' }}>{b.motivo}</div>
                     <div className="text-muted small">
                       <i className="bi bi-calendar-event me-1" />
-                      {fmtData(b.data || b.dataInicio)} {t('(1 dia bloqueado)')}
+                      {b.inicio === b.fim ? fmtData(b.inicio) : `${fmtData(b.inicio)} – ${fmtData(b.fim)}`}
+                      {' '}{t(b.ids.length === 1 ? '(1 noite bloqueada)' : '({n} noites bloqueadas)', { n: b.ids.length })}
                     </div>
                   </div>
                 </div>
@@ -1566,7 +1588,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
                   variant="outline-danger"
                   size="sm"
                   style={{ borderRadius: '50px' }}
-                  onClick={() => aoRemoverBloqueio(b.id)}
+                  onClick={() => b.ids.forEach(id => aoRemoverBloqueio(id))}
                   title={t("Remover bloqueio e liberar datas")}
                 >
                   <i className="bi bi-trash3 me-1" /> {t("Desbloquear")}
@@ -1992,9 +2014,95 @@ function ModalCriarCupom({ show, aoFechar, aoSalvar }) {
 }
 
 // ─── Aba de Gestão de Cupons ─────────────────────────────────────────────────
-function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
+function ModalEditarCupom({ cupom, aoFechar, aoSalvar }) {
+  const { t } = usePreferencias();
+  const [form, setForm] = useState({ valor: '', validade: '', limite: '', minNoites: '1', valMin: '' });
+  const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (!cupom) return;
+    setErro('');
+    setForm({
+      valor: String(cupom.valorDesconto ?? ''),
+      validade: String(cupom.validoAte || '').slice(0, 10),
+      limite: cupom.limiteUso && cupom.limiteUso < 999999 ? String(cupom.limiteUso) : '',
+      minNoites: String(cupom.minimoNoites || 1),
+      valMin: cupom.valorMinimo ? String(cupom.valorMinimo) : '',
+    });
+  }, [cupom]);
+
+  if (!cupom) return null;
+  const percentual = cupom.tipoDesconto === 'PERCENTUAL';
+  const mudar = (campo) => (e) => setForm(f => ({ ...f, [campo]: e.target.value }));
+
+  const salvar = async (e) => {
+    e.preventDefault();
+    setSalvando(true);
+    setErro('');
+    try {
+      await aoSalvar(cupom.id, {
+        valorDesconto: Number(form.valor),
+        validoAte: form.validade,
+        limiteUso: form.limite === '' ? null : Number(form.limite),
+        minimoNoites: Number(form.minNoites) || 1,
+        valorMinimo: form.valMin === '' ? 0 : Number(form.valMin),
+      });
+      aoFechar();
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Modal show onHide={aoFechar} centered>
+      <form onSubmit={salvar}>
+        <Modal.Header closeButton>
+          <Modal.Title className="fs-5">{t('Editar cupom {codigo}', { codigo: cupom.codigo })}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="text-muted small">{t('Código, tipo de desconto e público não mudam. Para isso, crie um cupom novo.')}</p>
+          <Row className="g-3">
+            <Col xs={6}>
+              <label className="form-label small fw-semibold" htmlFor="ed-valor">{percentual ? t('Desconto (%)') : t('Desconto (R$)')}</label>
+              <input id="ed-valor" className="form-control" type="number" min="0.01" step="0.01" max={percentual ? 100 : undefined} required value={form.valor} onChange={mudar('valor')} />
+            </Col>
+            <Col xs={6}>
+              <label className="form-label small fw-semibold" htmlFor="ed-validade">{t('Válido até')}</label>
+              <input id="ed-validade" className="form-control" type="date" required value={form.validade} onChange={mudar('validade')} />
+            </Col>
+            <Col xs={6}>
+              <label className="form-label small fw-semibold" htmlFor="ed-limite">{t('Limite de usos')}</label>
+              <input id="ed-limite" className="form-control" type="number" min={Math.max(1, cupom.totalUsos || 0)} step="1" placeholder={t('Ilimitado')} value={form.limite} onChange={mudar('limite')} />
+            </Col>
+            <Col xs={6}>
+              <label className="form-label small fw-semibold" htmlFor="ed-min">{t('Mínimo de noites')}</label>
+              <input id="ed-min" className="form-control" type="number" min="1" step="1" value={form.minNoites} onChange={mudar('minNoites')} />
+            </Col>
+            <Col xs={12}>
+              <label className="form-label small fw-semibold" htmlFor="ed-valmin">{t('Valor mínimo da reserva (R$)')}</label>
+              <input id="ed-valmin" className="form-control" type="number" min="0" step="0.01" placeholder={t('Opcional')} value={form.valMin} onChange={mudar('valMin')} />
+            </Col>
+          </Row>
+          {erro && <Alert variant="danger" className="mt-3 mb-0 py-2 small">{erro}</Alert>}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="outline-secondary" onClick={aoFechar} style={{ borderRadius: '50px' }}>{t('Cancelar')}</Button>
+          <Button type="submit" disabled={salvando} style={{ borderRadius: '50px', background: 'var(--rc-u1)', borderColor: 'var(--rc-u1)' }}>
+            {salvando ? t('Salvando...') : t('Salvar alterações')}
+          </Button>
+        </Modal.Footer>
+      </form>
+    </Modal>
+  );
+}
+
+function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom, aoEditarCupom }) {
   const { t } = usePreferencias();
   const [copiadoId, setCopiadoId] = useState(null);
+  const [cupomEditando, setCupomEditando] = useState(null);
   const [showModal, setShowModal] = useState(false);
 
   const copiarCodigo = (codigo, id) => {
@@ -2076,6 +2184,14 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
 
                   <div className="cupom-codigo-box">
                     <span className="cupom-codigo-texto">{c.codigo}</span>
+                    <button
+                      type="button"
+                      className="btn-copiar-cupom"
+                      onClick={() => setCupomEditando(c)}
+                      aria-label={t('Editar cupom {codigo}', { codigo: c.codigo })}
+                    >
+                      <i className="bi bi-pencil" /> {t('Editar')}
+                    </button>
                     <button
                       type="button"
                       className="btn-copiar-cupom"
@@ -2163,6 +2279,8 @@ function PainelCupons({ cupons, aoAlternarStatus, aoCriarCupom }) {
           })}
         </div>
       )}
+
+      <ModalEditarCupom cupom={cupomEditando} aoFechar={() => setCupomEditando(null)} aoSalvar={aoEditarCupom} />
 
       <ModalCriarCupom
         show={showModal}
@@ -2941,6 +3059,20 @@ function DashboardAdministrador() {
     }
   };
 
+  // Editar Cupom (lança erro para o modal mostrar)
+  const editarCupom = async (id, dados) => {
+    const res = await fetch(`${API_BASE}/api/proprietario/cupons/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(dados),
+    });
+    const resposta = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(resposta.error || t('Não foi possível atualizar o cupom.'));
+    await buscarCupons();
+    fb('sucesso', t('Cupom atualizado com sucesso.'));
+  };
+
   // Criar Novo Cupom
   const criarCupom = async (novo) => {
     try {
@@ -3246,6 +3378,7 @@ function DashboardAdministrador() {
             cupons={cupons}
             aoAlternarStatus={alternarStatusCupom}
             aoCriarCupom={criarCupom}
+            aoEditarCupom={editarCupom}
           />
         </>
       );

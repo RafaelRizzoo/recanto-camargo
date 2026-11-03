@@ -48,7 +48,7 @@
 .rc-hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
 .rc-pin{display:inline-flex;gap:8px;align-items:center;margin-top:22px;font-size:.9rem;font-weight:600;background:rgba(0,0,0,.5);padding:8px 14px;border-radius:999px}
 /* search */
-.rc-search{position:relative;z-index:5;background: var(--rc-card);border-radius:24px;box-shadow:0 14px 40px rgba(0,0,0,.16);display:grid;grid-template-columns:1.2fr 1fr 1fr .8fr auto;gap:0;padding:10px;max-width:1040px;margin:-64px auto 0}
+.rc-search{position:relative;z-index:5;background: var(--rc-card);border-radius:24px;box-shadow:0 14px 40px rgba(0,0,0,.16);display:grid;grid-template-columns:1.15fr 1fr 1fr 1.05fr auto;gap:0;padding:10px;max-width:1040px;margin:-64px auto 0}
 .rc-hero-img+.rc-search{margin-top:-64px}
 .rc-field{padding:10px 20px;border-right:1px solid var(--rc-line);text-align:left;background:none;border-top:0;border-bottom:0;border-left:0;font-family:inherit;cursor:pointer;border-radius:16px}
 .rc-field:hover{background:var(--rc-bg)}
@@ -272,3 +272,16 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 :root[data-theme="dark"] .rc-res-campo textarea,
 :root[data-theme="dark"] .rc-res-datas{border-color:#554f47}
 .rc-cards .rc-sem-foto{aspect-ratio:3/2;display:grid;place-items:center;background:var(--rc-fill);color:var(--rc-u1-text);font-size:3rem}
+/* Calendário de datas no visual novo (sem o cabeçalho azul antigo) */
+.rc-pop .custom-calendar-home .react-calendar__navigation{background:transparent;border-bottom:1px solid var(--rc-line);border-radius:0;padding:0 0 .35rem}
+.rc-pop .custom-calendar-home .react-calendar__navigation button{color:var(--rc-ink);font-size:1rem;border-radius:999px}
+.rc-pop .custom-calendar-home .react-calendar__navigation__label{font-family:var(--rc-serif);font-size:1.05rem;text-transform:capitalize}
+.rc-pop .custom-calendar-home .react-calendar__navigation button:enabled:hover,
+.rc-pop .custom-calendar-home .react-calendar__navigation button:enabled:focus{background:var(--rc-fill);border-radius:999px}
+.rc-pop .custom-calendar-home .react-calendar__month-view__weekdays{color:var(--rc-muted)}
+.rc-pop .custom-calendar-home .react-calendar__tile:enabled:hover,
+.rc-pop .custom-calendar-home .react-calendar__tile:enabled:focus{background-color:var(--rc-fill);color:var(--rc-ink)}
+.rc-pop .custom-calendar-home .react-calendar__tile--now{border:2px solid var(--rc-ink);color:var(--rc-ink)}
+.rc-pop .custom-calendar-home .react-calendar__tile--active{background:var(--rc-u1)!important;color:#1a0b00!important}
+.rc-pop .custom-calendar-home .react-calendar__tile--hasActive{background:rgba(255,117,31,.16)!important;color:var(--rc-ink)!important}
+.rc-pop .custom-calendar-home .react-calendar__month-view__days__day--weekend:not(.react-calendar__tile--active):not(:disabled){color:var(--rc-u1-text,var(--rc-u1))}

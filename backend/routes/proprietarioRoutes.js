@@ -32,5 +32,6 @@ router.get('/imovel/datas-especiais', verificarToken, verificarProprietario, pro
 router.post('/imovel/datas-especiais', verificarToken, verificarProprietario, proprietarioController.criarDataEspecial);
 router.delete('/imovel/datas-especiais/:id', verificarToken, verificarProprietario, proprietarioController.removerDataEspecial);
 
+router.put('/cupons/:id', verificarToken, verificarProprietario, proprietarioController.editarCupom);
 module.exports = router;
 

@@ -1655,3 +1655,58 @@ exports.removerDataEspecial = async (req, res) => {
         res.status(500).json({ error: 'Não foi possível remover a data especial.' });
     }
 };
+
+// Edita as regras de um cupom existente. Código, tipo e público não mudam, para não confundir
+// hóspedes que já receberam o cupom; para isso, crie um novo.
+exports.editarCupom = async (req, res) => {
+    try {
+        const proprietarioId = req.usuario.id;
+        await garantirProprietario(db, proprietarioId);
+        const id = normalizarIdPositivo(req.params.id, 'Identificador do cupom');
+
+        const [cupons] = await db.query(
+            `SELECT Cup_Id, Cup_TipoDesconto, Cup_PublicoAlvo,
+                    (SELECT COUNT(*) FROM res_reserva r WHERE r.Cup_Id = c.Cup_Id AND r.Res_Status NOT IN ('CANCELADA', 'RECUSADA')) AS usos
+             FROM cup_cupom c WHERE Cup_Id = ? LIMIT 1`,
+            [id]
+        );
+        if (cupons.length === 0) return res.status(404).json({ error: 'Cupom não encontrado.' });
+        const cupom = cupons[0];
+
+        const { valorDesconto, validoAte, limiteUso, minimoNoites, valorMinimo } = req.body || {};
+
+        const valor = Number(valorDesconto);
+        if (!Number.isFinite(valor) || valor <= 0) {
+            return res.status(400).json({ error: 'O valor do desconto deve ser maior que zero.' });
+        }
+        if (cupom.Cup_TipoDesconto === 'PERCENTUAL' && valor > 100) {
+            return res.status(400).json({ error: 'O desconto percentual não pode ser maior que 100%.' });
+        }
+        if (!validoAte || !/^\d{4}-\d{2}-\d{2}$/.test(validoAte)) {
+            return res.status(400).json({ error: 'Informe uma data de validade válida (AAAA-MM-DD).' });
+        }
+        const limite = limiteUso === null || limiteUso === '' || limiteUso === undefined
+            ? (cupom.Cup_PublicoAlvo === 'CLIENTE_ESPECIFICO' ? 1 : 999999)
+            : Number(limiteUso);
+        if (!Number.isInteger(limite) || limite < 1) {
+            return res.status(400).json({ error: 'O limite de usos deve ser um número inteiro maior que zero.' });
+        }
+        if (limite < Number(cupom.usos)) {
+            return res.status(400).json({ error: `Este cupom já foi usado ${cupom.usos} vez(es). O limite não pode ser menor que isso.` });
+        }
+        const minNoites = Number(minimoNoites) >= 1 ? Math.floor(Number(minimoNoites)) : 1;
+        const valMin = Number(valorMinimo) >= 0 ? Number(valorMinimo) : 0;
+
+        await db.query(
+            `UPDATE cup_cupom
+             SET Cup_ValorDoDesconto = ?, Cup_DataValidade = ?, Cup_LimiteUso = ?, Cup_MinimoNoites = ?, Cup_ValorMinimo = ?
+             WHERE Cup_Id = ?`,
+            [Number(valor.toFixed(2)), validoAte, limite, minNoites, Number(valMin.toFixed(2)), id]
+        );
+        res.json({ message: 'Cupom atualizado com sucesso.', id });
+    } catch (error) {
+        if (error instanceof ErroHttp) return res.status(error.status).json({ error: error.message });
+        console.error('Erro ao editar cupom:', error);
+        res.status(500).json({ error: 'Não foi possível atualizar o cupom.' });
+    }
+};
