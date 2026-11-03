@@ -34,14 +34,20 @@ function ExploreAparecida() {
         <div className="rc-cards">
           {itens.map((p) => (
             <a key={p.id} href={p.linkMaps} target="_blank" rel="noopener noreferrer">
-              <img src={p.imagem} alt={t(p.alt)} loading="lazy" decoding="async" width="400" height="267" />
+              {p.imagem ? (
+                <img src={p.imagem} alt={t(p.alt)} loading="lazy" decoding="async" width="400" height="267" />
+              ) : (
+                <div className="rc-sem-foto" role="img" aria-label={t(p.alt)}>
+                  <i className={`bi ${p.icone}`} aria-hidden="true" />
+                </div>
+              )}
               <div className="rc-cin">
                 <span className="rc-cat">{t(p.categoria)}</span>
                 <h3>{t(p.titulo)}</h3>
                 <p style={{ color: "var(--rc-muted)", fontSize: ".92rem" }}>{t(p.descricao)}</p>
                 <div className="rc-tm">
-                  <span><i className="bi bi-clock" aria-hidden="true" /> {p.tempo}</span>
-                  <span>{t("Ver rota")} <i className="bi bi-arrow-right-short" aria-hidden="true" /></span>
+                  {p.tempo ? <span><i className="bi bi-clock" aria-hidden="true" /> {p.tempo}</span> : <span />}
+                  <span>{t(p.acao || "Ver rota")} <i className="bi bi-arrow-right-short" aria-hidden="true" /></span>
                 </div>
               </div>
             </a>

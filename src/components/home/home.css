@@ -271,3 +271,4 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 :root[data-theme="dark"] .rc-res-campo input,
 :root[data-theme="dark"] .rc-res-campo textarea,
 :root[data-theme="dark"] .rc-res-datas{border-color:#554f47}
+.rc-cards .rc-sem-foto{aspect-ratio:3/2;display:grid;place-items:center;background:var(--rc-fill);color:var(--rc-u1-text);font-size:3rem}

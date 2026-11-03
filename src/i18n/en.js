@@ -528,6 +528,16 @@ export const EN = {
   "O servidor demorou para responder. Atualize para conferir a leitura.": "The server took too long to respond. Refresh to check the read status.",
   "Não foi possível marcar como lida. Tente novamente.": "Could not mark as read. Please try again.",
 
+  "Comer e beber": "Food & drinks",
+  "Barzin Restaurante e Chopperia": "Barzin Restaurant & Brewpub",
+  "Restaurante e chopperia na Rua Totó Barbosa, 214. Almoço e jantar, aberto até meia-noite.": "Restaurant and draft-beer pub at Rua Totó Barbosa, 214. Lunch and dinner, open until midnight.",
+  "Fachada do Barzin Restaurante e Chopperia": "Front of Barzin Restaurant & Brewpub",
+  "Ver no mapa": "View on map",
+  "Shibata Supermercados": "Shibata Supermarket",
+  "Supermercado completo na Av. Sólon Pereira, 500, para abastecer a cozinha da casa.": "Full supermarket at Av. Sólon Pereira, 500, to stock up the house kitchen.",
+  "Farmácia": "Pharmacy",
+  "Drogaria Aparecida": "Drogaria Aparecida Pharmacy",
+  "Farmácia na Rua Totó Barbosa, aberta todos os dias.": "Pharmacy on Rua Totó Barbosa, open every day.",
   // ---- Dashboard do administrador ----
   "Copiar": "Copy",
   "{n} agendados": "{n} scheduled",

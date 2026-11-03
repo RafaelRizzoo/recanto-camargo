@@ -19,6 +19,7 @@ import Quarto2Img from "../assets/img/comodos/QuartoDois.webp";
 import Quarto1Img from "../assets/img/comodos/QuartoUm.webp";
 import SalaImg from "../assets/img/comodos/Sala.webp";
 
+import BarzinTurismo from "../assets/img/turismo/BarzinTurismo.webp";
 import BasilicaTurismo from "../assets/img/turismo/BasilicaTurismo.webp";
 import CruzeiroTurismo from "../assets/img/turismo/CruzeiroTurismo.webp";
 import FeiraTurismo from "../assets/img/turismo/FeiraTurismo.webp";
@@ -108,6 +109,36 @@ export const pontosTuristicos = [
     imagem: FeiraTurismo,
     alt: "Feira Livre",
     linkMaps: "https://www.google.com/maps/dir/?api=1&origin=Recanto+Camargo,+Aparecida+-+SP&destination=Feira+Livre+Aparecida+-+SP",
+  },
+  {
+    id: "barzin",
+    categoria: "Comer e beber",
+    titulo: "Barzin Restaurante e Chopperia",
+    descricao: "Restaurante e chopperia na Rua Totó Barbosa, 214. Almoço e jantar, aberto até meia-noite.",
+    imagem: BarzinTurismo,
+    alt: "Fachada do Barzin Restaurante e Chopperia",
+    linkMaps: "https://maps.app.goo.gl/cpgMukX1GySP5FVq8",
+    acao: "Ver no mapa",
+  },
+  {
+    id: "shibata",
+    categoria: "Compras",
+    titulo: "Shibata Supermercados",
+    descricao: "Supermercado completo na Av. Sólon Pereira, 500, para abastecer a cozinha da casa.",
+    icone: "bi-cart3",
+    alt: "Shibata Supermercados",
+    linkMaps: "https://maps.app.goo.gl/9tEeMBhJM2bj27oF9",
+    acao: "Ver no mapa",
+  },
+  {
+    id: "drogaria",
+    categoria: "Farmácia",
+    titulo: "Drogaria Aparecida",
+    descricao: "Farmácia na Rua Totó Barbosa, aberta todos os dias.",
+    icone: "bi-capsule",
+    alt: "Drogaria Aparecida",
+    linkMaps: "https://maps.app.goo.gl/NqNJMVk44rKYo7jJ9",
+    acao: "Ver no mapa",
   },
 ];
 
