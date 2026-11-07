@@ -3,10 +3,29 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import { verificarSeFeriado } from '../../utils/feriados';
 import { API_BASE, IS_API_AVAILABLE } from '../../utils/api';
+import { usePreferencias } from '../../hooks/usePreferencias';
 
 const CHAVE_RESERVAS = 'recanto_camargo_reservas';
 
-function CalendarioCustom({ valor, onChange, minDate, imovelId = 1 }) {
+// Dois meses lado a lado a partir desta largura de tela (no celular, um mês por vez).
+const LARGURA_DOIS_MESES = 768;
+
+function usarDoisMeses(ativo) {
+  const [largo, setLargo] = useState(() => typeof window !== 'undefined' && window.innerWidth >= LARGURA_DOIS_MESES);
+  useEffect(() => {
+    if (!ativo) return undefined;
+    const aoRedimensionar = () => setLargo(window.innerWidth >= LARGURA_DOIS_MESES);
+    window.addEventListener('resize', aoRedimensionar);
+    return () => window.removeEventListener('resize', aoRedimensionar);
+  }, [ativo]);
+  return ativo && largo;
+}
+
+// variante "duplo": visual estilo Airbnb, dois meses, e permite escolher a entrada e depois a saída
+// (o onChange recebe [entrada, null] no primeiro clique).
+function CalendarioCustom({ valor, onChange, minDate, imovelId = 1, duplo = false }) {
+  const { t, idioma } = usePreferencias();
+  const doisMeses = usarDoisMeses(duplo);
   const [reservas, setReservas] = useState([]);
   const [erroConflito, setErroConflito] = useState('');
 
@@ -28,6 +47,10 @@ function CalendarioCustom({ valor, onChange, minDate, imovelId = 1 }) {
 
   const handleCalendarChange = (range) => {
     setErroConflito('');
+    if (duplo && Array.isArray(range) && range[0] && !range[1]) {
+      onChange?.(range);
+      return;
+    }
     if (Array.isArray(range) && range[0] && range[1]) {
       const startIso = new Date(range[0].getTime() - range[0].getTimezoneOffset() * 60000).toISOString().split('T')[0];
       const endIso = new Date(range[1].getTime() - range[1].getTimezoneOffset() * 60000).toISOString().split('T')[0];
@@ -84,15 +107,23 @@ function CalendarioCustom({ valor, onChange, minDate, imovelId = 1 }) {
   return (
     <>
       <Calendar
-        className="custom-calendar-home"
+        className={`custom-calendar-home${duplo ? ' rc-cal' : ''}`}
         onChange={handleCalendarChange}
         value={valor}
         selectRange={true}
+        allowPartialRange={duplo}
+        showDoubleView={doisMeses}
+        prev2Label={duplo ? null : undefined}
+        next2Label={duplo ? null : undefined}
+        prevLabel={duplo ? <i className="bi bi-chevron-left" aria-hidden="true" /> : undefined}
+        nextLabel={duplo ? <i className="bi bi-chevron-right" aria-hidden="true" /> : undefined}
+        formatShortWeekday={duplo ? (locale, date) => date.toLocaleDateString(locale, { weekday: 'narrow' }) : undefined}
         minDate={minDate || new Date()}
         tileClassName={tileClassName}
         tileDisabled={tileDisabled}
-        locale="pt-BR"
-        showFixedNumberOfWeeks={true}
+        locale={duplo && idioma === "en" ? "en-US" : "pt-BR"}
+        showFixedNumberOfWeeks={!duplo}
+        showNeighboringMonth={!duplo}
       />
       {erroConflito && (
         <div 
@@ -103,6 +134,12 @@ function CalendarioCustom({ valor, onChange, minDate, imovelId = 1 }) {
           <span>{erroConflito}</span>
         </div>
       )}
+      {duplo ? (
+        <div className="rc-cal-legenda">
+          <span><i className="rc-cal-leg-ocupado" aria-hidden="true" /> {t('Indisponível')}</span>
+          <span><i className="rc-cal-leg-feriado" aria-hidden="true" /> {t('Feriado')}</span>
+        </div>
+      ) : (
       <div className="calendario-legenda mt-2 d-flex flex-wrap gap-2">
         <div className="legenda-item"><div className="legenda-cor selecionado"></div> Selecionado</div>
         <div className="legenda-item"><div className="legenda-cor reservado"></div> Indisponível</div>
@@ -110,6 +147,7 @@ function CalendarioCustom({ valor, onChange, minDate, imovelId = 1 }) {
         <div className="legenda-item" title="Manhã livre para sua saída, tarde ocupada por novo hóspede"><div className="legenda-cor checkin-ocupado"></div> Entrada</div>
         <div className="legenda-item"><div className="legenda-cor feriado"></div> Feriado</div>
       </div>
+      )}
     </>
   );
 }

@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { usePreferencias } from '../hooks/usePreferencias';
 import Lightbox from "../components/UI/Lightbox";
 import { galeriaPorUnidade, midiasGaleria, unidades } from "../data/conteudoSite";
+import { useNavigate } from "react-router-dom";
+import BarraMobile from "../components/home/BarraMobile";
 import "../components/home/home.css";
 import "./Fotos.css";
 
@@ -37,6 +39,8 @@ function Fotos() {
     setUnidade(id);
     setCategoria("Todos");
   };
+
+  const navigate = useNavigate();
 
   return (
     <div className="rc-home rc-fotos">
@@ -109,6 +113,7 @@ function Fotos() {
       {indiceAberto !== null && (
         <Lightbox midias={midiasLightbox} indiceInicial={indiceAberto} aoFechar={() => setIndiceAberto(null)} />
       )}
+      <BarraMobile aoReservar={() => navigate(`/Reserva?unidade=${unidade}`)} />
     </div>
   );
 }

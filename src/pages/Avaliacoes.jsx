@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { usePreferencias } from '../hooks/usePreferencias';
 import PropTypes from 'prop-types';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import BarraMobile from '../components/home/BarraMobile';
 import { depoimentos } from '../data/conteudoSite';
 import { API_BASE, IS_API_AVAILABLE } from '../utils/api';
 import { useAvaliacoesGoogle } from '../hooks/useAvaliacoesGoogle';
@@ -114,6 +115,7 @@ function CardAvaliacao({ item }) {
 CardAvaliacao.propTypes = { item: PropTypes.object.isRequired };
 
 function Avaliacoes() {
+  const navegar = useNavigate();
   const { t, idioma } = usePreferencias();
   const [avaliacoes, setAvaliacoes] = useState([]);
   const [carregando, setCarregando] = useState(true);
@@ -191,6 +193,7 @@ function Avaliacoes() {
 
   return (
     <div className="rc-home rc-avaliacoes">
+      <BarraMobile aoReservar={() => navegar('/Reserva')} />
       <div className="rc-wrap">
         <header className="rc-av-head">
           <span className="rc-eyebrow">{t('Avaliações')}</span>
