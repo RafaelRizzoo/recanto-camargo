@@ -6,6 +6,7 @@ import { comodidadesGrupos, depoimentos, galeriaPorUnidade, mapaEmbedSrc, unidad
 import CalendarioCustom from '../components/UI/CalendarioCustom';
 import CampoData from '../components/home/CampoData';
 import MosaicoFotos from '../components/home/MosaicoFotos';
+import BarraMobile from '../components/home/BarraMobile';
 import { linkWhats } from '../components/home/links';
 import { useAjustarPopover } from '../components/home/useAjustarPopover';
 import { useAvaliacoesGoogle } from '../hooks/useAvaliacoesGoogle';
@@ -318,6 +319,11 @@ function Reserva() {
 
   return (
     <div className="rc-home rc-reserva">
+      <BarraMobile
+
+        esconderQuandoVisivel=".rc-res-card"
+        aoReservar={() => document.querySelector('.rc-res-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+      />
       <div className="rc-wrap">
 
         <header className="rc-res-head">

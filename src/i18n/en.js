@@ -592,6 +592,7 @@ export const EN = {
   "Seus dados ficam guardados com segurança no sistema do Recanto Camargo e são usados apenas para suas reservas. O CPF é armazenado criptografado e nada é compartilhado para fins de marketing.": "Your data is stored securely in Recanto Camargo's system and used only for your bookings. Your CPF is stored encrypted and nothing is shared for marketing.",
   "Ver Política de Privacidade": "See Privacy Policy",
   // ---- Dashboard do administrador ----
+  "Ver datas e valores": "See dates and prices",
   "Editar cupom {codigo}": "Edit coupon {codigo}",
   "Editar": "Edit",
   "Código, tipo de desconto e público não mudam. Para isso, crie um cupom novo.": "Code, discount type and audience can't change. Create a new coupon for that.",
