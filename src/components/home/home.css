@@ -1,6 +1,6 @@
 
-:root{--rc-card:#fff;--rc-header-bg:rgba(250,249,246,.96);--rc-fill:#e8e4dd;--rc-u1-text:#b34700;--rc-ok:#146c2e;--rc-ok-bg:#e8f5e9;--rc-err:#b00020;--rc-err-bg:#fce8e6;--rc-err-borda:#f3b8b3;--rc-warn:#8a4b00}
-:root[data-theme="dark"]{color-scheme:dark;--rc-bg:#141311;--rc-card:#1e1c19;--rc-ink:#f2efe9;--rc-muted:#b5afa5;--rc-line:#37332e;--rc-sh:0 1px 2px rgba(0,0,0,.45),0 10px 28px rgba(0,0,0,.4);--rc-header-bg:rgba(20,19,17,.96);--rc-fill:#2a2723;--rc-u1-text:#ff9a57;--rc-ok:#6fd08c;--rc-ok-bg:rgba(111,208,140,.14);--rc-err:#ff8a80;--rc-err-bg:rgba(255,138,128,.14);--rc-err-borda:rgba(255,138,128,.4);--rc-warn:#ffb870}
+:root{--rc-tint:#EAF0F7;--rc-wtint:#FFF1E8;--rc-btext:#003366;--rc-card:#fff;--rc-header-bg:rgba(250,249,246,.96);--rc-fill:#e8e4dd;--rc-u1-text:#b34700;--rc-ok:#146c2e;--rc-ok-bg:#e8f5e9;--rc-err:#b00020;--rc-err-bg:#fce8e6;--rc-err-borda:#f3b8b3;--rc-warn:#8a4b00}
+:root[data-theme="dark"]{color-scheme:dark;--rc-u2:#0F3A6B;--rc-tint:#102640;--rc-wtint:#1E1A17;--rc-btext:#8DB8F2;--rc-bg:#0B1422;--rc-card:#12233A;--rc-ink:#F2F5FA;--rc-muted:#A9B6C8;--rc-line:#243752;--rc-sh:0 1px 2px rgba(0,0,0,.5),0 10px 28px rgba(0,0,0,.45);--rc-header-bg:rgba(11,20,34,.96);--rc-fill:#1B2D47;--rc-u1-text:#ff9a57;--rc-ok:#6fd08c;--rc-ok-bg:rgba(111,208,140,.14);--rc-err:#ff8a80;--rc-err-bg:rgba(255,138,128,.14);--rc-err-borda:rgba(255,138,128,.4);--rc-warn:#ffb870}
 :root[data-theme="dark"] body{background:var(--rc-bg)}
 :root{--rc-bg:#FAF9F6;--rc-card:#fff;--rc-ink:#202020;--rc-muted:#666;--rc-line:#EAE7E2;--rc-u1:#FF751F;--rc-u2:#003366;--rc-r:20px;--rc-sh:0 1px 2px rgba(32,32,32,.05),0 8px 24px rgba(32,32,32,.06);--rc-serif:'Playfair Display',Georgia,serif;--rc-sans:'Plus Jakarta Sans',system-ui,sans-serif;--rc-logo:'Oleo Script Swash Caps',cursive}
 .rc-home{font-family:var(--rc-sans);background:var(--rc-bg);color:var(--rc-ink);line-height:1.6;-webkit-font-smoothing:antialiased}
@@ -254,7 +254,7 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 /* ---- tema escuro: ajustes que variáveis sozinhas não resolvem ---- */
 :root[data-theme="dark"] .rc-hero-img::after{background:linear-gradient(90deg,rgba(0,0,0,.65) 0,rgba(0,0,0,.4) 45%,rgba(0,0,0,.05) 78%),linear-gradient(180deg,rgba(0,0,0,.5) 0,rgba(0,0,0,.25) 35%,rgba(0,0,0,.78) 100%)}
 :root[data-theme="dark"] .rc-pop .custom-calendar-home .react-calendar__tile{color:var(--rc-ink)}
-:root[data-theme="dark"] .rc-pop .custom-calendar-home .react-calendar__tile:disabled{color:#6b665e}
+:root[data-theme="dark"] .rc-pop .custom-calendar-home .react-calendar__tile:disabled{color:#5D6E87}
 :root[data-theme="dark"] .rc-pop .custom-calendar-home .react-calendar__tile:enabled:hover,
 :root[data-theme="dark"] .rc-pop .custom-calendar-home .react-calendar__tile:enabled:focus{background-color:var(--rc-fill);color:var(--rc-ink)}
 :root[data-theme="dark"] .rc-pop .custom-calendar-home .react-calendar__tile--now{border-color:var(--rc-ink);color:var(--rc-ink)}
@@ -270,7 +270,7 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 :root[data-theme="dark"] .rc-res-campo select,
 :root[data-theme="dark"] .rc-res-campo input,
 :root[data-theme="dark"] .rc-res-campo textarea,
-:root[data-theme="dark"] .rc-res-datas{border-color:#554f47}
+:root[data-theme="dark"] .rc-res-datas{border-color:#3A5176}
 .rc-cards .rc-sem-foto{aspect-ratio:3/2;display:grid;place-items:center;background:var(--rc-fill);color:var(--rc-u1-text);font-size:3rem}
 /* Calendário de datas no visual novo (sem o cabeçalho azul antigo) */
 .rc-pop .custom-calendar-home .react-calendar__navigation{background:transparent;border-bottom:1px solid var(--rc-line);border-radius:0;padding:0 0 .35rem}
@@ -285,3 +285,40 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 .rc-pop .custom-calendar-home .react-calendar__tile--active{background:var(--rc-u1)!important;color:#1a0b00!important}
 .rc-pop .custom-calendar-home .react-calendar__tile--hasActive{background:rgba(255,117,31,.16)!important;color:var(--rc-ink)!important}
 .rc-pop .custom-calendar-home .react-calendar__month-view__days__day--weekend:not(.react-calendar__tile--active):not(:disabled){color:var(--rc-u1-text,var(--rc-u1))}
+
+/* ===== Opção B: faixas alternando azul e laranja ===== */
+.rc-eyebrow{color:var(--rc-u1-text)}
+.rc-home .rc-faixa{padding:88px 0}
+.rc-faixa-azul{background:var(--rc-u2);color:#fff}
+.rc-faixa-azul .rc-eyebrow{color:var(--rc-u1)}
+.rc-faixa-azul .rc-lead{color:rgba(255,255,255,.88)}
+.rc-faixa-azul .rc-stats{border-color:rgba(255,255,255,.2)}
+.rc-faixa-azul .rc-stat{border-color:rgba(255,255,255,.2)}
+.rc-faixa-azul .rc-collage .rc-b{border-color:var(--rc-u2)}
+.rc-faixa-suave{background:var(--rc-wtint)}
+.rc-am i{color:var(--rc-btext)}
+.rc-am h3{color:var(--rc-btext)}
+.rc-faixa-laranja{background:var(--rc-u1);color:#1a0b00}
+.rc-faixa-laranja .rc-eyebrow{color:#1a0b00}
+.rc-faixa-laranja .rc-lead{color:#1a0b00;font-weight:500}
+.rc-faixa-laranja .rc-book{background:transparent;border:0;box-shadow:none;padding:0}
+.rc-faixa-laranja .rc-search{box-shadow:0 14px 40px rgba(0,0,0,.18)}
+.rc-faixa-laranja .rc-search .rc-btn-primary{background:var(--rc-u2);color:#fff}
+.rc-faixa-laranja .rc-hero-note,.rc-faixa-laranja .rc-link-inline{color:#1a0b00}
+.rc-faixa-laranja .rc-search-msg a{color:var(--rc-btext)}
+.rc-home section.rc-faixa-laranja .rc-search-msg{color:var(--rc-ink)}
+.rc-home #localizacao{margin:0}
+.rc-loc{margin:0;border-radius:0;padding:80px 0}
+.rc-loc .rc-eyebrow{color:var(--rc-u1)}
+.rc-route .rc-t{color:var(--rc-u1);font-weight:700;opacity:1}
+.rc-rev .rc-q{border-top:4px solid var(--rc-u1)}
+.rc-rev .rc-q:nth-child(even){border-top-color:var(--rc-u2)}
+:root[data-theme="dark"] .rc-rev .rc-q:nth-child(even){border-top-color:var(--rc-btext)}
+.rc-header .rc-btn.rc-hd{background:var(--rc-u2);color:#fff}
+.rc-header.rc-solid .rc-links button,.rc-header.rc-solid .rc-entrar{color:var(--rc-btext)}
+.rc-header.rc-solid .rc-pref{color:var(--rc-btext)}
+.rc-unit .rc-chip{background:var(--rc-tint);border-color:transparent;color:var(--rc-btext)}
+@media (max-width:640px){
+  .rc-home .rc-faixa{padding:56px 0}
+  .rc-loc{padding:56px 0;border-radius:0}
+}

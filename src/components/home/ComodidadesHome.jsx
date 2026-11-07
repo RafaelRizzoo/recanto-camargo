@@ -4,7 +4,7 @@ import { usePreferencias } from "../../hooks/usePreferencias";
 function ComodidadesHome() {
   const { t } = usePreferencias();
   return (
-    <section style={{ paddingTop: 20 }}>
+    <section className="rc-faixa rc-faixa-suave">
       <div className="rc-wrap">
         <div className="rc-rv">
           <span className="rc-eyebrow">{t("Comodidades")}</span>
