@@ -3,8 +3,9 @@ import { usePreferencias } from '../hooks/usePreferencias';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAutenticacao } from '../hooks/useAutenticacao';
 import { comodidadesGrupos, depoimentos, galeriaPorUnidade, mapaEmbedSrc, unidades, MAX_HOSPEDES } from '../data/conteudoSite';
-import CalendarioCustom from '../components/UI/CalendarioCustom';
-import CampoData from '../components/home/CampoData';
+import CampoQuando from '../components/home/CampoQuando';
+import SeletorDatas from '../components/home/SeletorDatas';
+import ListaSelecao from '../components/UI/ListaSelecao';
 import MosaicoFotos from '../components/home/MosaicoFotos';
 import BarraMobile from '../components/home/BarraMobile';
 import { linkWhats } from '../components/home/links';
@@ -244,23 +245,6 @@ function Reserva() {
     };
   }, [mostrarCalendario]);
 
-  function handleCalendarChange(range) {
-    if (Array.isArray(range) && range[0] && range[1]) {
-      const start = range[0];
-      const end = range[1];
-      
-      const startIso = new Date(start.getTime() - start.getTimezoneOffset() * 60000);
-      const checkinStr = startIso.toISOString().split('T')[0];
-      
-      const endIso = new Date(end.getTime() - end.getTimezoneOffset() * 60000);
-      const checkoutStr = endIso.toISOString().split('T')[0];
-      
-      setDatas({ checkin: checkinStr, checkout: checkoutStr });
-      setErros(er => ({ ...er, checkin: undefined, checkout: undefined, conflito: undefined }));
-      setMostrarCalendario(false);
-    }
-  }
-
   function irParaLogin() {
     navigate('/Login', { state: { from: location.pathname + location.search } });
   }
@@ -444,39 +428,32 @@ function Reserva() {
                   </div>
 
                   <div className="rc-res-datas-wrap" ref={areaCalendario}>
-                    <div className={`rc-res-datas${erros.checkin || erros.checkout ? ' rc-invalid' : ''}`}>
-                      <CampoData
-                        id="res-checkin"
-                        rotulo={t('Check-in')}
-                        valor={datas.checkin}
-                        aberto={mostrarCalendario}
-                        onAbrir={() => setMostrarCalendario(true)}
-                        onFechar={() => setMostrarCalendario(false)}
-                      />
-                      <CampoData
-                        id="res-checkout"
-                        rotulo={t('Check-out')}
-                        valor={datas.checkout}
-                        aberto={mostrarCalendario}
-                        onAbrir={() => setMostrarCalendario(true)}
-                        onFechar={() => setMostrarCalendario(false)}
-                      />
-                    </div>
+                    <CampoQuando
+                      id="res-quando"
+                      className="rc-res-quando"
+                      checkin={datas.checkin}
+                      checkout={datas.checkout}
+                      aberto={mostrarCalendario}
+                      invalido={Boolean(erros.checkin || erros.checkout)}
+                      aoAbrir={() => setMostrarCalendario(true)}
+                      aoFechar={() => setMostrarCalendario(false)}
+                      aoLimpar={() => setDatas({ checkin: '', checkout: '' })}
+                    />
 
                     {mostrarCalendario && (
                       <>
                         <div className="rc-pop-backdrop" onClick={() => setMostrarCalendario(false)} aria-hidden="true" />
-                        <div className="rc-pop rc-pop-card" role="dialog" aria-label={t('Selecione as datas')}>
-                          <div className="rc-pop-head">
-                            <span>{t('Selecione as datas')}</span>
-                            <button type="button" onClick={() => setMostrarCalendario(false)} aria-label={t('Fechar calendário')}>
-                              <i className="bi bi-x-lg" aria-hidden="true" />
-                            </button>
-                          </div>
-                          <CalendarioCustom
+                        <div className="rc-pop rc-pop-datas rc-pop-card" role="dialog" aria-label={t('Selecione as datas')}>
+                          <SeletorDatas
                             imovelId={unidadeId}
-                            onChange={handleCalendarChange}
-                            valor={(datas.checkin && datas.checkout) ? [new Date(datas.checkin + 'T12:00:00'), new Date(datas.checkout + 'T12:00:00')] : null}
+                            checkin={datas.checkin}
+                            checkout={datas.checkout}
+                            aoMudar={(novas) => {
+                              setDatas(novas);
+                              setErros(er => ({ ...er, checkin: undefined, checkout: undefined, conflito: undefined }));
+                            }}
+                            aoConcluir={() => setTimeout(() => setMostrarCalendario(false), 450)}
+                            aoFechar={() => setMostrarCalendario(false)}
                           />
                         </div>
                       </>
@@ -484,22 +461,22 @@ function Reserva() {
                   </div>
 
                   <div className="rc-res-campo">
-                    <label htmlFor="res-hospedes">{t('Hóspedes')}</label>
-                    <select
+                    <ListaSelecao
                       id="res-hospedes"
-                      className={erros.hospedes ? 'rc-invalid' : ''}
-                      value={hospedes}
-                      aria-invalid={Boolean(erros.hospedes)}
-                      onChange={(e) => {
-                        setHospedes(e.target.value);
+                      className={`rc-res-lista${erros.hospedes ? ' rc-invalid' : ''}`}
+                      rotulo={t('Hóspedes')}
+                      valor={String(hospedes || '')}
+                      invalido={Boolean(erros.hospedes)}
+                      placeholder={t('Quantidade de pessoas')}
+                      opcoes={Array.from({ length: MAX_HOSPEDES }, (_, i) => ({
+                        valor: String(i + 1),
+                        texto: t(i === 0 ? '{n} hóspede' : '{n} hóspedes', { n: i + 1 }),
+                      }))}
+                      aoMudar={(v) => {
+                        setHospedes(v);
                         setErros(er => ({ ...er, hospedes: undefined }));
                       }}
-                    >
-                      <option value="">{t('Quantidade de pessoas')}</option>
-                      {Array.from({ length: MAX_HOSPEDES }, (_, i) => i + 1).map(num => (
-                        <option key={num} value={num}>{t(num === 1 ? '{n} hóspede' : '{n} hóspedes', { n: num })}</option>
-                      ))}
-                    </select>
+                    />
                     {erros.hospedes && (
                       <p className="rc-res-erro" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true" /> {erros.hospedes}</p>
                     )}
