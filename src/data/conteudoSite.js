@@ -352,6 +352,15 @@ export const fotosExperiencia = [
   { src: CozinhaImg, alt: "Cozinha equipada" },
 ];
 
+export const galeriaExperiencia = [
+  { src: ChurrasqueiraImg, alt: "Área gourmet", unidade: "Recanto 1" },
+  { src: R2Sala, alt: "Sala de estar", unidade: "Recanto 2" },
+  { src: CozinhaImg, alt: "Cozinha", unidade: "Recanto 1" },
+  { src: R2Gourmet, alt: "Área gourmet", unidade: "Recanto 2" },
+  { src: Quarto1Img, alt: "Quarto 1", unidade: "Recanto 1" },
+  { src: R2Quarto1, alt: "Quarto 1", unidade: "Recanto 2" },
+];
+
 export const numerosExperiencia = [
   { valor: "10", texto: "hóspedes por unidade" },
   { valor: "2", texto: "quartos com enxoval incluso" },

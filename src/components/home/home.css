@@ -397,3 +397,23 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
   .rc-am-home .rc-g-cozinhar ul{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){.rc-am-home .rc-g{transition:none}.rc-am-home .rc-g:hover{transform:none}}
+
+/* experiência: galeria com troca automática (crossfade) */
+.rc-galexp{position:relative;width:100%;aspect-ratio:1/.93;border-radius:28px;overflow:hidden;background:#0B2A50;box-shadow:var(--rc-sh)}
+.rc-galexp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .9s ease}
+.rc-galexp img.rc-galexp-ativa{opacity:1}
+.rc-galexp-sombra{position:absolute;left:0;right:0;bottom:0;height:42%;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.7));pointer-events:none}
+.rc-galexp-base{position:absolute;left:20px;bottom:22px;right:120px;display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.rc-galexp-legenda{font-size:.8rem;font-weight:600;letter-spacing:.03em;color:#fff;padding:6px 14px;border-radius:99px;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.rc-galexp-pontos{display:flex;gap:4px;align-items:center}
+.rc-galexp-ponto{position:relative;width:24px;height:24px;border:0;padding:0;background:none;cursor:pointer}
+.rc-galexp-ponto::after{content:"";position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:99px;background:rgba(255,255,255,.55);transition:width .3s ease,margin .3s ease,background .3s ease}
+.rc-galexp-ponto.rc-on::after{width:26px;margin-left:-13px;background:var(--rc-u1)}
+.rc-galexp-setas{position:absolute;right:20px;bottom:20px;display:flex;gap:10px}
+.rc-galexp-setas button{width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.45);background:rgba(15,20,30,.45);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.rc-galexp-setas button:hover{background:rgba(255,255,255,.22)}
+.rc-galexp button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+@media (max-width:640px){
+  .rc-galexp{border-radius:22px}
+  .rc-galexp-base{right:104px}
+}
