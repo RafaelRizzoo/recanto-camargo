@@ -1,0 +1,105 @@
+/* ─── Campo "Quando?" ───────────────────────────────────────── */
+.rc-search.rc-search-quando { grid-template-columns: 1.1fr 1.5fr 1fr auto; }
+.rc-quando { position: relative; }
+.rc-quando .rc-fieldbtn { padding-right: 28px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc-quando-aberto { background: var(--rc-bg); box-shadow: 0 6px 20px rgba(0, 0, 0, .12); }
+.rc-quando-limpar {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; border-radius: 50%; border: 0; display: grid; place-items: center;
+  background: var(--rc-fill); color: var(--rc-ink); cursor: pointer; font-size: 1.1rem;
+}
+.rc-quando-limpar:hover { filter: brightness(.95); }
+.rc-quando.rc-invalid { box-shadow: inset 0 0 0 1.5px var(--rc-err); }
+
+/* Card da página de reserva */
+.rc-res-quando { border: 1px solid var(--rc-line); border-radius: 14px; padding: 10px 16px; }
+.rc-res-lista .rc-lista-botao { min-height: 48px; padding: 0 14px; border: 1px solid var(--rc-line); border-radius: 12px; background: var(--rc-card); font-weight: 500; }
+.rc-res-lista.rc-invalid .rc-lista-botao { border-color: var(--rc-err); }
+.rc-res-lista .rc-lista-rotulo { display: block; margin-bottom: 6px; font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--rc-muted); }
+.rc-field .rc-lista-rotulo { display: block; font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--rc-muted); }
+
+/* ─── Painel de datas ───────────────────────────────────────── */
+.rc-pop.rc-pop-datas {
+  left: 50%; right: auto; transform: translateX(-50%);
+  top: calc(100% + 12px);
+  width: min(760px, calc(100vw - 32px)); min-width: 0;
+  padding: 22px 26px 18px; border-radius: 28px;
+}
+.rc-pop.rc-pop-datas.rc-pop-card { left: auto; right: 0; transform: none; width: min(720px, calc(100vw - 48px)); }
+@media (max-width: 767px) {
+  .rc-pop.rc-pop-datas { width: min(380px, calc(100vw - 32px)); }
+  .rc-pop.rc-pop-datas.rc-pop-card { width: min(380px, calc(100vw - 32px)); }
+}
+@media (max-width: 640px) {
+  .rc-pop.rc-pop-datas, .rc-pop.rc-pop-datas.rc-pop-card { left: 0; right: 0; transform: none; width: auto; top: auto; border-radius: 24px 24px 0 0; padding: 18px 16px calc(16px + env(safe-area-inset-bottom)); }
+}
+
+.rc-datas-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.rc-datas-titulo { display: block; font-family: var(--rc-serif); font-size: 1.35rem; font-weight: 700; color: var(--rc-ink); line-height: 1.2; }
+.rc-datas-sub { display: block; margin-top: 2px; color: var(--rc-muted); font-size: .88rem; }
+.rc-datas-x { width: 40px; height: 40px; flex-shrink: 0; border: 0; border-radius: 50%; background: transparent; color: var(--rc-ink); cursor: pointer; display: grid; place-items: center; }
+.rc-datas-x:hover { background: var(--rc-fill); }
+.rc-datas-acoes { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rc-line); }
+.rc-datas-limpar { border: 0; background: none; padding: 8px 4px; font: 600 .95rem var(--rc-sans); color: var(--rc-ink); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.rc-datas-limpar:disabled { color: var(--rc-muted); text-decoration: none; cursor: default; }
+.rc-datas-fechar { min-height: 44px; padding: 0 22px; font-size: .95rem; }
+
+/* ─── Calendário estilo Airbnb (.rc-cal) ────────────────────── */
+.rc-pop .custom-calendar-home.rc-cal { max-width: none !important; width: 100% !important; }
+.custom-calendar-home.rc-cal .react-calendar__navigation { background: transparent; border: 0; border-radius: 0; padding: 0; margin-bottom: .5rem; height: 44px; }
+.custom-calendar-home.rc-cal .react-calendar__navigation button { min-width: 40px; color: var(--rc-ink); font-size: 1rem; border-radius: 50%; }
+.custom-calendar-home.rc-cal .react-calendar__navigation button:disabled { background: none; opacity: .3; }
+.custom-calendar-home.rc-cal .react-calendar__navigation__label { font-family: var(--rc-sans); font-weight: 700; font-size: 1rem; text-transform: capitalize; border-radius: 999px !important; pointer-events: none; }
+.custom-calendar-home.rc-cal .react-calendar__navigation__label__divider { padding: 0 1.5rem; color: var(--rc-muted); }
+.custom-calendar-home.rc-cal.react-calendar--doubleView .react-calendar__viewContainer { gap: 32px; margin: 0; }
+.custom-calendar-home.rc-cal.react-calendar--doubleView .react-calendar__viewContainer > * { width: 50%; margin: 0; }
+.custom-calendar-home.rc-cal .react-calendar__month-view__weekdays { color: var(--rc-muted); font-size: .75rem; font-weight: 600; text-transform: uppercase; margin-bottom: .25rem; }
+
+.rc-pop .custom-calendar-home.rc-cal .react-calendar__tile {
+  aspect-ratio: 1; max-height: 46px; padding: 0 !important; display: grid; place-items: center;
+  border: 0 !important; border-radius: 50% !important; background: transparent !important;
+  color: var(--rc-ink) !important; font-size: .9rem; font-weight: 600 !important; box-shadow: none !important;
+}
+.rc-pop .custom-calendar-home.rc-cal .react-calendar__tile:enabled:hover:not(.react-calendar__tile--active):not(.react-calendar__tile--hover) { box-shadow: inset 0 0 0 1.5px var(--rc-ink) !important; background: transparent !important; }
+.rc-pop .custom-calendar-home.rc-cal .react-calendar__tile::after,
+.rc-pop .custom-calendar-home.rc-cal .react-calendar__tile::before { display: none !important; }
+
+/* indisponível: cinza e riscado, como no Airbnb */
+.rc-pop .custom-calendar-home.rc-cal .react-calendar__tile:disabled { color: var(--rc-muted) !important; opacity: .45; text-decoration: line-through; font-weight: 500 !important; }
+/* hoje */
+.rc-pop .custom-calendar-home.rc-cal .react-calendar__tile--now { text-decoration: underline; text-underline-offset: 4px; }
+/* feriado */
+.rc-pop .custom-calendar-home.rc-cal .dia-feriado:not(:disabled):not(.react-calendar__tile--rangeStart):not(.react-calendar__tile--rangeEnd):not(.react-calendar__tile--hoverEnd):not(.react-calendar__tile--hoverStart) { color: var(--rc-ok) !important; }
+
+/* intervalo escolhido: meio sombreado, pontas em círculo escuro */
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--active,
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--hover { background: var(--rc-fill) !important; color: var(--rc-ink) !important; border-radius: 0 !important; }
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--rangeStart,
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--rangeEnd,
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--rangeBothEnds,
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--hoverStart,
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--hoverEnd,
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--rangeEnd:enabled:hover,
+.rc-pop .custom-calendar-home.rc-cal.rc-cal.rc-cal .react-calendar__tile--rangeStart:enabled:hover {
+  background: var(--rc-ink) !important; color: var(--rc-bg) !important; border-radius: 50% !important; font-weight: 800 !important;
+}
+
+.rc-cal-legenda { display: flex; gap: 16px; margin-top: 8px; font-size: .78rem; color: var(--rc-muted); }
+.rc-cal-legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.rc-cal-leg-ocupado { width: 14px; height: 2px; background: var(--rc-muted); display: inline-block; }
+.rc-cal-leg-feriado { width: 8px; height: 8px; border-radius: 50%; background: var(--rc-ok); display: inline-block; }
+
+@media (max-width: 991px) {
+  .rc-search.rc-search-quando { grid-template-columns: 1fr 1fr; }
+  .rc-search.rc-search-quando .rc-quando { grid-column: 1 / -1; order: -1; }
+}
+@media (max-width: 640px) {
+  .rc-search.rc-search-quando { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  body.rc-pop-aberto .rc-mbar { display: none; }
+  body.rc-pop-aberto .rc-search-wrap,
+  body.rc-pop-aberto .rc-res-side,
+  body.rc-pop-aberto .rc-res-card { z-index: 1100; }
+  body.rc-pop-aberto { overflow: hidden; }
+}

@@ -368,3 +368,5 @@
 
 .rc-res-preco-fds { display: block; width: 100%; margin-top: 4px; font-size: .85rem; color: var(--rc-muted); font-weight: 500; }
 .rc-res-valores small { color: var(--rc-muted); font-size: .8rem; }
+
+.rc-res-card { scroll-margin-top: 90px; }
