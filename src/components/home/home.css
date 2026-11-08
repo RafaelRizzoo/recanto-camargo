@@ -37,8 +37,8 @@
 .rc-header.rc-solid .rc-burger{color:var(--rc-ink)}
 .rc-drawer{display:none}
 /* hero */
-.rc-hero{position:relative;padding:16px 16px 0}
-.rc-hero-img{position:relative;min-height:max(660px,min(88vh,820px));padding-top:140px;border-radius:28px;overflow:hidden;color:#fff;display:flex;align-items:flex-end}
+.rc-hero{position:relative;padding:0}
+.rc-hero-img{position:relative;min-height:max(660px,min(88vh,820px));padding-top:140px;border-radius:0;overflow:hidden;color:#fff;display:flex;align-items:flex-end}
 .rc-hero-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% 60%}
 .rc-hero-img::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.6) 0,rgba(0,0,0,.35) 45%,rgba(0,0,0,0) 78%),linear-gradient(180deg,rgba(0,0,0,.45) 0,rgba(0,0,0,.2) 35%,rgba(0,0,0,.72) 100%)}
 .rc-hero-copy{position:relative;z-index:2;padding:0 clamp(24px,5vw,64px) 150px;max-width:880px}
@@ -156,7 +156,7 @@
   .rc-header .rc-bar{height:72px}
   .rc-home section{padding:52px 0}
   .rc-hero{padding:0}
-  .rc-hero-img{border-radius:0 0 28px 28px;min-height:max(640px,82svh);padding-top:100px}
+  .rc-hero-img{border-radius:0;min-height:max(640px,82svh);padding-top:100px}
   .rc-hero-img img{object-position:78% 50%}
   .rc-hero-copy{padding-bottom:36px}
   .rc-hero-cta .rc-btn{width:100%;min-height:54px}
@@ -322,3 +322,5 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
   .rc-home .rc-faixa{padding:56px 0}
   .rc-loc{padding:56px 0;border-radius:0}
 }
+/* hero em largura total: o texto acompanha a grade de 1200px do restante do site */
+.rc-hero-copy{width:100%;max-width:900px;box-sizing:border-box;padding-left:20px;padding-right:20px;margin-left:max(0px,calc((100% - 1200px)/2))}
