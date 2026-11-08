@@ -22,7 +22,7 @@ function HeroHome({ consulta }) {
           </span>
         </div>
       </div>
-      <BuscaDisponibilidade origem="hero" {...consulta} rotuloBotao={t("Consultar")} />
+      <BuscaDisponibilidade origem="hero" {...consulta} rotuloBotao={t("Consultar disponibilidade")} />
     </div>
   );
 }

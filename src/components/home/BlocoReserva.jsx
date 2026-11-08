@@ -6,7 +6,7 @@ import { linkWhats } from "./links";
 function BlocoReserva({ consulta }) {
   const { t } = usePreferencias();
   return (
-    <section id="reservar" style={{ paddingTop: 20 }}>
+    <section id="reservar" className="rc-faixa rc-faixa-laranja">
       <div className="rc-wrap">
         <div className="rc-book rc-rv">
           <span className="rc-eyebrow">{t("Reserva direta")}</span>

@@ -32,7 +32,7 @@ function EscolhaHospedagem({ onVerGaleria, onVerDatas }) {
                   <LinkAncora
                     para="galeria"
                     className="rc-btn rc-btn-dark"
-                    style={{ background: u.cor }}
+                    style={{ background: u.cor, color: u.id === 1 ? "#1a0b00" : "#fff" }}
                     onClick={() => onVerGaleria(u.id)}
                     aria-label={t("Conhecer hospedagem {nome}", { nome: u.nome })}
                   >

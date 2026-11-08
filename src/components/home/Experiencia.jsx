@@ -5,7 +5,7 @@ function Experiencia() {
   const { t } = usePreferencias();
   const [principal, secundaria] = fotosExperiencia;
   return (
-    <section>
+    <section className="rc-faixa rc-faixa-azul">
       <div className="rc-wrap rc-exp">
         <div className="rc-collage rc-rv">
           <img className="rc-a" src={principal.src} alt={t(principal.alt)} loading="lazy" decoding="async" />
