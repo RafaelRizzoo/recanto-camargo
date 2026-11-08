@@ -40,7 +40,7 @@
 .rc-hero{position:relative;padding:0}
 .rc-hero-img{position:relative;min-height:max(660px,min(88vh,820px));padding-top:140px;border-radius:0;overflow:hidden;color:#fff;display:flex;align-items:flex-end}
 .rc-hero-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:60% 60%}
-.rc-hero-img::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.6) 0,rgba(0,0,0,.35) 45%,rgba(0,0,0,0) 78%),linear-gradient(180deg,rgba(0,0,0,.45) 0,rgba(0,0,0,.2) 35%,rgba(0,0,0,.72) 100%)}
+.rc-hero-img::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.65) 0,rgba(0,0,0,.4) 45%,rgba(0,0,0,.05) 78%),linear-gradient(180deg,rgba(0,0,0,.5) 0,rgba(0,0,0,.25) 35%,rgba(0,0,0,.78) 100%)}
 .rc-hero-copy{position:relative;z-index:2;padding:0 clamp(24px,5vw,64px) 150px;max-width:880px}
 .rc-hero h1{font-size:clamp(2.6rem,7.4vw,5.6rem);margin-bottom:18px}
 .rc-hero p.rc-sub{font-size:clamp(1.1rem,2vw,1.3rem);font-weight:500;max-width:46ch;text-shadow:0 1px 3px rgba(0,0,0,.55),0 2px 18px rgba(0,0,0,.6)}
@@ -333,7 +333,7 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 .rc-faixa-laranja .rc-search .rc-field select,.rc-faixa-laranja .rc-search .rc-fieldbtn,.rc-hero .rc-search .rc-field select,.rc-hero .rc-search .rc-fieldbtn{color:#F2EFE9}
 .rc-faixa-laranja .rc-search .rc-field select option,.rc-hero .rc-search .rc-field select option{color:#202020}
 .rc-faixa-laranja .rc-search .rc-placeholder,.rc-hero .rc-search .rc-placeholder{color:#A9A399}
-.rc-faixa-laranja .rc-search .rc-btn-primary,.rc-hero .rc-search .rc-btn-primary{background:#FAF9F6;color:#B34700}
+.rc-faixa-laranja .rc-search .rc-btn-primary,.rc-hero .rc-search .rc-btn-primary{background:#FAF9F6;color:#000}
 .rc-faixa-laranja .rc-search .rc-btn-primary:hover,.rc-hero .rc-search .rc-btn-primary:hover{background:#FFFFFF;box-shadow:0 8px 20px rgba(0,0,0,.4)}
 .rc-faixa-laranja .rc-search-msg.rc-err,.rc-hero .rc-search-msg.rc-err{color:#ff8a80}
 .rc-faixa-laranja .rc-search-msg.rc-warn,.rc-hero .rc-search-msg.rc-warn{color:#ffb870}
@@ -348,3 +348,52 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 .rc-hero .rc-search .rc-field select,.rc-hero .rc-search .rc-fieldbtn,.rc-hero .rc-search .rc-lista-botao,.rc-hero .rc-search .rc-quando-botao{color:#fff}
 .rc-faixa-laranja .rc-search .rc-lista-seta,.rc-hero .rc-search .rc-lista-seta{color:#fff}
 .rc-faixa-laranja .rc-search .rc-placeholder,.rc-hero .rc-search .rc-placeholder{color:#fff}
+/* hero "cheguei": a primeira tela é só a foto, o título e a barra de consulta */
+@media (min-width:641px){
+  .rc-hero{min-height:100vh;min-height:100svh;display:flex}
+  .rc-hero-img{flex:1;min-height:max(640px,100svh)}
+  .rc-hero .rc-search-wrap{position:absolute;left:0;right:0;bottom:40px;margin:0;z-index:6}
+  .rc-hero .rc-search-wrap .rc-search{margin:0 auto}
+  /* a barra fica no pé da tela: se couber, o painel de datas abre para cima (classe posta pelo hook) */
+  .rc-hero .rc-pop.rc-pop-cima{top:auto;bottom:calc(100% + 12px)}
+}
+@media (min-width:641px) and (max-width:991px){
+  .rc-hero-copy{padding-bottom:260px}
+}
+/* campo "Quando?" aberto nas barras escuras: fundo escuro, texto claro legível */
+.rc-faixa-laranja .rc-search .rc-quando-aberto,.rc-hero .rc-search .rc-quando-aberto{background:#2A2622;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.rc-faixa-laranja .rc-search .rc-quando-limpar,.rc-hero .rc-search .rc-quando-limpar{background:#38342F;color:#F2EFE9}
+
+/* barra do hero: vidro escuro fosco sobre a foto (só onde a barra fica dentro da foto) */
+@media (min-width:641px){
+  .rc-hero .rc-search{background:rgba(20,18,16,.55);-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);border:1px solid rgba(255,255,255,.2)}
+  .rc-hero .rc-search .rc-field{border-color:rgba(255,255,255,.18)}
+  .rc-hero .rc-search .rc-field:hover{background:rgba(255,255,255,.08)}
+  .rc-hero .rc-search .rc-field label{color:rgba(255,255,255,.75)}
+  .rc-hero .rc-search .rc-quando-aberto{background:rgba(255,255,255,.12)}
+  .rc-hero .rc-search .rc-quando-limpar{background:rgba(255,255,255,.14)}
+}
+
+/* comodidades: destaques em pílulas + grade com cartões de tamanhos diferentes */
+.rc-am-destaques{display:flex;flex-wrap:wrap;gap:10px;margin:28px 0 0;padding:0;list-style:none}
+.rc-am-destaques li{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 18px;border-radius:999px;background:var(--rc-card);border:1px solid var(--rc-line);font-weight:600;font-size:.95rem}
+.rc-am-destaques i{color:var(--rc-btext);font-size:1.05rem}
+.rc-am-home{grid-template-columns:repeat(3,1fr);margin-top:24px}
+.rc-am-home .rc-g{transition:transform .25s ease,box-shadow .25s ease}
+.rc-am-home .rc-g:hover{transform:translateY(-4px);box-shadow:0 14px 32px rgba(0,0,0,.14)}
+.rc-am-home h3{display:flex;align-items:center;gap:12px;font-size:1.05rem;margin-bottom:12px}
+.rc-am-home .rc-g-icone{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;background:var(--rc-wtint);font-size:1.25rem}
+.rc-am-home .rc-g-cozinhar{grid-column:span 2}
+.rc-am-home .rc-g-cozinhar ul{display:grid;grid-template-columns:1fr 1fr;column-gap:24px}
+.rc-am-nota{display:flex;align-items:center;gap:10px;margin:22px 0 0;font-size:.95rem;color:var(--rc-muted)}
+.rc-am-nota i{color:var(--rc-btext)}
+@media (max-width:991px){
+  .rc-am-home{grid-template-columns:1fr 1fr}
+  .rc-am-home .rc-g-cozinhar{grid-column:span 2}
+}
+@media (max-width:640px){
+  .rc-am-home{grid-template-columns:1fr}
+  .rc-am-home .rc-g-cozinhar{grid-column:auto}
+  .rc-am-home .rc-g-cozinhar ul{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){.rc-am-home .rc-g{transition:none}.rc-am-home .rc-g:hover{transform:none}}

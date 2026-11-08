@@ -363,30 +363,66 @@ export const comodidadesGrupos = [
   {
     id: "dormir",
     titulo: "Dormir bem",
+    icone: "bi-moon-stars",
     itens: [
-      { icone: "bi-stars", texto: "Enxoval incluso" },
-      { icone: "bi-wind", texto: "Ventilador de teto" },
+      { icone: "bi-stars", texto: "Roupas de cama" },
+      { icone: "bi-cloud", texto: "Travesseiros" },
+      { icone: "bi-layers", texto: "Mantas" },
+      { icone: "bi-droplet", texto: "Toalhas de banho" },
+      { icone: "bi-wind", texto: "Ventilador de teto em todos os cômodos" },
     ],
   },
   {
     id: "cozinhar",
-    titulo: "Cozinhar e conviver",
+    titulo: "Cozinha completa",
+    icone: "bi-egg-fried",
     itens: [
-      { icone: "bi-egg-fried", texto: "Cozinha equipada" },
       { icone: "bi-cup-hot", texto: "Utensílios domésticos" },
+      { icone: "bi-circle", texto: "Louças" },
+      { icone: "bi-bucket", texto: "Panelas e frigideiras" },
+      { icone: "bi-thermometer-high", texto: "Panela de arroz" },
+      { icone: "bi-grid-3x2", texto: "Sanduicheira" },
+      { icone: "bi-cup-straw", texto: "Cafeteira" },
+      { icone: "bi-lightning-charge", texto: "Air fryer" },
+    ],
+  },
+  {
+    id: "gourmet",
+    titulo: "Área gourmet",
+    icone: "bi-fire",
+    itens: [
       { icone: "bi-fire", texto: "Churrasqueira" },
+      { icone: "bi-tools", texto: "Kit churrasco" },
     ],
   },
   {
     id: "conforto",
     titulo: "Conforto e praticidade",
+    icone: "bi-house-heart",
     itens: [
       { icone: "bi-wifi", texto: "Wi-Fi" },
-      { icone: "bi-tv", texto: "Smart TVs" },
+      { icone: "bi-tv", texto: "Smart TV em todos os cômodos" },
+      { icone: "bi-scissors", texto: "Secador de cabelo" },
+      { icone: "bi-tag", texto: "Ferro de passar roupa" },
+    ],
+  },
+  {
+    id: "familia",
+    titulo: "Para toda a família",
+    icone: "bi-people",
+    itens: [
       { icone: "bi-car-front", texto: "Garagem" },
       { icone: "bi-heart", texto: "Aceitamos pets" },
     ],
   },
+];
+
+export const destaquesComodidades = [
+  { icone: "bi-wifi", texto: "Wi-Fi" },
+  { icone: "bi-heart", texto: "Aceitamos pets" },
+  { icone: "bi-car-front", texto: "Garagem" },
+  { icone: "bi-lightning-charge", texto: "Air fryer" },
+  { icone: "bi-fire", texto: "Churrasqueira" },
 ];
 
 export const depoimentosDestaque = [3, 6, 2];
