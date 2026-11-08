@@ -324,3 +324,16 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 }
 /* hero em largura total: o texto acompanha a grade de 1200px do restante do site */
 .rc-hero-copy{width:100%;max-width:900px;box-sizing:border-box;padding-left:20px;padding-right:20px;margin-left:max(0px,calc((100% - 1200px)/2))}
+/* barra de consulta da faixa laranja: preta como o rodapé, legível nos dois temas */
+.rc-faixa-laranja .rc-search{background:#1E1A17;border-color:#1E1A17}
+.rc-faixa-laranja .rc-search .rc-field{border-color:#38342F}
+.rc-faixa-laranja .rc-search .rc-field:hover{background:#2A2622}
+.rc-faixa-laranja .rc-search .rc-field label{color:#A9A399}
+.rc-faixa-laranja .rc-search .rc-field select,.rc-faixa-laranja .rc-search .rc-fieldbtn{color:#F2EFE9}
+.rc-faixa-laranja .rc-search .rc-field select option{color:#202020}
+.rc-faixa-laranja .rc-search .rc-placeholder{color:#A9A399}
+.rc-faixa-laranja .rc-search .rc-btn-primary{background:#0A4A8C;color:#fff}
+.rc-faixa-laranja .rc-search-msg.rc-err{color:#ff8a80}
+.rc-faixa-laranja .rc-search-msg.rc-warn{color:#ffb870}
+.rc-faixa-laranja .rc-search-msg.rc-ok{color:#6fd08c}
+.rc-faixa-laranja .rc-search-msg a{color:#8DB8F2}

@@ -2,8 +2,8 @@
   display: block;
   width: 100%;
   clear: both;
-  background-color: #000000;
-  color: #E4EAF3;
+  background-color: #1E1A17;
+  color: #E9E5DE;
   position: relative;
   z-index: 10;
   padding: 64px 0 28px;
@@ -30,7 +30,7 @@
 
 .footer-texto {
   max-width: 34ch;
-  color: #B9C6D8;
+  color: #CFC9BF;
   margin: 0;
 }
 
@@ -40,7 +40,7 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #8FA3BD;
+  color: #A9A399;
   margin: 0 0 14px;
 }
 
@@ -52,7 +52,7 @@
 
 .footer-links li {
   padding: 5px 0;
-  color: #E4EAF3;
+  color: #E9E5DE;
 }
 
 .footer-links i {
@@ -77,11 +77,11 @@
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 24px;
-  border-top: 1px solid #1C3A5E;
+  border-top: 1px solid #38342F;
   margin-top: 40px;
   padding-top: 20px;
   font-size: 0.85rem;
-  color: #8FA3BD;
+  color: #A9A399;
 }
 
 @media (max-width: 991px) {
