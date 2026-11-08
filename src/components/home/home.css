@@ -342,3 +342,9 @@ body.rc-home-ativo .btn-whats-flutuante{display:none}
 /* Opções das listas (select): o Windows abre a lista com fundo branco e herdava o texto claro do tema escuro */
 .rc-home select option,.rc-search select option{color:var(--rc-ink);background:var(--rc-card)}
 :root[data-theme="dark"] select option{color:#f2efe9;background:#1e1c19}
+
+/* Barras de reserva escuras (hero e rodapé): textos dos campos em branco, inclusive as listas novas */
+.rc-faixa-laranja .rc-search .rc-field select,.rc-faixa-laranja .rc-search .rc-fieldbtn,.rc-faixa-laranja .rc-search .rc-lista-botao,.rc-faixa-laranja .rc-search .rc-quando-botao,
+.rc-hero .rc-search .rc-field select,.rc-hero .rc-search .rc-fieldbtn,.rc-hero .rc-search .rc-lista-botao,.rc-hero .rc-search .rc-quando-botao{color:#fff}
+.rc-faixa-laranja .rc-search .rc-lista-seta,.rc-hero .rc-search .rc-lista-seta{color:#fff}
+.rc-faixa-laranja .rc-search .rc-placeholder,.rc-hero .rc-search .rc-placeholder{color:#fff}
