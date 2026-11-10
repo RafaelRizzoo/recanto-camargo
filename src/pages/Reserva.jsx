@@ -580,7 +580,7 @@ function Reserva() {
 
               <ul className="rc-res-beneficios">
                 <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Cancelamento gratuito até 7 dias antes')}</li>
-                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Sem taxas extras do Airbnb')}</li>
+                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Reserva direta, sem taxas de plataforma')}</li>
               </ul>
 
               {autenticado && reservaOnline && (
