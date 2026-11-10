@@ -7,6 +7,7 @@ const { verificarToken } = require('../middlewares/authMiddleware');
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
+    skipSuccessfulRequests: true, // só tentativas que falham contam: trocar de conta não bloqueia o login
     message: { error: 'Muitas tentativas de login. Tente novamente em 15 minutos.' }
 });
 

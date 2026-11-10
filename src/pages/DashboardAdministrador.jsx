@@ -1358,7 +1358,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
   }, [mesBase]);
 
   // Mapeamento de reservas para cores do calendário
-  const mapaStatus = useMemo(() => reservas.reduce((acc, r) => {
+  const _mapaStatus = useMemo(() => reservas.reduce((acc, r) => {
     if (r.status !== 'aprovada' && r.status !== 'pendente' && r.status !== 'pagamento pendente') return acc;
     const ini = new Date(r.checkin + 'T00:00:00');
     const fim = new Date(r.checkout + 'T00:00:00');

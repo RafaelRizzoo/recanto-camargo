@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const db = require('./config/db');
+const { criarVerificadorOrigem } = require('./utils/configuracaoWeb');
 const { criarServicoNotificacoes } = require('./notificacoes');
 const { criarServicoEmail, criarHtmlEmail, criarEmailBoasVindas, criarEmailCupomExclusivo } = require('./email');
 const { errorHandler } = require('./middlewares/errorHandler');
@@ -23,7 +24,7 @@ const app = express();
 
 // Configurações iniciais 
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: criarVerificadorOrigem(),
     credentials: true
 }));
 app.use(express.json());
