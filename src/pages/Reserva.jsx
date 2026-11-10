@@ -51,8 +51,6 @@ function Reserva() {
   const [fotoAtiva, setFotoAtiva] = useState(0);
   const [fotoAberta, setFotoAberta] = useState(null);
   const [painel, setPainel] = useState(null);
-  const [abrirCupom, setAbrirCupom] = useState(false);
-  const [abrirObs, setAbrirObs] = useState(false);
 
   // No desktop a página cabe numa tela só: o rodapé sai de cena (marca o body para o CSS).
   useEffect(() => {
@@ -527,19 +525,6 @@ function Reserva() {
               )}
 
               {autenticado && (
-                <div className="rc-res-extras">
-                  {noites > 0 && !cupomAplicado && (
-                    <button type="button" className="rc-res-extra" aria-expanded={abrirCupom} onClick={() => setAbrirCupom((v) => !v)}>
-                      <i className={`bi ${abrirCupom ? 'bi-dash-lg' : 'bi-plus-lg'}`} aria-hidden="true" /> {t('Tenho um cupom')}
-                    </button>
-                  )}
-                  <button type="button" className="rc-res-extra" aria-expanded={abrirObs} onClick={() => setAbrirObs((v) => !v)}>
-                    <i className={`bi ${abrirObs ? 'bi-dash-lg' : 'bi-plus-lg'}`} aria-hidden="true" /> {t('Observações')}
-                  </button>
-                </div>
-              )}
-
-              {autenticado && noites > 0 && (cupomAplicado || abrirCupom || erroCupom) && (
                 <div className="rc-res-campo">
                   {cupomAplicado ? (
                     <div className="rc-res-cupom-ok">
@@ -571,7 +556,7 @@ function Reserva() {
                 </div>
               )}
 
-              {autenticado && (abrirObs || observacoes) && (
+              {autenticado && (
                 <div className="rc-res-campo">
                   <label htmlFor="res-obs">{t('Observações (opcional)')}</label>
                   <textarea
@@ -581,6 +566,21 @@ function Reserva() {
                     onChange={e => setObservacoes(e.target.value)}
                     placeholder={t('Ex: Berço, pet, chegada noturna...')}
                   />
+                </div>
+              )}
+
+              {noites <= 0 && (
+                <div className="rc-res-vazio">
+                  <div className="rc-res-infos">
+                    <div className="rc-res-horarios">
+                      <div><i className="bi bi-box-arrow-in-right" aria-hidden="true" /><small>{t('Entrada')}</small><b>{t('a partir das 14h')}</b></div>
+                      <div><i className="bi bi-box-arrow-right" aria-hidden="true" /><small>{t('Saída')}</small><b>{t('até as 11h')}</b></div>
+                    </div>
+                    <ul className="rc-res-infos-lista">
+                      <li><i className="bi bi-droplet" aria-hidden="true" /> <span>{t('Taxa de limpeza única')}</span><b>{formatarMoeda(TAXA_LIMPEZA)}</b></li>
+                      <li><i className="bi bi-shield-check" aria-hidden="true" /> <span>{t('Cancelamento gratuito até 7 dias antes')}</span></li>
+                    </ul>
+                  </div>
                 </div>
               )}
 
@@ -604,7 +604,7 @@ function Reserva() {
           )}
 
           <ul className="rc-res-beneficios">
-            <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Cancelamento gratuito até 7 dias antes')}</li>
+            {noites > 0 && <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Cancelamento gratuito até 7 dias antes')}</li>}
             <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Reserva direta, sem taxas de plataforma')}</li>
           </ul>
 
