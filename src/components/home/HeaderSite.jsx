@@ -5,7 +5,6 @@ import MenuUsuario from "../UI/MenuUsuario";
 import { useAutenticacao } from "../../hooks/useAutenticacao";
 import { usePreferencias } from "../../hooks/usePreferencias";
 import { linksNavegacaoHome } from "../../data/conteudoSite";
-import LinkAncora from "./LinkAncora";
 import { irPara } from "./links";
 
 // Cabeçalho único do site. Na Home é transparente sobre o Hero e rola até as seções;
@@ -94,11 +93,7 @@ function HeaderSite({ emHome, mostrarTema }) {
             <span className="rc-prefs">{botaoIdioma}{botaoTema}</span>
             {!autenticado && <Link className="rc-entrar" to="/Login">{t("Entrar")}</Link>}
             {autenticado && <span className="rc-user-desktop"><MenuUsuario /></span>}
-            {emHome ? (
-              <LinkAncora para="reservar" className="rc-btn rc-btn-primary rc-hd">{t("Reservar")}</LinkAncora>
-            ) : (
-              <Link to="/Reserva" className="rc-btn rc-btn-primary rc-hd">{t("Reservar")}</Link>
-            )}
+            <Link to="/Reserva" className="rc-btn rc-btn-primary rc-hd">{t("Reservar")}</Link>
             <button
               type="button"
               className="rc-burger"

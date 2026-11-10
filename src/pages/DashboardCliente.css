@@ -1430,3 +1430,8 @@
   .dashboard-cli-shell *,
   .cli-modal * { transition: none !important; animation: none !important; }
 }
+
+.sidebar-cli-marca:hover,
+.sidebar-cli-marca:focus-visible {
+  opacity: 0.85;
+}

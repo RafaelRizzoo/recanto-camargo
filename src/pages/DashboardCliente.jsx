@@ -1587,7 +1587,7 @@ function DashboardCliente() {
 
       <aside className={`sidebar-cli ${sidebarAberta ? 'aberta' : 'colapsada'}`} aria-label={t('Menu da conta')}>
         <div className="sidebar-cli-topo">
-          {sidebarAberta && <span className="sidebar-cli-marca">Recanto Camargo</span>}
+          {sidebarAberta && <Link to="/" className="sidebar-cli-marca" aria-label={t("Recanto Camargo, ir ao início")}>Recanto Camargo</Link>}
         </div>
 
         {sidebarAberta && (

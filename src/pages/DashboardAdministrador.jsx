@@ -3424,7 +3424,7 @@ function DashboardAdministrador() {
       {/* Sidebar de Navegação */}
       <aside className={`sidebar-admin ${sidebarAberta ? 'aberta' : 'colapsada'}`}>
         <div className="sidebar-topo">
-          {sidebarAberta && <span className="sidebar-marca">Recanto Admin</span>}
+          {sidebarAberta && <Link to="/" className="sidebar-marca" aria-label={t("Recanto Camargo, ir ao início")}>Recanto Admin</Link>}
         </div>
         <nav className="sidebar-nav">
           {abas.map(a => (
