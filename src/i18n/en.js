@@ -272,7 +272,7 @@ export const EN = {
   "Faça login para reservar": "Sign in to book",
   "Você pode ver datas e valores sem fazer login.": "You can see dates and prices without signing in.",
   "Cancelamento gratuito até 7 dias antes": "Free cancellation up to 7 days before",
-  "Sem taxas extras do Airbnb": "No extra Airbnb fees",
+  "Reserva direta, sem taxas de plataforma": "Direct booking, no platform fees",
   "Reservando como": "Booking as",
   "Informe um código de cupom.": "Enter a coupon code.",
   "Selecione as datas de check-in e check-out antes de aplicar o cupom.": "Select your check-in and check-out dates before applying a coupon.",

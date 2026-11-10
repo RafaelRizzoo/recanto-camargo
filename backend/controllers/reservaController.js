@@ -153,6 +153,12 @@ exports.criarReserva = async (req, res) => {
             return res.status(400).json({ error: 'Dados incompletos para a reserva.' });
         }
 
+        const qtdHospedes = Number(hospedes);
+        if (!Number.isInteger(qtdHospedes) || qtdHospedes < 1 || qtdHospedes > 10) {
+            conexao.release();
+            return res.status(400).json({ error: 'A quantidade de hóspedes deve ser de 1 a 10.' });
+        }
+
         const checkinStr = String(checkin).split(' ')[0].split('T')[0];
         const checkoutStr = String(checkout).split(' ')[0].split('T')[0];
 
