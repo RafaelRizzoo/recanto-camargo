@@ -10,7 +10,7 @@ function DepoimentosHome() {
   const notaGoogle = !carregando && !erro && nota != null && total;
 
   return (
-    <section id="avaliacoes" style={{ paddingTop: 20 }}>
+    <section id="avaliacoes" className="rc-sec-aval" style={{ paddingTop: 20 }}>
       <div className="rc-wrap">
         <div className="rc-rv">
           <span className="rc-eyebrow">{t("Avaliações")}</span>
