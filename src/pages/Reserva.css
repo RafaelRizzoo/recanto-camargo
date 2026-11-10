@@ -370,3 +370,77 @@
 .rc-res-valores small { color: var(--rc-muted); font-size: .8rem; }
 
 .rc-res-card { scroll-margin-top: 90px; }
+
+/* ---- tela única (desktop): foto + resumo à esquerda, cartão de reserva à direita, sem scroll ---- */
+.rc-res-tela{display:grid;grid-template-columns:1fr;gap:28px}
+.rc-res-esq{display:flex;flex-direction:column;gap:16px;min-width:0}
+.rc-res-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px}
+.rc-res-topo .rc-tabs{margin-top:0}
+.rc-res-topo .rc-res-meta{margin-top:0}
+.rc-res-foto{position:relative;border-radius:24px;overflow:hidden;background:var(--rc-fill);aspect-ratio:4/3}
+.rc-res-foto-main{position:absolute;inset:0;border:0;padding:0;background:none;cursor:zoom-in}
+.rc-res-foto-main img{width:100%;height:100%;object-fit:cover;display:block}
+.rc-res-thumbs{position:absolute;left:14px;bottom:14px;display:flex;gap:8px}
+.rc-res-thumbs button{width:76px;height:52px;border-radius:12px;overflow:hidden;border:2px solid rgba(255,255,255,.7);padding:0;background:none;cursor:pointer;opacity:.9}
+.rc-res-thumbs button.rc-on{border-color:var(--rc-u1);opacity:1}
+.rc-res-thumbs img{width:100%;height:100%;object-fit:cover;display:block}
+.rc-res-todas{position:absolute;right:14px;bottom:14px;z-index:2}
+.rc-res-info h1{font-size:clamp(1.9rem,3.2vw,2.5rem);margin:0 0 6px}
+.rc-res-resumo{margin:0 0 12px;color:var(--rc-muted);max-width:64ch;line-height:1.5}
+.rc-res-info .rc-chips{margin-top:0}
+.rc-res-abas{display:flex;flex-wrap:wrap;gap:10px}
+.rc-res-abas .rc-btn{min-height:44px}
+.rc-res-painel-texto{color:var(--rc-muted);margin:0 0 16px}
+.rc-rev-painel{grid-template-columns:repeat(2,1fr);margin-top:0}
+
+@media (min-width:992px){
+  .rc-reserva{min-height:100vh;min-height:100svh;padding:84px 0 20px;box-sizing:border-box}
+  .rc-res-tela{grid-template-columns:minmax(0,1fr) 440px;gap:40px;height:calc(100vh - 104px);height:calc(100svh - 104px);min-height:560px}
+  .rc-res-esq{gap:12px;min-height:0}
+  .rc-res-foto{aspect-ratio:auto;flex:1 1 0;min-height:180px}
+  .rc-res-info h1{font-size:clamp(1.8rem,2.6vw,2.4rem)}
+  .rc-res-resumo{margin-bottom:10px}
+  .rc-res-side{position:static;min-height:0;height:100%}
+  .rc-res-card{height:100%;box-sizing:border-box;overflow-y:auto;padding:22px 24px;display:flex;flex-direction:column}
+  .rc-res-card .rc-res-cta{margin-top:auto}
+  .rc-res-card .rc-res-campo{margin-top:10px}
+  .rc-res-card .rc-res-valores{margin-top:12px;padding-top:12px;gap:6px}
+  .rc-res-card .rc-res-beneficios{margin-top:14px;font-size:.82rem;gap:4px}
+  .rc-res-card .rc-res-preco{margin-bottom:12px}
+  .rc-res-card .rc-res-card-titulo{font-size:1.4rem}
+}
+
+@media (max-width:991px){
+  .rc-res-side{order:0;position:static}
+  .rc-res-thumbs button:nth-child(n+4){display:none}
+}
+@media (max-width:640px){
+  .rc-res-thumbs button{width:58px;height:42px}
+  .rc-res-todas{display:none}
+  .rc-rev-painel{grid-template-columns:1fr}
+}
+
+/* painel modal de detalhes */
+.rc-painel{position:fixed;inset:0;z-index:200;background:rgba(10,12,18,.6);display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;line-height:1.5}
+.rc-painel-caixa{width:min(920px,100%);max-height:min(86vh,820px);display:flex;flex-direction:column;background:var(--rc-bg);color:var(--rc-ink);border:1px solid var(--rc-line);border-radius:24px;box-shadow:0 30px 80px rgba(0,0,0,.45);overflow:hidden}
+.rc-painel-topo{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 26px;border-bottom:1px solid var(--rc-line)}
+.rc-painel-topo h2{font-size:1.5rem;margin:0}
+.rc-painel-fechar{width:44px;height:44px;border-radius:50%;border:1px solid var(--rc-line);background:var(--rc-card);color:var(--rc-ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.rc-painel-fechar:hover{background:var(--rc-fill)}
+.rc-painel-corpo{padding:22px 26px 28px;overflow-y:auto}
+.rc-painel-corpo .rc-am{margin-top:0}
+@media (max-width:640px){
+  .rc-painel{padding:0;align-items:flex-end}
+  .rc-painel-caixa{max-height:90vh;border-radius:24px 24px 0 0}
+}
+@media (min-width:992px){body.rc-reserva-ativa .footer-recanto{display:none}}
+
+/* cupom e observações recolhidos; calendário abre sobre o próprio cartão */
+.rc-res-extras{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:12px}
+.rc-res-extra{border:0;background:none;padding:0;min-height:32px;display:inline-flex;align-items:center;gap:6px;font:600 .9rem var(--rc-sans);color:var(--rc-btext);cursor:pointer}
+.rc-res-extra:hover{text-decoration:underline}
+@media (min-width:992px){
+  .rc-res-card{position:relative;overflow:visible;padding:18px 22px}
+  .rc-res-datas-wrap{position:static}
+  .rc-res-card .rc-pop-card{top:84px;left:0;right:0;bottom:auto;z-index:20}
+}

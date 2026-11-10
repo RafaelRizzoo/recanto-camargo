@@ -2,6 +2,8 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { encryptCPF, hashCPF } = require('../utils/crypto');
+const { emailValido, cpfValido } = require('../utils/validacoes');
+const { opcoesCookieSessao } = require('../utils/configuracaoWeb');
 
 function validarComplexidadeSenha(senha) {
     if (!senha || typeof senha !== 'string') {
@@ -38,7 +40,7 @@ exports.cadastrar = async (req, res) => {
             return res.status(400).json({ error: 'Preencha todos os dados obrigatórios.' });
         }
 
-        if (aceitouTermos === false) {
+        if (aceitouTermos !== true) {
             return res.status(400).json({ error: 'Você precisa ler e aceitar os Termos de Uso e a Política de Privacidade.' });
         }
 
@@ -47,6 +49,12 @@ exports.cadastrar = async (req, res) => {
         
         if (cpfLimpo.length !== 11) {
             return res.status(400).json({ error: 'CPF inválido. Deve conter exatamente 11 números.' });
+        }
+        if (!cpfValido(cpfLimpo)) {
+            return res.status(400).json({ error: 'CPF inválido. Confira os números digitados.' });
+        }
+        if (!emailValido(email)) {
+            return res.status(400).json({ error: 'E-mail inválido. Informe um endereço como nome@dominio.com.' });
         }
         if (telefoneLimpo && (telefoneLimpo.length < 10 || telefoneLimpo.length > 11)) {
             return res.status(400).json({ error: 'Telefone inválido. Deve conter 10 ou 11 números (com DDD).' });
@@ -282,10 +290,8 @@ exports.login = async (req, res) => {
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
 
         res.cookie('token', token, {
-            httpOnly: true,
-            secure: false, 
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000 
+            ...opcoesCookieSessao(),
+            maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
         res.json({ message: 'Login realizado!', usuario: payload });
@@ -308,11 +314,7 @@ exports.sessao = (req, res) => {
 };
 
 exports.logout = (req, res) => {
-    res.clearCookie('token', {
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax'
-    });
+    res.clearCookie('token', opcoesCookieSessao());
     res.json({ message: 'Logout realizado com sucesso!' });
 };
 
@@ -358,9 +360,7 @@ exports.atualizarPerfil = async (req, res) => {
         };
         const token = jwt.sign(novoPayload, process.env.JWT_SECRET, { expiresIn: '7d' });
         res.cookie('token', token, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
+            ...opcoesCookieSessao(),
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 

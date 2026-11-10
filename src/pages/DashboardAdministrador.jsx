@@ -1358,7 +1358,7 @@ function CalendarioOcupacao({ reservas, bloqueios, aoCriarBloqueio, aoRemoverBlo
   }, [mesBase]);
 
   // Mapeamento de reservas para cores do calendário
-  const mapaStatus = useMemo(() => reservas.reduce((acc, r) => {
+  const _mapaStatus = useMemo(() => reservas.reduce((acc, r) => {
     if (r.status !== 'aprovada' && r.status !== 'pendente' && r.status !== 'pagamento pendente') return acc;
     const ini = new Date(r.checkin + 'T00:00:00');
     const fim = new Date(r.checkout + 'T00:00:00');
@@ -3424,7 +3424,7 @@ function DashboardAdministrador() {
       {/* Sidebar de Navegação */}
       <aside className={`sidebar-admin ${sidebarAberta ? 'aberta' : 'colapsada'}`}>
         <div className="sidebar-topo">
-          {sidebarAberta && <span className="sidebar-marca">Recanto Admin</span>}
+          {sidebarAberta && <Link to="/" className="sidebar-marca" aria-label={t("Recanto Camargo, ir ao início")}>Recanto Admin</Link>}
         </div>
         <nav className="sidebar-nav">
           {abas.map(a => (

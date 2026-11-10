@@ -27,10 +27,19 @@ const banco = {
         estado.consultas.push({ sql: texto, parametros });
         if (texto.startsWith('SELECT Usu_Id FROM usu_usuario')) return [[...(parametros[0] === 666 ? [] : [{ Usu_Id: parametros[0] }])]];
         if (texto.startsWith('SELECT h.Usu_Id')) return [[{ Usu_Id: parametros[0] }]];
-        if (texto.startsWith('SELECT Imo_ValorFixo')) {
+        // Identifica a unidade da requisição (antes da transação)
+        if (texto.startsWith('SELECT Imo_Id, Imo_Nome, Imo_ValorFixo FROM imo_imovel')) {
+            return [[{ Imo_Id: parametros[0], Imo_Nome: 'Recanto Camargo 1', Imo_ValorFixo: '150.00' }]];
+        }
+        // Trava a linha do imóvel dentro da transação para impedir reserva dupla
+        if (texto.startsWith('SELECT Imo_Id FROM imo_imovel')) {
             assert.ok(estado.transacao);
             assert.match(texto, /FOR UPDATE$/);
-            return [[{ Imo_ValorFixo: '150.00' }]];
+            return [[{ Imo_Id: parametros[0] }]];
+        }
+        if (texto.includes('FROM dat_datadinamica')) return [[]];
+        if (texto.startsWith('SELECT Imo_ValorFixo')) {
+            return [[{ Imo_ValorFixo: '150.00', Imo_ValorFimSemana: '150.00' }]];
         }
         if (texto.startsWith('SELECT Res_Id FROM res_reserva')) return [estado.conflito ? [{ Res_Id: 500 }] : []];
         if (texto.startsWith('SELECT Blo_Id FROM blo_bloqueiohospede')) return [estado.bloqueio ? [{ Blo_Id: 700 }] : []];

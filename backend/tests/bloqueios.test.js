@@ -10,8 +10,8 @@ function reiniciar() {
         transacao: false,
         pendentes: [],
         bloqueios: [
-            { Bld_Id: 10, Imo_Id: 1, Bld_Data: '2026-11-01', Bld_Motivo: 'Pintura', Bld_Status: 'ATIVO' },
-            { Bld_Id: 11, Imo_Id: 1, Bld_Data: '2026-11-02', Bld_Motivo: 'Pintura', Bld_Status: 'ATIVO' },
+            { Bld_Id: 10, Imo_Id: 1, Bld_Data: '2027-11-01', Bld_Motivo: 'Pintura', Bld_Status: 'ATIVO' },
+            { Bld_Id: 11, Imo_Id: 1, Bld_Data: '2027-11-02', Bld_Motivo: 'Pintura', Bld_Status: 'ATIVO' },
         ],
         hospedesBloqueados: [
             { Blo_Id: 99, Imo_Id: 1, Usu_Id: 77, Blo_Motivo: 'Mau comportamento' }
@@ -45,6 +45,21 @@ const bancoMock = {
             return id === 77 || id === 41 ? [[{ Usu_Id: id }]] : [[]];
         }
 
+        // Resolve o imóvel da requisição (Recanto 1 ou 2)
+        if (texto.startsWith('SELECT Imo_Id, Imo_Nome, Imo_ValorFixo FROM imo_imovel')) {
+            return [[{ Imo_Id: parametros[0], Imo_Nome: 'Recanto Camargo 1', Imo_ValorFixo: '200.00' }]];
+        }
+
+        // Trava o imóvel dentro da transação de reserva
+        if (texto.startsWith('SELECT Imo_Id FROM imo_imovel')) {
+            return [[{ Imo_Id: parametros[0] }]];
+        }
+
+        // Datas especiais (feriados e festas): nenhuma neste cenário
+        if (texto.includes('FROM dat_datadinamica')) {
+            return [[]];
+        }
+
         // Busca valor da diária
         if (texto.startsWith('SELECT Imo_ValorFixo')) {
             return [[{ Imo_ValorFixo: '200.00' }]];
@@ -75,7 +90,7 @@ const bancoMock = {
         }
 
         // Remoção / Cancelamento de bloqueio
-        if (texto.startsWith("UPDATE bld_bloqueiodata SET Bld_Status = 'CANCELADO'")) {
+        if (texto.startsWith('UPDATE bld_bloqueiodata') && texto.includes("Bld_Status = 'CANCELADO'")) {
             const id = parametros[0];
             const item = estado.bloqueios.find(b => b.Bld_Id === id && b.Bld_Status === 'ATIVO');
             if (item) {
@@ -173,14 +188,14 @@ async function requisicao(caminho, { method = 'GET', cookie, body } = {}) {
 test('Bloqueio: recusa criação sem autenticação de proprietário', async () => {
     const semToken = await requisicao('/api/proprietario/bloqueios', {
         method: 'POST',
-        body: { dataInicio: '2026-11-10', dataFim: '2026-11-12' }
+        body: { dataInicio: '2027-11-10', dataFim: '2027-11-12' }
     });
     assert.equal(semToken.status, 401);
 
     const comTokenHospede = await requisicao('/api/proprietario/bloqueios', {
         method: 'POST',
         cookie: tokenHospede(41),
-        body: { dataInicio: '2026-11-10', dataFim: '2026-11-12' }
+        body: { dataInicio: '2027-11-10', dataFim: '2027-11-12' }
     });
     assert.equal(comTokenHospede.status, 403);
 });
@@ -205,7 +220,7 @@ test('Bloqueio: validações de entrada rejeitam datas ausentes ou invertidas', 
     const datasInvertidas = await requisicao('/api/proprietario/bloqueios', {
         method: 'POST',
         cookie: tokenProprietario(),
-        body: { dataInicio: '2026-11-15', dataFim: '2026-11-10' }
+        body: { dataInicio: '2027-11-15', dataFim: '2027-11-10' }
     });
     assert.equal(datasInvertidas.status, 400);
     assert.match(datasInvertidas.dados.error, /não pode ser posterior/i);
@@ -216,7 +231,7 @@ test('Bloqueio: rejeita bloqueio quando há reserva ativa no período (409)', as
     const resposta = await requisicao('/api/proprietario/bloqueios', {
         method: 'POST',
         cookie: tokenProprietario(),
-        body: { dataInicio: '2026-11-10', dataFim: '2026-11-15', motivo: 'Reforma' }
+        body: { dataInicio: '2027-11-10', dataFim: '2027-11-15', motivo: 'Reforma' }
     });
     assert.equal(resposta.status, 409);
     assert.match(resposta.dados.error, /reservas ativas ou pendentes/i);
@@ -226,7 +241,7 @@ test('Bloqueio: cria bloqueio com sucesso para intervalo de dias (201)', async (
     const resposta = await requisicao('/api/proprietario/bloqueios', {
         method: 'POST',
         cookie: tokenProprietario(),
-        body: { dataInicio: '2026-11-20', dataFim: '2026-11-22', motivo: 'Uso Familiar' }
+        body: { dataInicio: '2027-11-20', dataFim: '2027-11-22', motivo: 'Uso Familiar' }
     });
     assert.equal(resposta.status, 201);
     assert.equal(resposta.dados.totalDias, 2);
@@ -271,8 +286,8 @@ test('Reserva: impede criação em data bloqueada no calendário pelo proprietá
         method: 'POST',
         cookie: tokenHospede(41),
         body: {
-            checkin: '2026-11-01',
-            checkout: '2026-11-03',
+            checkin: '2027-11-01',
+            checkout: '2027-11-03',
             hospedes: 2
         }
     });
@@ -285,8 +300,8 @@ test('Reserva: impede criação para hóspede restrito em blo_bloqueiohospede (4
         method: 'POST',
         cookie: tokenHospede(77), // Hóspede 77 está bloqueado no mock
         body: {
-            checkin: '2026-12-10',
-            checkout: '2026-12-15',
+            checkin: '2027-12-10',
+            checkout: '2027-12-15',
             hospedes: 2
         }
     });

@@ -139,6 +139,7 @@
   font-size: 1.55rem;
   line-height: 1;
   white-space: nowrap;
+  text-decoration: none;
   transition: opacity 0.2s;
 }
 
@@ -2165,4 +2166,9 @@
 }
 @media (max-width: 575.98px) {
   .diaria-form-especial { grid-template-columns:minmax(0,1fr); }
+}
+
+.sidebar-marca:hover,
+.sidebar-marca:focus-visible {
+  opacity: 0.85;
 }

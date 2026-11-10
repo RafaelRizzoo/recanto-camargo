@@ -6,7 +6,8 @@ import { comodidadesGrupos, depoimentos, galeriaPorUnidade, mapaEmbedSrc, unidad
 import CampoQuando from '../components/home/CampoQuando';
 import SeletorDatas from '../components/home/SeletorDatas';
 import ListaSelecao from '../components/UI/ListaSelecao';
-import MosaicoFotos from '../components/home/MosaicoFotos';
+import Lightbox from '../components/UI/Lightbox';
+import PainelDetalhes from '../components/home/PainelDetalhes';
 import BarraMobile from '../components/home/BarraMobile';
 import { linkWhats } from '../components/home/links';
 import { useAjustarPopover } from '../components/home/useAjustarPopover';
@@ -47,6 +48,17 @@ function Reserva() {
   const unidade = unidades.find((u) => u.id === unidadeId) ?? unidades[0];
   const { nota: notaMedia, total: totalGoogle, erro: erroGoogle, carregando: carregandoGoogle } = useAvaliacoesGoogle();
   const areaCalendario = useRef(null);
+  const [fotoAtiva, setFotoAtiva] = useState(0);
+  const [fotoAberta, setFotoAberta] = useState(null);
+  const [painel, setPainel] = useState(null);
+  const [abrirCupom, setAbrirCupom] = useState(false);
+  const [abrirObs, setAbrirObs] = useState(false);
+
+  // No desktop a página cabe numa tela só: o rodapé sai de cena (marca o body para o CSS).
+  useEffect(() => {
+    document.body.classList.add('rc-reserva-ativa');
+    return () => document.body.classList.remove('rc-reserva-ativa');
+  }, []);
 
   const [datas, setDatas] = useState({
     checkin: searchParams.get('checkin') || '',
@@ -228,6 +240,7 @@ function Reserva() {
 
   function escolherUnidade(id) {
     setUnidadeId(id);
+    setFotoAtiva(0);
     setMostrarCalendario(false);
   }
 
@@ -300,6 +313,13 @@ function Reserva() {
   const reservaOnline = unidade.consultaOnline;
   const notaGoogle = !carregandoGoogle && !erroGoogle && notaMedia != null && totalGoogle;
   const localTexto = 'Ponte Alta, Aparecida - SP';
+  const fotos = galeriaPorUnidade[unidade.id];
+  const foto = fotos[fotoAtiva] ?? fotos[0];
+  const midiasLightbox = fotos.map((f) => ({ ...f, alt: t(f.alt), categoria: unidade.selo }));
+  const tituloNota = notaGoogle
+    ? `${notaMedia.toLocaleString(idioma === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} · ${totalGoogle} ${t('avaliações no Google')}`
+    : `${depoimentos.length} ${t('avaliações de hóspedes')}`;
+  const fecharPainel = () => setPainel(null);
 
   return (
     <div className="rc-home rc-reserva">
@@ -308,298 +328,334 @@ function Reserva() {
         esconderQuandoVisivel=".rc-res-card"
         aoReservar={() => document.querySelector('.rc-res-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
       />
-      <div className="rc-wrap">
+      <div className="rc-wrap rc-res-tela">
 
-        <header className="rc-res-head">
-          <span className="rc-eyebrow">{t('Reserva direta')}</span>
-          <h1>{unidade.nome}</h1>
-          <div className="rc-res-meta">
-            <span className="rc-res-nota">
-              <i className="bi bi-star-fill" aria-hidden="true" />
-              {notaGoogle
-                ? <>{notaMedia.toLocaleString(idioma === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} {t('no Google')} · {totalGoogle} {t('avaliações')}</>
-                : <>{depoimentos.length} {t('avaliações de hóspedes')}</>}
-            </span>
-            <span aria-hidden="true">·</span>
-            <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local">
-              <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {localTexto}
-            </a>
-          </div>
-
-          <div className="rc-tabs" role="tablist" aria-label={t('Unidade')}>
-            {unidades.map((u) => (
-              <button
-                type="button"
-                role="tab"
-                key={u.id}
-                className="rc-tab"
-                aria-selected={unidade.id === u.id}
-                onClick={() => escolherUnidade(u.id)}
-              >
-                <i className="rc-dot" style={{ '--c': u.cor }} aria-hidden="true" /> {u.nome}
-              </button>
-            ))}
-          </div>
-        </header>
-
-        <MosaicoFotos fotos={galeriaPorUnidade[unidade.id]} rotulo={unidade.selo} />
-
-        <div className="rc-res-grid">
-          <div className="rc-res-main">
-
-            <section className="rc-res-bloco">
-              <h2>{t('Sobre o {nome}', { nome: unidade.nome })}</h2>
-              {unidade.id === 1 ? (
-                <>
-                  <p>{t('Casa aconchegante com 2 quartos, localizada no bairro Ponte Alta, a apenas 5 minutos a pé do Santuário Nacional de Aparecida. Ideal para famílias e grupos de peregrinos que buscam conforto, privacidade e uma estadia tranquila na cidade da Padroeira do Brasil.')}</p>
-                  <p>{t('A casa conta com cozinha completa, churrasqueira, Wi-Fi, Smart TVs, garagem e enxoval incluso. Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a melhor experiência possível.')}</p>
-                </>
-              ) : (
-                <>
-                  <p>{t(unidade.resumo)}</p>
-                  <p>{t('Os anfitriões Rafael e dona Sônia estão sempre disponíveis para garantir a melhor experiência possível.')}</p>
-                </>
-              )}
-            </section>
-
-            <section className="rc-res-bloco">
-              <h2>{t('O que este lugar oferece')}</h2>
-              <div className="rc-am rc-am-reserva">
-                {comodidadesGrupos.map((g) => (
-                  <div className="rc-g" key={g.id}>
-                    <h3>{t(g.titulo)}</h3>
-                    <ul>
-                      {g.itens.map((item) => (
-                        <li key={item.texto}><i className={`bi ${item.icone}`} aria-hidden="true" />{t(item.texto)}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="rc-res-bloco">
-              <h2>{t('Localização')}</h2>
-              <p>{localTexto} — {t('cerca de 5 min a pé do Santuário Nacional')}</p>
-              {unidade.id === 1 && (
-                <>
-                  <div className="rc-res-mapa">
-                    <iframe title={t('Localização do Recanto Camargo no mapa')} loading="lazy" src={mapaEmbedSrc} />
-                  </div>
-                  <a href={MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local rc-res-maps">
-                    <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {t('Ver no Google Maps')}
-                  </a>
-                </>
-              )}
-              {unidade.id === 2 && (
-                <a href={MAPS_URL_R2} target="_blank" rel="noopener noreferrer" className="rc-res-local rc-res-maps">
-                  <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {t('Ver no Google Maps')}
-                </a>
-              )}
-            </section>
-          </div>
-
-          <aside className="rc-res-side" aria-label={t('Reservar')}>
-            <div className="rc-res-card">
-              {!reservaOnline ? (
-                <>
-                  <h2 className="rc-res-card-titulo">{t('Reservar o {nome}', { nome: unidade.nome })}</h2>
-                  <p className="rc-res-card-texto">
-                    {t('A reserva online do {nome} ainda não está disponível. Fale com a gente pelo WhatsApp para consultar datas e valores.', { nome: unidade.nome })}
-                  </p>
-                  <a
-                    className="rc-btn rc-btn-primary rc-res-cta"
-                    href={linkWhats(`Olá! Gostaria de reservar o ${unidade.nome}.`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <i className="bi bi-whatsapp" aria-hidden="true" /> {t('Falar no WhatsApp')}
-                  </a>
-                </>
-              ) : (
-                <>
-                  <div className="rc-res-preco">
-                    <strong>{formatarMoeda(precoUnidade.semana)}</strong> <span>/ {t('noite')}</span>
-                    {precoUnidade.fimSemana !== precoUnidade.semana && (
-                      <small className="rc-res-preco-fds">
-                        {t('{valor} nas noites de sexta e sábado', { valor: formatarMoeda(precoUnidade.fimSemana) })}
-                      </small>
-                    )}
-                  </div>
-
-                  <div className="rc-res-datas-wrap" ref={areaCalendario}>
-                    <CampoQuando
-                      id="res-quando"
-                      className="rc-res-quando"
-                      checkin={datas.checkin}
-                      checkout={datas.checkout}
-                      aberto={mostrarCalendario}
-                      invalido={Boolean(erros.checkin || erros.checkout)}
-                      aoAbrir={() => setMostrarCalendario(true)}
-                      aoFechar={() => setMostrarCalendario(false)}
-                      aoLimpar={() => setDatas({ checkin: '', checkout: '' })}
-                    />
-
-                    {mostrarCalendario && (
-                      <>
-                        <div className="rc-pop-backdrop" onClick={() => setMostrarCalendario(false)} aria-hidden="true" />
-                        <div className="rc-pop rc-pop-datas rc-pop-card" role="dialog" aria-label={t('Selecione as datas')}>
-                          <SeletorDatas
-                            imovelId={unidadeId}
-                            checkin={datas.checkin}
-                            checkout={datas.checkout}
-                            aoMudar={(novas) => {
-                              setDatas(novas);
-                              setErros(er => ({ ...er, checkin: undefined, checkout: undefined, conflito: undefined }));
-                            }}
-                            aoConcluir={() => setTimeout(() => setMostrarCalendario(false), 450)}
-                            aoFechar={() => setMostrarCalendario(false)}
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  <div className="rc-res-campo">
-                    <ListaSelecao
-                      id="res-hospedes"
-                      className={`rc-res-lista${erros.hospedes ? ' rc-invalid' : ''}`}
-                      rotulo={t('Hóspedes')}
-                      valor={String(hospedes || '')}
-                      invalido={Boolean(erros.hospedes)}
-                      placeholder={t('Quantidade de pessoas')}
-                      opcoes={Array.from({ length: MAX_HOSPEDES }, (_, i) => ({
-                        valor: String(i + 1),
-                        texto: t(i === 0 ? '{n} hóspede' : '{n} hóspedes', { n: i + 1 }),
-                      }))}
-                      aoMudar={(v) => {
-                        setHospedes(v);
-                        setErros(er => ({ ...er, hospedes: undefined }));
-                      }}
-                    />
-                    {erros.hospedes && (
-                      <p className="rc-res-erro" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true" /> {erros.hospedes}</p>
-                    )}
-                  </div>
-
-                  {(erros.checkin || erros.checkout) && (
-                    <p className="rc-res-erro" role="alert">
-                      <i className="bi bi-exclamation-circle" aria-hidden="true" /> {erros.checkin || erros.checkout}
-                    </p>
-                  )}
-
-                  {erros.conflito && (
-                    <p className="rc-res-erro rc-res-alerta" role="alert">
-                      <i className="bi bi-calendar-x" aria-hidden="true" /> {erros.conflito}
-                    </p>
-                  )}
-
-                  {noites > 0 && (
-                    <div className="rc-res-valores">
-                      {linhasNoites.map((linha) => (
-                        <div key={linha.chave}>
-                          <span>
-                            {formatarMoeda(linha.valor)} × {t(linha.qtd === 1 ? '{n} noite' : '{n} noites', { n: linha.qtd })}
-                            {linha.tipo === 'FIM_SEMANA' && <small> · {t('fim de semana')}</small>}
-                            {linha.tipo === 'DATA_ESPECIAL' && <small> · {linha.evento}</small>}
-                          </span>
-                          <span>{formatarMoeda(linha.valor * linha.qtd)}</span>
-                        </div>
-                      ))}
-                      <div><span>{t('Taxa de limpeza')}</span><span>{formatarMoeda(TAXA_LIMPEZA)}</span></div>
-                      {cupomAplicado && (
-                        <div className="rc-res-desconto"><span>{t('Desconto')} ({cupomAplicado.codigo})</span><span>-{formatarMoeda(desconto)}</span></div>
-                      )}
-                      <div className="rc-res-total"><span>{t('Total')}</span><span>{formatarMoeda(total)}</span></div>
-                    </div>
-                  )}
-
-                  {autenticado && noites > 0 && (
-                    <div className="rc-res-campo">
-                      {cupomAplicado ? (
-                        <div className="rc-res-cupom-ok">
-                          <span><i className="bi bi-tag-fill" aria-hidden="true" /> {cupomAplicado.codigo}</span>
-                          <button type="button" onClick={removerCupom}>{t('Remover')}</button>
-                        </div>
-                      ) : (
-                        <>
-                          <label htmlFor="res-cupom">{t('Cupom de desconto')}</label>
-                          <div className="rc-res-cupom">
-                            <input
-                              id="res-cupom"
-                              type="text"
-                              placeholder={t('Código do cupom')}
-                              value={cupomInput}
-                              onChange={(e) => setCupomInput(e.target.value)}
-                              disabled={validandoCupom}
-                              style={{ textTransform: 'uppercase' }}
-                            />
-                            <button type="button" className="rc-btn rc-btn-line" onClick={aplicarCupom} disabled={validandoCupom}>
-                              {validandoCupom ? t('Validando...') : t('Aplicar')}
-                            </button>
-                          </div>
-                          {erroCupom && (
-                            <p className="rc-res-erro" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true" /> {erroCupom}</p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-
-                  {autenticado && (
-                    <div className="rc-res-campo">
-                      <label htmlFor="res-obs">{t('Observações (opcional)')}</label>
-                      <textarea
-                        id="res-obs"
-                        rows={2}
-                        value={observacoes}
-                        onChange={e => setObservacoes(e.target.value)}
-                        placeholder={t('Ex: Berço, pet, chegada noturna...')}
-                      />
-                    </div>
-                  )}
-
-                  {erros.geral && (
-                    <p className="rc-res-erro rc-res-alerta" role="alert">{erros.geral}</p>
-                  )}
-
-                  {autenticado ? (
-                    <button type="button" className="rc-btn rc-btn-primary rc-res-cta" onClick={handleSubmit}>
-                      {t('Solicitar reserva')}
-                    </button>
-                  ) : (
-                    <>
-                      <button type="button" className="rc-btn rc-btn-dark rc-res-cta" onClick={irParaLogin}>
-                        <i className="bi bi-person-circle" aria-hidden="true" /> {t('Faça login para reservar')}
-                      </button>
-                      <p className="rc-res-nota-pequena">{t('Você pode ver datas e valores sem fazer login.')}</p>
-                    </>
-                  )}
-                </>
-              )}
-
-              <ul className="rc-res-beneficios">
-                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Cancelamento gratuito até 7 dias antes')}</li>
-                <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Reserva direta, sem taxas de plataforma')}</li>
-              </ul>
-
-              {autenticado && reservaOnline && (
-                <p className="rc-res-usuario">
-                  <i className="bi bi-person-check-fill" aria-hidden="true" /> {t('Reservando como')} <strong>{usuario.nome}</strong>
-                </p>
-              )}
+        <div className="rc-res-esq">
+          <div className="rc-res-topo">
+            <div className="rc-tabs" role="tablist" aria-label={t('Unidade')}>
+              {unidades.map((u) => (
+                <button
+                  type="button"
+                  role="tab"
+                  key={u.id}
+                  className="rc-tab"
+                  aria-selected={unidade.id === u.id}
+                  onClick={() => escolherUnidade(u.id)}
+                >
+                  <i className="rc-dot" style={{ '--c': u.cor }} aria-hidden="true" /> {u.nome}
+                </button>
+              ))}
             </div>
-          </aside>
+            <div className="rc-res-meta">
+              <span className="rc-res-nota">
+                <i className="bi bi-star-fill" aria-hidden="true" />
+                {notaGoogle
+                  ? <>{notaMedia.toLocaleString(idioma === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} {t('no Google')} · {totalGoogle} {t('avaliações')}</>
+                  : <>{depoimentos.length} {t('avaliações de hóspedes')}</>}
+              </span>
+              <span aria-hidden="true">·</span>
+              <a href={unidade.id === 2 ? MAPS_URL_R2 : MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local">
+                <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {localTexto}
+              </a>
+            </div>
+          </div>
+
+          <div className="rc-res-foto">
+            <button
+              type="button"
+              className="rc-res-foto-main"
+              onClick={() => setFotoAberta(fotos.indexOf(foto))}
+              aria-label={t('Ampliar foto: {alt}, {rotulo}', { alt: t(foto.alt), rotulo: unidade.selo })}
+            >
+              <img src={foto.src} alt={t('{alt} do {rotulo}', { alt: t(foto.alt), rotulo: unidade.selo })} decoding="async" />
+            </button>
+            <div className="rc-res-thumbs">
+              {fotos.slice(0, 4).map((f, i) => (
+                <button
+                  type="button"
+                  key={f.alt}
+                  className={i === fotoAtiva ? 'rc-on' : undefined}
+                  aria-label={t('Ver foto {n}', { n: i + 1 })}
+                  aria-current={i === fotoAtiva ? 'true' : undefined}
+                  onClick={() => setFotoAtiva(i)}
+                >
+                  <img src={f.src} alt="" loading="lazy" decoding="async" />
+                </button>
+              ))}
+            </div>
+            <button type="button" className="rc-btn rc-btn-light rc-res-todas" onClick={() => setFotoAberta(fotos.indexOf(foto))}>
+              <i className="bi bi-grid-3x3-gap" aria-hidden="true" /> {t('Ver todas as fotos')}
+            </button>
+          </div>
+
+          <div className="rc-res-info">
+            <h1>{unidade.nome}</h1>
+            <p className="rc-res-resumo">{t(unidade.resumo)}</p>
+            <div className="rc-chips">
+              {unidade.destaques.map((d) => (
+                <span className="rc-chip" key={d.texto}><i className={`bi ${d.icone}`} aria-hidden="true" /> {t(d.texto)}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="rc-res-abas">
+            <button type="button" className="rc-btn rc-btn-line" onClick={() => setPainel('comodidades')}>
+              <i className="bi bi-grid-1x2" aria-hidden="true" /> {t('Todas as comodidades')}
+            </button>
+            <button type="button" className="rc-btn rc-btn-line" onClick={() => setPainel('mapa')}>
+              <i className="bi bi-geo-alt" aria-hidden="true" /> {t('Mapa e localização')}
+            </button>
+            <button type="button" className="rc-btn rc-btn-line" onClick={() => setPainel('avaliacoes')}>
+              <i className="bi bi-star" aria-hidden="true" /> {t('Avaliações')}
+            </button>
+          </div>
         </div>
 
-        <section className="rc-res-bloco rc-res-avaliacoes">
-          <h2>
-            <i className="bi bi-star-fill" aria-hidden="true" />{' '}
-            {notaGoogle
-              ? `${notaMedia.toLocaleString(idioma === 'en' ? 'en-US' : 'pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 2 })} · ${totalGoogle} ${t('avaliações no Google')}`
-              : `${depoimentos.length} ${t('avaliações de hóspedes')}`}
-          </h2>
-          <div className="rc-rev">
+      <aside className="rc-res-side" aria-label={t('Reservar')}>
+        <div className="rc-res-card">
+          {!reservaOnline ? (
+            <>
+              <h2 className="rc-res-card-titulo">{t('Reservar o {nome}', { nome: unidade.nome })}</h2>
+              <p className="rc-res-card-texto">
+                {t('A reserva online do {nome} ainda não está disponível. Fale com a gente pelo WhatsApp para consultar datas e valores.', { nome: unidade.nome })}
+              </p>
+              <a
+                className="rc-btn rc-btn-primary rc-res-cta"
+                href={linkWhats(`Olá! Gostaria de reservar o ${unidade.nome}.`)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <i className="bi bi-whatsapp" aria-hidden="true" /> {t('Falar no WhatsApp')}
+              </a>
+            </>
+          ) : (
+            <>
+              <div className="rc-res-preco">
+                <strong>{formatarMoeda(precoUnidade.semana)}</strong> <span>/ {t('noite')}</span>
+                {precoUnidade.fimSemana !== precoUnidade.semana && (
+                  <small className="rc-res-preco-fds">
+                    {t('{valor} nas noites de sexta e sábado', { valor: formatarMoeda(precoUnidade.fimSemana) })}
+                  </small>
+                )}
+              </div>
+
+              <div className="rc-res-datas-wrap" ref={areaCalendario}>
+                <CampoQuando
+                  id="res-quando"
+                  className="rc-res-quando"
+                  checkin={datas.checkin}
+                  checkout={datas.checkout}
+                  aberto={mostrarCalendario}
+                  invalido={Boolean(erros.checkin || erros.checkout)}
+                  aoAbrir={() => setMostrarCalendario(true)}
+                  aoFechar={() => setMostrarCalendario(false)}
+                  aoLimpar={() => setDatas({ checkin: '', checkout: '' })}
+                />
+
+                {mostrarCalendario && (
+                  <>
+                    <div className="rc-pop-backdrop" onClick={() => setMostrarCalendario(false)} aria-hidden="true" />
+                    <div className="rc-pop rc-pop-datas rc-pop-card" role="dialog" aria-label={t('Selecione as datas')}>
+                      <SeletorDatas
+                        imovelId={unidadeId}
+                        checkin={datas.checkin}
+                        checkout={datas.checkout}
+                        aoMudar={(novas) => {
+                          setDatas(novas);
+                          setErros(er => ({ ...er, checkin: undefined, checkout: undefined, conflito: undefined }));
+                        }}
+                        aoConcluir={() => setTimeout(() => setMostrarCalendario(false), 450)}
+                        aoFechar={() => setMostrarCalendario(false)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="rc-res-campo">
+                <ListaSelecao
+                  id="res-hospedes"
+                  className={`rc-res-lista${erros.hospedes ? ' rc-invalid' : ''}`}
+                  rotulo={t('Hóspedes')}
+                  valor={String(hospedes || '')}
+                  invalido={Boolean(erros.hospedes)}
+                  placeholder={t('Quantidade de pessoas')}
+                  opcoes={Array.from({ length: MAX_HOSPEDES }, (_, i) => ({
+                    valor: String(i + 1),
+                    texto: t(i === 0 ? '{n} hóspede' : '{n} hóspedes', { n: i + 1 }),
+                  }))}
+                  aoMudar={(v) => {
+                    setHospedes(v);
+                    setErros(er => ({ ...er, hospedes: undefined }));
+                  }}
+                />
+                {erros.hospedes && (
+                  <p className="rc-res-erro" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true" /> {erros.hospedes}</p>
+                )}
+              </div>
+
+              {(erros.checkin || erros.checkout) && (
+                <p className="rc-res-erro" role="alert">
+                  <i className="bi bi-exclamation-circle" aria-hidden="true" /> {erros.checkin || erros.checkout}
+                </p>
+              )}
+
+              {erros.conflito && (
+                <p className="rc-res-erro rc-res-alerta" role="alert">
+                  <i className="bi bi-calendar-x" aria-hidden="true" /> {erros.conflito}
+                </p>
+              )}
+
+              {noites > 0 && (
+                <div className="rc-res-valores">
+                  {linhasNoites.map((linha) => (
+                    <div key={linha.chave}>
+                      <span>
+                        {formatarMoeda(linha.valor)} × {t(linha.qtd === 1 ? '{n} noite' : '{n} noites', { n: linha.qtd })}
+                        {linha.tipo === 'FIM_SEMANA' && <small> · {t('fim de semana')}</small>}
+                        {linha.tipo === 'DATA_ESPECIAL' && <small> · {linha.evento}</small>}
+                      </span>
+                      <span>{formatarMoeda(linha.valor * linha.qtd)}</span>
+                    </div>
+                  ))}
+                  <div><span>{t('Taxa de limpeza')}</span><span>{formatarMoeda(TAXA_LIMPEZA)}</span></div>
+                  {cupomAplicado && (
+                    <div className="rc-res-desconto"><span>{t('Desconto')} ({cupomAplicado.codigo})</span><span>-{formatarMoeda(desconto)}</span></div>
+                  )}
+                  <div className="rc-res-total"><span>{t('Total')}</span><span>{formatarMoeda(total)}</span></div>
+                </div>
+              )}
+
+              {autenticado && (
+                <div className="rc-res-extras">
+                  {noites > 0 && !cupomAplicado && (
+                    <button type="button" className="rc-res-extra" aria-expanded={abrirCupom} onClick={() => setAbrirCupom((v) => !v)}>
+                      <i className={`bi ${abrirCupom ? 'bi-dash-lg' : 'bi-plus-lg'}`} aria-hidden="true" /> {t('Tenho um cupom')}
+                    </button>
+                  )}
+                  <button type="button" className="rc-res-extra" aria-expanded={abrirObs} onClick={() => setAbrirObs((v) => !v)}>
+                    <i className={`bi ${abrirObs ? 'bi-dash-lg' : 'bi-plus-lg'}`} aria-hidden="true" /> {t('Observações')}
+                  </button>
+                </div>
+              )}
+
+              {autenticado && noites > 0 && (cupomAplicado || abrirCupom || erroCupom) && (
+                <div className="rc-res-campo">
+                  {cupomAplicado ? (
+                    <div className="rc-res-cupom-ok">
+                      <span><i className="bi bi-tag-fill" aria-hidden="true" /> {cupomAplicado.codigo}</span>
+                      <button type="button" onClick={removerCupom}>{t('Remover')}</button>
+                    </div>
+                  ) : (
+                    <>
+                      <label htmlFor="res-cupom">{t('Cupom de desconto')}</label>
+                      <div className="rc-res-cupom">
+                        <input
+                          id="res-cupom"
+                          type="text"
+                          placeholder={t('Código do cupom')}
+                          value={cupomInput}
+                          onChange={(e) => setCupomInput(e.target.value)}
+                          disabled={validandoCupom}
+                          style={{ textTransform: 'uppercase' }}
+                        />
+                        <button type="button" className="rc-btn rc-btn-line" onClick={aplicarCupom} disabled={validandoCupom}>
+                          {validandoCupom ? t('Validando...') : t('Aplicar')}
+                        </button>
+                      </div>
+                      {erroCupom && (
+                        <p className="rc-res-erro" role="alert"><i className="bi bi-exclamation-circle" aria-hidden="true" /> {erroCupom}</p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {autenticado && (abrirObs || observacoes) && (
+                <div className="rc-res-campo">
+                  <label htmlFor="res-obs">{t('Observações (opcional)')}</label>
+                  <textarea
+                    id="res-obs"
+                    rows={2}
+                    value={observacoes}
+                    onChange={e => setObservacoes(e.target.value)}
+                    placeholder={t('Ex: Berço, pet, chegada noturna...')}
+                  />
+                </div>
+              )}
+
+              {erros.geral && (
+                <p className="rc-res-erro rc-res-alerta" role="alert">{erros.geral}</p>
+              )}
+
+              {autenticado ? (
+                <button type="button" className="rc-btn rc-btn-primary rc-res-cta" onClick={handleSubmit}>
+                  {t('Solicitar reserva')}
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="rc-btn rc-btn-dark rc-res-cta" onClick={irParaLogin}>
+                    <i className="bi bi-person-circle" aria-hidden="true" /> {t('Faça login para reservar')}
+                  </button>
+                  <p className="rc-res-nota-pequena">{t('Você pode ver datas e valores sem fazer login.')}</p>
+                </>
+              )}
+            </>
+          )}
+
+          <ul className="rc-res-beneficios">
+            <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Cancelamento gratuito até 7 dias antes')}</li>
+            <li><i className="bi bi-check-circle-fill" aria-hidden="true" /> {t('Reserva direta, sem taxas de plataforma')}</li>
+          </ul>
+
+          {autenticado && reservaOnline && (
+            <p className="rc-res-usuario">
+              <i className="bi bi-person-check-fill" aria-hidden="true" /> {t('Reservando como')} <strong>{usuario.nome}</strong>
+            </p>
+          )}
+        </div>
+      </aside>
+      </div>
+
+      {fotoAberta !== null && (
+        <Lightbox midias={midiasLightbox} indiceInicial={fotoAberta} aoFechar={() => setFotoAberta(null)} />
+      )}
+
+      {painel === 'comodidades' && (
+        <PainelDetalhes titulo={t('O que este lugar oferece')} aoFechar={fecharPainel}>
+          <p className="rc-res-painel-texto">{t(unidade.resumo)}</p>
+          <div className="rc-am rc-am-reserva">
+            {comodidadesGrupos.map((g) => (
+              <div className="rc-g" key={g.id}>
+                <h3>{t(g.titulo)}</h3>
+                <ul>
+                  {g.itens.map((item) => (
+                    <li key={item.texto}><i className={`bi ${item.icone}`} aria-hidden="true" />{t(item.texto)}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </PainelDetalhes>
+      )}
+
+      {painel === 'mapa' && (
+        <PainelDetalhes titulo={t('Localização')} aoFechar={fecharPainel}>
+          <p className="rc-res-painel-texto">{localTexto} — {t('cerca de 5 min a pé do Santuário Nacional')}</p>
+          {unidade.id === 1 && (
+            <div className="rc-res-mapa">
+              <iframe title={t('Localização do Recanto Camargo no mapa')} loading="lazy" src={mapaEmbedSrc} />
+            </div>
+          )}
+          <a href={unidade.id === 2 ? MAPS_URL_R2 : MAPS_URL} target="_blank" rel="noopener noreferrer" className="rc-res-local rc-res-maps">
+            <i className="bi bi-geo-alt-fill" aria-hidden="true" /> {t('Ver no Google Maps')}
+          </a>
+        </PainelDetalhes>
+      )}
+
+      {painel === 'avaliacoes' && (
+        <PainelDetalhes titulo={tituloNota} aoFechar={fecharPainel}>
+          <div className="rc-rev rc-rev-painel">
             {depoimentos.slice(0, 6).map(dep => (
               <figure className="rc-q" key={dep.id}>
                 <span className="rc-stars" role="img" aria-label={t('{n} de 5 estrelas', { n: dep.estrelas })}>{'★'.repeat(dep.estrelas)}</span>
@@ -608,9 +664,8 @@ function Reserva() {
               </figure>
             ))}
           </div>
-        </section>
-
-      </div>
+        </PainelDetalhes>
+      )}
     </div>
   );
 }
