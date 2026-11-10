@@ -10,7 +10,7 @@ function ExploreAparecida() {
   const itens = pontosTuristicos.filter((p) => categoria === "Todos" || p.categoria === categoria);
 
   return (
-    <section>
+    <section className="rc-sec-explore">
       <div className="rc-wrap">
         <div className="rc-rv">
           <span className="rc-eyebrow">{t("Explore Aparecida")}</span>

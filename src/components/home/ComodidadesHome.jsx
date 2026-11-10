@@ -36,10 +36,20 @@ function ComodidadesHome() {
             </div>
           ))}
         </div>
-        <p className="rc-am-nota rc-rv">
-          <i className="bi bi-droplet-half" aria-hidden="true" />
-          {t("Recanto 1: 1 banheiro · Recanto 2: 2 banheiros com chuveiro e 2 lavabos")}
-        </p>
+        <div className="rc-am-nota rc-rv">
+          <span className="rc-am-nota-tit">
+            <i className="bi bi-droplet-half" aria-hidden="true" />
+            {t("Banheiros")}
+          </span>
+          <span className="rc-am-bn">
+            <b>Recanto 1</b>
+            {t("1 banheiro")}
+          </span>
+          <span className="rc-am-bn">
+            <b>Recanto 2</b>
+            {t("2 banheiros com chuveiro e 2 lavabos")}
+          </span>
+        </div>
       </div>
     </section>
   );

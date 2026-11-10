@@ -125,7 +125,8 @@ export const EN = {
   "Secador de cabelo": "Hair dryer",
   "Ferro de passar roupa": "Iron",
   "Para toda a família": "For the whole family",
-  "Recanto 1: 1 banheiro · Recanto 2: 2 banheiros com chuveiro e 2 lavabos": "Recanto 1: 1 bathroom · Recanto 2: 2 bathrooms with showers and 2 powder rooms",
+  "1 banheiro": "1 bathroom",
+  "2 banheiros com chuveiro e 2 lavabos": "2 bathrooms with showers and 2 powder rooms",
 
   // ---- Localização ----
   "Localização privilegiada": "Prime location",

@@ -6,7 +6,7 @@ function LocalizacaoHome() {
   const basilica = pontosTuristicos.find((p) => p.id === "basilica");
 
   return (
-    <section id="localizacao" style={{ padding: 0, margin: "20px 0" }}>
+    <section id="localizacao" style={{ padding: 0 }}>
       <div className="rc-loc">
         <div className="rc-wrap rc-loc-grid">
           <div className="rc-rv">
