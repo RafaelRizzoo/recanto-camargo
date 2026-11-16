@@ -122,3 +122,47 @@ test('Pagamento: impede consulta de status por hóspede que não seja o dono da 
     const data = await res.json();
     assert.match(data.error, /Acesso negado/);
 });
+
+// ---- Assinatura do webhook (x-signature) ----
+const crypto = require('node:crypto');
+const { validarAssinaturaWebhook } = require('../services/mercadoPagoService');
+
+function assinar(segredo, { dataId, requestId, ts }) {
+    const manifesto = `id:${String(dataId).toLowerCase()};request-id:${requestId};ts:${ts};`;
+    return crypto.createHmac('sha256', segredo).update(manifesto).digest('hex');
+}
+
+test('Webhook: aceita assinatura HMAC válida', () => {
+    const v1 = assinar('segredo-teste', { dataId: 'ABC123', requestId: 'req-1', ts: '1700000000' });
+    const r = validarAssinaturaWebhook(
+        { headers: { 'x-signature': `ts=1700000000,v1=${v1}`, 'x-request-id': 'req-1' }, query: { 'data.id': 'ABC123' } },
+        'segredo-teste'
+    );
+    assert.equal(r.valida, true);
+});
+
+test('Webhook: rejeita assinatura adulterada, id trocado ou segredo errado', () => {
+    const v1 = assinar('segredo-teste', { dataId: '123', requestId: 'req-1', ts: '1700000000' });
+    const headers = { 'x-signature': `ts=1700000000,v1=${v1}`, 'x-request-id': 'req-1' };
+    assert.equal(validarAssinaturaWebhook({ headers, query: { 'data.id': '999' } }, 'segredo-teste').valida, false);
+    assert.equal(validarAssinaturaWebhook({ headers, query: { 'data.id': '123' } }, 'outro-segredo').valida, false);
+    assert.equal(validarAssinaturaWebhook({ headers: {}, query: { 'data.id': '123' } }, 'segredo-teste').motivo, 'assinatura_ausente');
+});
+
+test('Webhook: sem segredo configurado a validação falha de forma explícita', () => {
+    assert.equal(validarAssinaturaWebhook({ headers: {}, query: {} }, '').motivo, 'segredo_nao_configurado');
+});
+
+test('Webhook: com segredo configurado, requisição sem assinatura é rejeitada (401)', async () => {
+    process.env.MERCADO_PAGO_WEBHOOK_SECRET = 'segredo-teste';
+    try {
+        const res = await fetch(`${base}/api/pagamentos/webhook?type=payment&data.id=123`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'payment', data: { id: '123' } })
+        });
+        assert.equal(res.status, 401);
+    } finally {
+        delete process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+    }
+});

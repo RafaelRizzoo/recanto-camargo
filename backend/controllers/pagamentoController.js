@@ -1,5 +1,21 @@
 const db = require('../config/db');
-const { criarPreferenciaPagamento, consultarPagamento, buscarPagamentoPorReserva } = require('../services/mercadoPagoService');
+const { criarPreferenciaPagamento, consultarPagamento, buscarPagamentoPorReserva, validarAssinaturaWebhook } = require('../services/mercadoPagoService');
+
+/**
+ * Confere se o valor pago no Mercado Pago bate com o total da reserva (tolerância de 1 centavo),
+ * evitando confirmar uma reserva com pagamento de valor menor.
+ */
+async function valorPagoConfere(reservaId, pagamentoMP) {
+    const [linhas] = await db.query(`SELECT Res_ValorTotal FROM res_reserva WHERE Res_Id = ?`, [reservaId]);
+    if (linhas.length === 0) return false;
+    const esperado = Number(linhas[0].Res_ValorTotal);
+    const pago = Number(pagamentoMP.transaction_amount);
+    if (!Number.isFinite(esperado) || !Number.isFinite(pago) || Math.abs(esperado - pago) > 0.01) {
+        console.error(`Pagamento ${pagamentoMP.id} ignorado: valor pago (${pagamentoMP.transaction_amount}) difere do total da reserva ${reservaId} (${linhas[0].Res_ValorTotal}).`);
+        return false;
+    }
+    return true;
+}
 
 /**
  * Helper para efetivar a aprovação de pagamento de uma reserva no banco
@@ -238,7 +254,7 @@ exports.consultarStatus = async (req, res) => {
         // Se ainda não estiver confirmada, verifica ativamente na API do Mercado Pago
         if ((reservaStatus === 'PAGAMENTO_PENDENTE' || reservaStatus === 'PENDENTE') && process.env.NODE_ENV !== 'test') {
             const pagamentoMP = await buscarPagamentoPorReserva(reservaId);
-            if (pagamentoMP && pagamentoMP.status === 'approved') {
+            if (pagamentoMP && pagamentoMP.status === 'approved' && await valorPagoConfere(reservaId, pagamentoMP)) {
                 await efetivarAprovacaoPagamento(
                     reservaId,
                     pagamentoMP.id,
@@ -279,13 +295,25 @@ exports.consultarStatus = async (req, res) => {
  * POST /api/pagamentos/webhook
  */
 exports.receberWebhook = async (req, res) => {
+    const query = req.query || {};
+    const body = req.body || {};
+
+    // Autenticidade: só processa notificações assinadas pelo Mercado Pago.
+    // Sem segredo configurado, só é tolerado fora de produção (desenvolvimento/testes).
+    const assinatura = validarAssinaturaWebhook({ headers: req.headers, query, body });
+    if (!assinatura.valida) {
+        if (assinatura.motivo === 'segredo_nao_configurado' && process.env.NODE_ENV !== 'production') {
+            console.warn('Webhook do Mercado Pago aceito sem validação: defina MERCADO_PAGO_WEBHOOK_SECRET.');
+        } else {
+            console.error(`Webhook do Mercado Pago rejeitado: ${assinatura.motivo}.`);
+            return res.status(401).send('Assinatura inválida');
+        }
+    }
+
     // Mercado Pago exige retorno 200 rápido para não reenviar Webhook
     res.status(200).send('OK');
 
     try {
-        const query = req.query || {};
-        const body = req.body || {};
-
         // Identifica o ID da transação
         const paymentId = query['data.id'] || query.id || body.data?.id;
         const type = query.type || body.type;
@@ -304,6 +332,7 @@ exports.receberWebhook = async (req, res) => {
         if (!reservaId) return;
 
         if (statusMP === 'approved') {
+            if (!(await valorPagoConfere(reservaId, pagamentoMP))) return;
             await efetivarAprovacaoPagamento(
                 reservaId,
                 paymentId,

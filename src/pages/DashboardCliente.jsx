@@ -1418,7 +1418,7 @@ function DashboardCliente() {
       if (!resp.ok) {
         throw new Error(dados?.error || t('Não foi possível gerar a preferência de pagamento.'));
       }
-      const linkPagamento = dados?.sandboxInitPoint || dados?.initPoint;
+      const linkPagamento = dados?.initPoint || dados?.sandboxInitPoint;
       if (linkPagamento) {
         window.open(linkPagamento, '_blank');
         fb('sucesso', t('Guia do Mercado Pago aberta em uma nova aba.'));

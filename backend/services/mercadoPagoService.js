@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { MercadoPagoConfig, Preference, Payment, PaymentRefund } = require('mercadopago');
 
 function obterClienteMercadoPago() {
@@ -139,7 +140,38 @@ async function reembolsarPagamento(paymentId, valorEstorno = null) {
     }
 }
 
+/**
+ * Valida a assinatura (header x-signature) das notificações do Mercado Pago.
+ * Manifesto: "id:<data.id em minúsculas>;request-id:<x-request-id>;ts:<ts>;" assinado com HMAC-SHA256.
+ * @returns {{ valida: boolean, motivo?: string }}
+ */
+function validarAssinaturaWebhook({ headers = {}, query = {}, body = {} }, segredo = process.env.MERCADO_PAGO_WEBHOOK_SECRET) {
+    if (!segredo || !segredo.trim()) {
+        return { valida: false, motivo: 'segredo_nao_configurado' };
+    }
+
+    const assinatura = String(headers['x-signature'] || '');
+    const requestId = String(headers['x-request-id'] || '');
+    const partes = Object.fromEntries(
+        assinatura.split(',').map(p => p.trim().split('=').map(s => s.trim())).filter(p => p.length === 2)
+    );
+    const { ts, v1 } = partes;
+    if (!ts || !v1) return { valida: false, motivo: 'assinatura_ausente' };
+
+    const dataId = String(query['data.id'] || body?.data?.id || '').toLowerCase();
+    const manifesto = `${dataId ? `id:${dataId};` : ''}${requestId ? `request-id:${requestId};` : ''}ts:${ts};`;
+    const esperado = crypto.createHmac('sha256', segredo.trim()).update(manifesto).digest('hex');
+
+    const a = Buffer.from(esperado);
+    const b = Buffer.from(v1);
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+        return { valida: false, motivo: 'assinatura_invalida' };
+    }
+    return { valida: true };
+}
+
 module.exports = {
+    validarAssinaturaWebhook,
     criarPreferenciaPagamento,
     consultarPagamento,
     buscarPagamentoPorReserva,
