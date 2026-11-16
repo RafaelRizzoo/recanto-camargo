@@ -6,6 +6,12 @@ const { verificarToken } = require('../middlewares/authMiddleware');
 // Cria ou obtém preferência de pagamento no Mercado Pago para a reserva
 router.post('/criar-preferencia/:reservaId', verificarToken, pagamentoController.criarPreferencia);
 
+// Checkout Transparente (Payment Brick): dados para montar o Brick (valor do banco + chave pública)
+router.get('/checkout/:reservaId', verificarToken, pagamentoController.obterDadosCheckout);
+
+// Checkout Transparente (Payment Brick): processa cartão/Pix dentro do site
+router.post('/processar/:reservaId', verificarToken, pagamentoController.processarPagamento);
+
 // Consulta o status do pagamento no banco para a reserva
 router.get('/status/:reservaId', verificarToken, pagamentoController.consultarStatus);
 

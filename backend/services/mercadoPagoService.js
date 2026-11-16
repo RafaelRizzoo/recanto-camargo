@@ -51,7 +51,7 @@ async function criarPreferenciaPagamento(reserva, usuario) {
             email: usuario.Usu_Email || 'hospede@recantocamargo.com.br'
         },
         back_urls: {
-            success: `${appFrontendUrl}/ReservaConcluida?reservaId=${reserva.Res_Id}`,
+            success: `${appFrontendUrl}/ReservaConcluida/${reserva.Res_Id}?pago=1`,
             failure: `${appFrontendUrl}/DashboardCliente`,
             pending: `${appFrontendUrl}/DashboardCliente`
         },
@@ -170,7 +170,29 @@ function validarAssinaturaWebhook({ headers = {}, query = {}, body = {} }, segre
     return { valida: true };
 }
 
+/**
+ * Cria um pagamento transparente (Payment Brick) na Payments API.
+ * A chave de idempotência (X-Idempotency-Key) evita cobrança duplicada em reenvios/cliques duplos.
+ * @param {Object} body - corpo conforme a Payments API (transaction_amount, token, payment_method_id, payer...)
+ * @param {string} idempotencyKey
+ */
+async function criarPagamento(body, idempotencyKey) {
+    const client = obterClienteMercadoPago();
+    const payment = new Payment(client);
+    return await payment.create({ body, requestOptions: { idempotencyKey } });
+}
+
+/**
+ * Formata uma data para o padrão exigido pela API (yyyy-MM-dd'T'HH:mm:ss.SSSz), com fuso de Brasília (-03:00).
+ */
+function formatarDataMercadoPago(data) {
+    const brasilia = new Date(data.getTime() - 3 * 60 * 60 * 1000);
+    return brasilia.toISOString().replace('Z', '-03:00');
+}
+
 module.exports = {
+    criarPagamento,
+    formatarDataMercadoPago,
     validarAssinaturaWebhook,
     criarPreferenciaPagamento,
     consultarPagamento,

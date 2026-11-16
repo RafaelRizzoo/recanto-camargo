@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { usePreferencias } from '../hooks/usePreferencias';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { API_BASE } from '../utils/api';
 import '../components/home/home.css';
 import './ReservaConcluida.css';
@@ -18,6 +18,8 @@ function formatarMoeda(valor) {
 function ReservaConcluida() {
   const { t } = usePreferencias();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const pago = searchParams.get('pago') === '1'; // vindo da tela de pagamento
   const navigate = useNavigate();
   const [reserva, setReserva] = useState(null);
   const [erro, setErro] = useState(false);
@@ -84,9 +86,11 @@ function ReservaConcluida() {
         <div className="rc-conc-selo" aria-hidden="true">
           <i className="bi bi-check-lg" />
         </div>
-        <h1>{t("Reserva solicitada!")}</h1>
+        <h1>{pago ? t("Pagamento confirmado!") : t("Reserva solicitada!")}</h1>
         <p className="rc-conc-texto">
-          {t("A solicitação foi recebida para análise do proprietário. Acompanhe o status e realize o pagamento no seu painel.")}
+          {pago
+            ? t("Recebemos o seu pagamento e a sua reserva está garantida. Os detalhes estão abaixo e também no seu painel.")
+            : t("A solicitação foi recebida para análise do proprietário. Acompanhe o status e realize o pagamento no seu painel.")}
         </p>
 
         <dl className="rc-conc-detalhes">

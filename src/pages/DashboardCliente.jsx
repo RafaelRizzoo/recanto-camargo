@@ -1404,34 +1404,13 @@ function DashboardCliente() {
     }
   }, [reservas, modalDetalhe, t]);
 
-  // Integração Mercado Pago — Gerar preferência e abrir Checkout Pro
-  const handlePagar = useCallback(async (reserva) => {
+  // Pagamento (Mercado Pago): abre a tela de Checkout Transparente (cartão/Pix dentro do site).
+  // O Checkout Pro continua disponível como alternativa dentro dessa tela (pages/Pagamento.jsx).
+  const handlePagar = useCallback((reserva) => {
     if (!reserva?.id) return;
-    try {
-      setPagandoReservaId(reserva.id);
-      const resp = await fetch(`${API_BASE}/api/pagamentos/criar-preferencia/${reserva.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include'
-      });
-      const dados = await resp.json().catch(() => null);
-      if (!resp.ok) {
-        throw new Error(dados?.error || t('Não foi possível gerar a preferência de pagamento.'));
-      }
-      const linkPagamento = dados?.initPoint || dados?.sandboxInitPoint;
-      if (linkPagamento) {
-        window.open(linkPagamento, '_blank');
-        fb('sucesso', t('Guia do Mercado Pago aberta em uma nova aba.'));
-      } else {
-        throw new Error(t('Link de pagamento não retornado pela operadora.'));
-      }
-    } catch (err) {
-      console.error('Erro ao abrir pagamento:', err);
-      fb('erro', err.message || t('Erro ao abrir o checkout.'));
-    } finally {
-      setPagandoReservaId(null);
-    }
-  }, [t]);
+    setPagandoReservaId(reserva.id); // a tela de pagamento é carregada sob demanda (lazy)
+    navigate(`/Pagamento/${reserva.id}`);
+  }, [navigate]);
 
   const abrirModalAvaliacao = useCallback((reserva) => {
     setErroAvaliacao('');

@@ -1,0 +1,93 @@
+.pg-card {
+  max-width: 560px;
+}
+
+.pg-brick {
+  margin: 8px 0 16px;
+  text-align: left;
+}
+
+.pg-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.pg-aviso-erro {
+  background: var(--rc-err-bg);
+  border: 1px solid var(--rc-err-borda);
+  color: var(--rc-err);
+}
+
+.pg-alternativas {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pg-dev {
+  color: var(--rc-muted);
+  font-size: 0.85rem;
+}
+
+.pg-voltar {
+  display: block;
+  margin: 18px auto 0;
+}
+
+.pg-pix {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+}
+
+.pg-qr {
+  width: 220px;
+  height: 220px;
+  padding: 8px;
+  background: #fff; /* QR Code precisa de fundo claro para ser lido, inclusive no tema escuro */
+  border: 1px solid var(--rc-line);
+  border-radius: 16px;
+}
+
+.pg-copia {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+}
+
+.pg-copia input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--rc-line);
+  border-radius: 12px;
+  background: var(--rc-card);
+  color: var(--rc-ink);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+}
+
+.pg-validade,
+.pg-espera {
+  margin: 0;
+  color: var(--rc-muted);
+  font-size: 0.92rem;
+}
+
+.pg-validade strong {
+  color: var(--rc-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .pg-card {
+    padding: 28px 18px 24px;
+  }
+}

@@ -168,3 +168,22 @@ test('processarCancelamentoReservasAbandonadas cancela PENDENTE expirada (>48h) 
     assert.equal(statusAtualizado.length, 1);
     assert.equal(statusAtualizado[0].params[0], 802);
 });
+
+test('processarCancelamentoReservasAbandonadas dá carência a reservas com Pix pendente recente (35 min)', async () => {
+    let sqlConsulta = '';
+    const mockDb = {
+        query: async (sql) => {
+            if (/SELECT[\s\S]*FROM res_reserva/i.test(sql)) {
+                sqlConsulta = sql;
+                return [[]];
+            }
+            throw new Error(`Consulta inesperada: ${sql}`);
+        }
+    };
+
+    await processarCancelamentoReservasAbandonadas({ db: mockDb });
+    const normalizado = sqlConsulta.replace(/\s+/g, ' ');
+    assert.match(normalizado, /NOT EXISTS \( SELECT 1 FROM pag_pagamento p/);
+    assert.match(normalizado, /p\.Pag_Status = 'PENDENTE'/);
+    assert.match(normalizado, /INTERVAL 35 MINUTE/);
+});

@@ -19,7 +19,16 @@ async function processarCancelamentoReservasAbandonadas({ db, emailService, noti
         JOIN usu_usuario u ON r.Hos_Hospede_Usu_Id = u.Usu_Id
         LEFT JOIN imo_imovel i ON i.Imo_Id = r.Imo_Id
         WHERE (
-            (r.Res_Status = 'PAGAMENTO_PENDENTE' AND (
+            (r.Res_Status = 'PAGAMENTO_PENDENTE'
+             -- Carência: Pix gerado há pouco (validade de 30 min) ainda pode ser pago; não cancela a reserva agora
+             AND NOT EXISTS (
+                SELECT 1 FROM pag_pagamento p
+                WHERE p.Res_Id = r.Res_Id
+                  AND p.Pag_Status = 'PENDENTE'
+                  AND p.Pag_TransacaoId IS NOT NULL
+                  AND p.Pag_DataHora > DATE_SUB(NOW(), INTERVAL 35 MINUTE)
+             )
+             AND (
                 COALESCE(
                     (SELECT MAX(h.His_DataAlteracao) 
                      FROM his_historicoreservastatus h 

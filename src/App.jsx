@@ -18,6 +18,7 @@ const Fotos                  = lazy(() => import("./pages/Fotos"));
 const DashboardAdministrador = lazy(() => import("./pages/DashboardAdministrador"));
 const DashboardCliente       = lazy(() => import("./pages/DashboardCliente"));
 const ReservaConcluida       = lazy(() => import("./pages/ReservaConcluida"));
+const Pagamento              = lazy(() => import("./pages/Pagamento"));
 const TermosDeUso             = lazy(() => import("./pages/TermosDeUso"));
 const Privacidade             = lazy(() => import("./pages/Privacidade"));
 
@@ -31,6 +32,7 @@ const ROTAS_COM_TEMA = [
   '/cadastro',
   '/recuperarsenha',
   '/reservaconcluida',
+  '/pagamento',
   '/dashboardcliente',
   '/dashboardadministrador',
   '/configuracoes',
@@ -42,7 +44,8 @@ const ROTAS_SEM_LAYOUT = [
   '/RecuperarSenha',
   '/DashboardAdministrador',
   '/DashboardCliente',
-  '/ReservaConcluida'
+  '/ReservaConcluida',
+  '/Pagamento'
 ];
 
 function CarregandoPagina() {
@@ -107,6 +110,7 @@ function AppContent() {
             <Route path="/Login"                  element={<Login />} />
             <Route path="/RecuperarSenha"         element={<RecuperarSenha />} />
             <Route path="/ReservaConcluida/:id"   element={<ReservaConcluida />} />
+            <Route path="/Pagamento/:id"          element={<RotaProtegida elemento={<Pagamento />} tipoRequerido="hospede" />} />
             <Route path="/Configuracoes"          element={<RotaProtegida elemento={<Configuracoes />} />} />
             <Route path="/Reserva"                element={<Reserva />} />
             <Route path="/Avaliacoes"             element={<Avaliacoes />} />
