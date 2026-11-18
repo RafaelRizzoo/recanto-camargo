@@ -24,7 +24,11 @@ function resetar() {
         statusAtualDb: 'PAGAMENTO_PENDENTE',
         reembolsos: [],
         erroReembolso: null,
-        pagAnterior: null
+        pagAnterior: null,
+        statusRelido: null,
+        rollbacks: 0,
+        pagParaCancelar: null,
+        checkinCancelamento: new Date(Date.now() + 30 * 24 * 3600 * 1000)
     };
 }
 resetar();
@@ -33,7 +37,7 @@ const bancoMock = {
     async getConnection() { return this; },
     async beginTransaction() {},
     async commit() {},
-    async rollback() {},
+    async rollback() { estado.rollbacks++; },
     release() {},
     destroy() {},
     async query(sql, parametros = []) {
@@ -71,6 +75,21 @@ const bancoMock = {
                 Pro_Proprietario_Usu_Id: 7,
                 proprietarioEmail: 'dono@teste.com'
             }]];
+        }
+        if (texto.startsWith('SELECT Res_Status FROM res_reserva')) {
+            return [estado.statusRelido ? [{ Res_Status: estado.statusRelido }] : []];
+        }
+        if (texto.startsWith('SELECT Res_Status, Imo_Id')) {
+            return [[{
+                Res_Status: 'CONFIRMADA',
+                Imo_Id: 1,
+                Res_DataCheckIn: estado.checkinCancelamento,
+                Res_DataCheckOut: new Date(estado.checkinCancelamento.getTime() + 2 * 24 * 3600 * 1000),
+                Res_ValorTotal: estado.valorReserva
+            }]];
+        }
+        if (texto.startsWith('SELECT Pag_Id, Pag_Status, Pag_Valor')) {
+            return [estado.pagParaCancelar ? [estado.pagParaCancelar] : []];
         }
         if (texto.startsWith('UPDATE res_reserva SET Res_Status')) {
             return [{ affectedRows: estado.affectedRows }];
@@ -191,6 +210,9 @@ test('processar: pagamento aprovado com valor diferente do banco não confirma a
     const res = await processar(formCartao());
     assert.equal(res.status, 502);
     assert.ok(!estado.consultas.some(c => c.sql.startsWith('UPDATE res_reserva SET Res_Status')));
+    // SEC-006: o valor cobrado a mais/menos volta ao cliente em vez de ficar retido
+    assert.deepEqual(estado.reembolsos, [{ paymentId: 779, valor: undefined }]);
+    assert.match((await res.json()).error, /estornado/i);
 });
 
 test('processar: cartão recusado devolve mensagem amigável (402) sem vazar status_detail', async () => {
@@ -405,4 +427,148 @@ test('processar: reserva cancelada entre a cobrança e a confirmação devolve 4
     assert.equal(res.status, 409);
     assert.match((await res.json()).error, /não está mais disponível/i);
     assert.equal(estado.reembolsos.length, 1);
+});
+
+
+// ---- Correções do relatório do Guardian (SEC-001 a SEC-008) ----
+
+test('SEC-002: reserva cancelada entre a leitura e a confirmação estorna e não deixa pagamento APROVADO', async () => {
+    estado.affectedRows = 0;          // o UPDATE atômico não encontrou PAGAMENTO_PENDENTE
+    estado.statusRelido = 'CANCELADA'; // outra rotina cancelou no intervalo
+    const resultado = await controller.efetivarAprovacaoPagamento(1, 'MP-60', { payment_type_id: 'bank_transfer' }, null);
+
+    assert.equal(resultado.confirmada, false);
+    assert.equal(resultado.estornado, true);
+    assert.deepEqual(estado.reembolsos, [{ paymentId: 'MP-60', valor: undefined }]);
+});
+
+test('SEC-002: se outra chamada já confirmou a reserva, nada é estornado (idempotente)', async () => {
+    estado.affectedRows = 0;
+    estado.statusRelido = 'CONFIRMADA';
+    const resultado = await controller.efetivarAprovacaoPagamento(1, 'MP-61', { payment_type_id: 'bank_transfer' }, null);
+
+    assert.equal(resultado.confirmada, true);
+    assert.equal(estado.reembolsos.length, 0);
+});
+
+test('SEC-003: segundo pagamento aprovado da mesma reserva é estornado e não sobrescreve o primeiro', async () => {
+    estado.pagAnterior = { Pag_Status: 'APROVADO', Pag_TransacaoId: 'MP-A' };
+    const resultado = await controller.efetivarAprovacaoPagamento(1, 'MP-B', { payment_type_id: 'credit_card' }, null);
+
+    assert.equal(resultado.duplicado, true);
+    assert.equal(resultado.estornado, true);
+    assert.deepEqual(estado.reembolsos, [{ paymentId: 'MP-B', valor: undefined }]);
+    assert.ok(!estado.consultas.some(c => /^(INSERT INTO|UPDATE) pag_pagamento/.test(c.sql)), 'não pode gravar por cima do pagamento original');
+    assert.ok(!estado.consultas.some(c => c.sql.startsWith('UPDATE res_reserva SET Res_Status')));
+});
+
+test('SEC-003: a mesma transação aprovada de novo não é tratada como duplicada', async () => {
+    estado.pagAnterior = { Pag_Status: 'APROVADO', Pag_TransacaoId: 'MP-A' };
+    const resultado = await controller.efetivarAprovacaoPagamento(1, 'MP-A', { payment_type_id: 'credit_card' }, null);
+
+    assert.equal(resultado.duplicado, undefined);
+    assert.equal(estado.reembolsos.length, 0);
+});
+
+test('SEC-004: reserva ainda PENDENTE (sem aprovação do proprietário) não recebe pagamento', async () => {
+    estado.statusReserva = 'PENDENTE';
+    estado.respostaMP = { id: 801, status: 'approved', transaction_amount: 450, payment_type_id: 'credit_card' };
+
+    const res = await processar(formCartao());
+    assert.equal(res.status, 409);
+    assert.equal(estado.chamadasMP.length, 0, 'nada pode ser cobrado');
+});
+
+test('SEC-004: reserva CONFIRMADA responde 400 sem cobrar de novo', async () => {
+    estado.statusReserva = 'CONFIRMADA';
+    const res = await processar(formCartao());
+    assert.equal(res.status, 400);
+    assert.equal(estado.chamadasMP.length, 0);
+});
+
+test('SEC-004: aprovação que chega para reserva PENDENTE é estornada, não confirma pulando o proprietário', async () => {
+    estado.statusAtualDb = 'PENDENTE';
+    const resultado = await controller.efetivarAprovacaoPagamento(1, 'MP-70', { payment_type_id: 'bank_transfer' }, null);
+
+    assert.equal(resultado.confirmada, false);
+    assert.equal(estado.reembolsos.length, 1);
+    assert.ok(!estado.consultas.some(c => c.sql.startsWith('UPDATE res_reserva SET Res_Status')));
+});
+
+test('SEC-004: o UPDATE de confirmação só atua sobre PAGAMENTO_PENDENTE', async () => {
+    await controller.efetivarAprovacaoPagamento(1, 'MP-71', { payment_type_id: 'bank_transfer' }, null);
+    const update = estado.consultas.find(c => c.sql.startsWith('UPDATE res_reserva SET Res_Status'));
+    assert.match(update.sql, /Res_Status = 'PAGAMENTO_PENDENTE'/);
+});
+
+test('SEC-007: em produção a simulação de pagamento fica indisponível mesmo com PAGAMENTO_SIMULADO=true', async () => {
+    const anterior = { env: process.env.NODE_ENV, sim: process.env.PAGAMENTO_SIMULADO };
+    process.env.PAGAMENTO_SIMULADO = 'true';
+    process.env.NODE_ENV = 'production';
+    try {
+        const sim = await fetch(`${base}/api/pagamentos/simular-aprovacao/1`, { method: 'POST', headers: { Cookie: cookie(41) } });
+        assert.equal(sim.status, 404);
+        const checkout = await fetch(`${base}/api/pagamentos/checkout/1`, { headers: { Cookie: cookie(41) } });
+        assert.equal((await checkout.json()).simuladoDisponivel, false);
+    } finally {
+        process.env.NODE_ENV = anterior.env;
+        if (anterior.sim === undefined) delete process.env.PAGAMENTO_SIMULADO; else process.env.PAGAMENTO_SIMULADO = anterior.sim;
+    }
+});
+
+test('SEC-008: fora de desenvolvimento/teste o webhook sem segredo é rejeitado (401)', async () => {
+    const anterior = process.env.NODE_ENV;
+    delete process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+    process.env.NODE_ENV = 'production';
+    try {
+        const res = await fetch(`${base}/api/pagamentos/webhook?type=payment&data.id=1`, { method: 'POST' });
+        assert.equal(res.status, 401);
+    } finally {
+        process.env.NODE_ENV = anterior;
+    }
+});
+
+// ---- SEC-001: cancelamento pelo hóspede nunca afirma estorno que não aconteceu ----
+
+const hospedeController = require('../controllers/hospedeController');
+
+function respostaFalsa() {
+    return { code: 200, body: null, status(c) { this.code = c; return this; }, json(b) { this.body = b; return this; } };
+}
+function requisicaoCancelamento() {
+    return { usuario: { id: 41, tipo: 'hospede' }, params: { id: '1' }, body: {}, app: { get: () => null } };
+}
+
+test('SEC-001: se o estorno falhar, o cancelamento é desfeito (502) e o pagamento continua APROVADO', async () => {
+    estado.pagParaCancelar = { Pag_Id: 5, Pag_Status: 'APROVADO', Pag_Valor: '450.00', Pag_TransacaoId: 'MP-100', Pag_Metodo: 'CARTAO_CREDITO' };
+    estado.erroReembolso = new Error('saldo insuficiente');
+    const res = respostaFalsa();
+    await hospedeController.cancelarReserva(requisicaoCancelamento(), res);
+
+    assert.equal(res.code, 502);
+    assert.match(res.body.error, /não foi cancelada/i);
+    assert.ok(estado.rollbacks >= 1, 'a transação precisa ser desfeita');
+    assert.ok(!estado.consultas.some(c => c.sql.startsWith('UPDATE pag_pagamento')), 'não pode marcar como reembolsado');
+    assert.ok(!estado.consultas.some(c => /SET Res_Status = 'CANCELADA'/.test(c.sql)), 'a reserva não pode ser cancelada');
+});
+
+test('SEC-001: estorno confirmado pelo Mercado Pago cancela a reserva e grava o id real do estorno', async () => {
+    estado.pagParaCancelar = { Pag_Id: 5, Pag_Status: 'APROVADO', Pag_Valor: '450.00', Pag_TransacaoId: 'MP-101', Pag_Metodo: 'CARTAO_CREDITO' };
+    const res = respostaFalsa();
+    await hospedeController.cancelarReserva(requisicaoCancelamento(), res);
+
+    assert.equal(res.code, 200);
+    assert.deepEqual(estado.reembolsos, [{ paymentId: 'MP-101', valor: 450 }]);
+    const atualizacao = estado.consultas.find(c => c.sql.startsWith('UPDATE pag_pagamento'));
+    assert.equal(atualizacao.parametros[0], 'REEMBOLSADO');
+    assert.equal(atualizacao.parametros[2], 'REF-1');
+});
+
+test('SEC-001: pagamento simulado (SIM_) cancela sem chamar o Mercado Pago', async () => {
+    estado.pagParaCancelar = { Pag_Id: 6, Pag_Status: 'APROVADO', Pag_Valor: '450.00', Pag_TransacaoId: 'SIM_123', Pag_Metodo: 'PIX' };
+    const res = respostaFalsa();
+    await hospedeController.cancelarReserva(requisicaoCancelamento(), res);
+
+    assert.equal(res.code, 200);
+    assert.equal(estado.reembolsos.length, 0);
 });

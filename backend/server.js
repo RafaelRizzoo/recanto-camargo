@@ -22,7 +22,13 @@ const pagamentoRoutes = require('./routes/pagamentoRoutes');
 
 const app = express();
 
-// Configurações iniciais 
+// Atrás do proxy do host (Render etc.): o limitador de tentativas precisa enxergar o IP real do cliente.
+if (process.env.NODE_ENV === 'production') app.set('trust proxy', 1);
+
+// Verificação de saúde para o host (não toca no banco).
+app.get('/healthz', (req, res) => res.json({ ok: true }));
+
+// Configurações iniciais
 app.use(cors({
     origin: criarVerificadorOrigem(),
     credentials: true
@@ -53,6 +59,12 @@ app.use(errorHandler);
 // --- INICIALIZAÇÃO ---
 const PORT = process.env.PORT || 3000;
 if (require.main === module) {
+    // Fora de desenvolvimento/teste explícitos (NODE_ENV ausente conta como produção), o webhook do
+    // Mercado Pago precisa de segredo: sem ele qualquer um poderia forçar consultas e confirmações.
+    if (!['development', 'test'].includes(process.env.NODE_ENV) && !(process.env.MERCADO_PAGO_WEBHOOK_SECRET || '').trim()) {
+        console.error('Configuração insegura: defina MERCADO_PAGO_WEBHOOK_SECRET (ou NODE_ENV=development em ambiente local).');
+        process.exit(1);
+    }
     app.listen(PORT, () => {
         console.log(`🚀 Servidor rodando na porta ${PORT}`);
 

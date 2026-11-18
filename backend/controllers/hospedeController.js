@@ -51,14 +51,26 @@ exports.cancelarReserva = async (req, res) => {
             if (pagamentos.length > 0 && calculo.valorReembolso > 0) {
                 const pagamento = pagamentos[0];
                 if (pagamento.Pag_TransacaoId) {
-                    try {
-                        const resultadoRefund = await reembolsarPagamento(pagamento.Pag_TransacaoId, calculo.valorReembolso);
-                        refundId = String(resultadoRefund?.id || resultadoRefund?.data?.id || `refund_${Date.now()}`);
+                    if (String(pagamento.Pag_TransacaoId).startsWith('SIM_')) {
+                        // Pagamento simulado (só existe em desenvolvimento): não há estorno real no Mercado Pago.
+                        refundId = `SIM_REFUND_${Date.now()}`;
                         estornoRealizado = true;
-                    } catch (errMP) {
-                        console.warn(`Aviso Mercado Pago no cancelamento do hóspede ${pagamento.Pag_TransacaoId}:`, errMP.message);
-                        refundId = `sandbox_refund_${Date.now()}`;
-                        estornoRealizado = true;
+                    } else {
+                        try {
+                            const resultadoRefund = await reembolsarPagamento(pagamento.Pag_TransacaoId, calculo.valorReembolso);
+                            const idReembolso = resultadoRefund?.id || resultadoRefund?.data?.id;
+                            if (!idReembolso) throw new Error('Mercado Pago não retornou o identificador do estorno.');
+                            refundId = String(idReembolso);
+                            estornoRealizado = true;
+                        } catch (errMP) {
+                            // Nunca afirmar que o estorno foi feito sem que o Mercado Pago o confirme:
+                            // a reserva continua confirmada e o hóspede pode tentar de novo.
+                            console.error(`[ESTORNO FALHOU] reserva=${reservaId} pagamento=${pagamento.Pag_Id} transacao=${pagamento.Pag_TransacaoId}:`, errMP?.message || errMP);
+                            await conexao.rollback();
+                            return res.status(502).json({
+                                error: 'Não foi possível processar o estorno agora, então a reserva não foi cancelada. Tente novamente em instantes ou fale com o anfitrião.'
+                            });
+                        }
                     }
 
                     const novoPagStatus = calculo.valorReembolso >= Number(pagamento.Pag_Valor) ? 'REEMBOLSADO' : 'APROVADO';
