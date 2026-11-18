@@ -5,8 +5,8 @@ Ambiente **de teste** para apresentação, não é produção. Usa só credencia
 | Peça | Serviço | URL |
 |---|---|---|
 | Front (estático) | GitHub Pages | `https://rafaelrizzoo.github.io/recanto-camargo/` |
-| API Node/Express | Render (Web Service, plano Free) | `https://<nome-do-servico>.onrender.com` |
-| Banco | TiDB Cloud Starter (MySQL-compatível, Free) | endpoint `gateway01.<regiao>.prod.aws.tidbcloud.com:4000` |
+| API Node/Express | Render (Web Service, plano Free) | `https://recanto-camargo-api-mpu8.onrender.com` |
+| Banco | TiDB Cloud Starter (MySQL-compatível, Free) | `gateway01.us-east-1.prod.aws.tidbcloud.com:4000` (banco `test`) |
 
 > Preencha as URLs reais depois de criar os serviços. Nunca coloque valores secretos neste arquivo nem no repositório.
 
