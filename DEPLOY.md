@@ -106,4 +106,12 @@ O deploy depende das correções de pagamento que estão na branch `feat/mercado
 
 ## Validação ponta a ponta
 
-Registrar aqui o resultado real após o deploy (cadastro/login, consulta de datas, criar reserva, aprovar como proprietário, pagar com cartão de teste, confirmação via webhook, concorrência da reserva com `FOR UPDATE`). Nada disso foi executado ainda: as contas no Render e no TiDB não existem.
+Verificado em 18/11/2026 (por requisições HTTP, sem login):
+- `GET /healthz` e `GET /api/imoveis` respondem 200; a API conecta ao TiDB com TLS e devolve os 2 imóveis do seed.
+- CORS libera `https://rafaelrizzoo.github.io` (com credenciais) e não libera outras origens.
+- O bundle publicado no Pages contém a URL da API (`VITE_API_URL`).
+- `POST /api/pagamentos/webhook` sem assinatura válida responde 401.
+
+Testado manualmente pelo responsável no site publicado (Chrome, 18/11/2026): cadastro e login, criar reserva, aprovar como proprietário, pagar com cartão de teste e conferir no painel — tudo funcionou.
+
+**Não verificado de forma independente:** a confirmação automática pelo webhook (conferir nos logs do Render que a chamada chegou assinada), a concorrência da reserva (`FOR UPDATE`) com duas reservas simultâneas, e o comportamento em navegadores que bloqueiam cookies de terceiros (Safari, janela anônima, Brave).
