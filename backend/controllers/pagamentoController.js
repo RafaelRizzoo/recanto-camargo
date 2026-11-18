@@ -26,6 +26,53 @@ async function valorPagoConfere(reservaId, pagamentoMP) {
     return true;
 }
 
+/**
+ * Pagamento aprovado com valor diferente do total da reserva: o dinheiro já saiu do cliente, então o
+ * valor é estornado por completo. Só estorna automaticamente o que sabidamente é desta aplicação
+ * (a descrição é montada por nós); o resto fica no log para conferência manual, para nunca estornar
+ * por engano um pagamento de outra origem na mesma conta do Mercado Pago.
+ * @returns {Promise<boolean>} true se o estorno foi realizado
+ */
+async function estornarPagamentoDivergente(reservaId, pagamentoMP, { confiavel = false } = {}) {
+    const idPagamento = pagamentoMP?.id;
+    const ehNosso = confiavel || String(pagamentoMP?.description || '') === `Reserva Chalé Recanto Camargo #${reservaId}`;
+    if (!idPagamento || !ehNosso) {
+        console.error(`[DIVERGENCIA] Pagamento ${idPagamento} (reserva ${reservaId}) com valor divergente; não foi possível confirmar que pertence a esta aplicação. Verifique manualmente.`);
+        return false;
+    }
+    try {
+        await reembolsarPagamento(idPagamento);
+        console.warn(`[DIVERGENCIA] Pagamento ${idPagamento} (reserva ${reservaId}) com valor divergente foi estornado integralmente.`);
+        return true;
+    } catch (erro) {
+        console.error(`[DIVERGENCIA] ATENÇÃO: estorno automático do pagamento ${idPagamento} (reserva ${reservaId}) falhou. Estorne manualmente.`, erro?.message || erro);
+        return false;
+    }
+}
+
+/**
+ * Só uma reserva já aprovada pelo proprietário (PAGAMENTO_PENDENTE) pode receber pagamento.
+ * @returns {{status: number, mensagem: string}|null} erro, ou null quando a reserva pode ser paga
+ */
+function erroReservaNaoPagavel(statusReserva) {
+    if (statusReserva === 'PAGAMENTO_PENDENTE') return null;
+    if (statusReserva === 'CANCELADA' || statusReserva === 'RECUSADA') {
+        return { status: 400, mensagem: `Esta reserva encontra-se ${statusReserva.toLowerCase()} e não pode receber pagamentos.` };
+    }
+    if (statusReserva === 'CONFIRMADA') {
+        return { status: 400, mensagem: 'Esta reserva já está confirmada.' };
+    }
+    return { status: 409, mensagem: 'Esta reserva não está aguardando pagamento.' };
+}
+
+/**
+ * A simulação de pagamento só existe fora de produção E com PAGAMENTO_SIMULADO=true. Em produção ela
+ * nunca é liberada, mesmo que a variável seja copiada por engano do .env de desenvolvimento.
+ */
+function simulacaoPermitida() {
+    return process.env.NODE_ENV !== 'production' && process.env.PAGAMENTO_SIMULADO === 'true';
+}
+
 const PIX_VALIDADE_MINUTOS = 30; // mínimo aceito pela API do Mercado Pago
 const PIX_MARGEM_SEGUNDOS = 60;  // folga para relógio/latência não ficar abaixo do mínimo
 
@@ -131,8 +178,36 @@ async function efetivarAprovacaoPagamento(reservaId, transacaoId, metodo = 'PIX'
     const [valores] = await db.query(`SELECT Res_ValorTotal, Res_Status FROM res_reserva WHERE Res_Id = ?`, [reservaId]);
     const valorReserva = valores.length > 0 ? Number(valores[0].Res_ValorTotal) || 0 : 0;
 
-    if (valores.length > 0 && (valores[0].Res_Status === 'CANCELADA' || valores[0].Res_Status === 'RECUSADA')) {
+    // Só PAGAMENTO_PENDENTE (aprovada pelo proprietário) vira CONFIRMADA. Qualquer outro estado que não
+    // seja a própria CONFIRMADA (CANCELADA, RECUSADA, PENDENTE sem aprovação, CONCLUIDA) não é reconfirmado:
+    // o valor pago volta ao cliente.
+    if (valores.length > 0 && !['PAGAMENTO_PENDENTE', 'CONFIRMADA'].includes(valores[0].Res_Status)) {
         return tratarPagamentoDeReservaInativa(reservaId, transacaoId, metodoBanco, valorReserva);
+    }
+
+    // Pagamento duplicado (ex.: Pix e cartão aprovados para a mesma reserva): o primeiro aprovado vale,
+    // o segundo é estornado e nunca sobrescreve a transação já registrada.
+    const [aprovadoAnterior] = await db.query(
+        `SELECT Pag_Status, Pag_TransacaoId FROM pag_pagamento WHERE Res_Id = ?`,
+        [reservaId]
+    );
+    if (
+        aprovadoAnterior[0]
+        && aprovadoAnterior[0].Pag_Status === 'APROVADO'
+        && aprovadoAnterior[0].Pag_TransacaoId
+        && String(aprovadoAnterior[0].Pag_TransacaoId) !== String(transacaoId)
+    ) {
+        let estornado = false;
+        if (!String(transacaoId).startsWith('SIM_')) {
+            try {
+                await reembolsarPagamento(transacaoId);
+                estornado = true;
+            } catch (erro) {
+                console.error(`[DUPLICADO] ATENÇÃO: pagamento ${transacaoId} duplicado na reserva #${reservaId} (já paga com ${aprovadoAnterior[0].Pag_TransacaoId}) e o estorno automático falhou. Estorne manualmente.`, erro?.message || erro);
+            }
+        }
+        console.warn(`[DUPLICADO] Reserva #${reservaId} já paga com ${aprovadoAnterior[0].Pag_TransacaoId}; pagamento ${transacaoId} ${estornado ? 'estornado' : 'aguarda estorno manual'}.`);
+        return { confirmada: true, duplicado: true, estornado };
     }
 
     await gravarPagamento(reservaId, 'APROVADO', metodoBanco, valorReserva, transacaoId);
@@ -156,10 +231,19 @@ async function efetivarAprovacaoPagamento(reservaId, transacaoId, metodo = 'PIX'
         const statusAnterior = dadosReserva.Res_Status;
         // Transição atômica: só quem de fato mudou o status segue para histórico, notificações e e-mails.
         const [atualizacao] = await db.query(
-            `UPDATE res_reserva SET Res_Status = 'CONFIRMADA' WHERE Res_Id = ? AND Res_Status NOT IN ('CONFIRMADA', 'CANCELADA', 'RECUSADA')`,
+            `UPDATE res_reserva SET Res_Status = 'CONFIRMADA' WHERE Res_Id = ? AND Res_Status = 'PAGAMENTO_PENDENTE'`,
             [reservaId]
         );
-        if (!atualizacao || !atualizacao.affectedRows) return { confirmada: true };
+        if (!atualizacao || !atualizacao.affectedRows) {
+            // Ninguém foi alterado: ou outra chamada já confirmou (idempotente), ou a reserva mudou de estado
+            // (cancelada/expirada) entre a leitura e a confirmação. Nesse segundo caso o pagamento não pode
+            // ficar APROVADO em reserva inativa: é estornado.
+            const [atual] = await db.query(`SELECT Res_Status FROM res_reserva WHERE Res_Id = ?`, [reservaId]);
+            if (atual && atual[0] && !['PAGAMENTO_PENDENTE', 'CONFIRMADA'].includes(atual[0].Res_Status)) {
+                return tratarPagamentoDeReservaInativa(reservaId, transacaoId, metodoBanco, valorReserva);
+            }
+            return { confirmada: true };
+        }
 
         await db.query(
             `INSERT INTO his_historicoreservastatus 
@@ -263,8 +347,9 @@ exports.criarPreferencia = async (req, res) => {
             return res.status(403).json({ error: 'Acesso negado: você não tem permissão para esta reserva.' });
         }
 
-        if (reserva.Res_Status === 'CANCELADA' || reserva.Res_Status === 'RECUSADA') {
-            return res.status(400).json({ error: `Esta reserva encontra-se ${reserva.Res_Status.toLowerCase()} e não pode receber pagamentos.` });
+        const erroStatus = erroReservaNaoPagavel(reserva.Res_Status);
+        if (erroStatus) {
+            return res.status(erroStatus.status).json({ error: erroStatus.mensagem });
         }
 
         // 2. Verifica se já existe um pagamento aprovado para esta reserva
@@ -313,7 +398,7 @@ exports.criarPreferencia = async (req, res) => {
         console.error('Erro ao criar preferência no Mercado Pago:', error);
         const status = error.status || 500;
         return res.status(status).json({
-            error: error.message || 'Erro interno ao processar gateway de pagamento.'
+            error: status < 500 && error.message ? error.message : 'Pagamento online indisponível no momento. Tente novamente em instantes.'
         });
     }
 };
@@ -344,8 +429,9 @@ async function carregarReservaParaPagamento(reservaId, req) {
     if (reserva.Hos_Hospede_Usu_Id !== req.usuario.id && req.usuario.tipo !== 'proprietario') {
         return { erro: { status: 403, mensagem: 'Acesso negado: você não tem permissão para esta reserva.' } };
     }
-    if (reserva.Res_Status === 'CANCELADA' || reserva.Res_Status === 'RECUSADA') {
-        return { erro: { status: 400, mensagem: `Esta reserva encontra-se ${reserva.Res_Status.toLowerCase()} e não pode receber pagamentos.` } };
+    const erroStatus = erroReservaNaoPagavel(reserva.Res_Status);
+    if (erroStatus) {
+        return { erro: erroStatus };
     }
 
     const [pagamentos] = await db.query(
@@ -376,7 +462,7 @@ exports.obterDadosCheckout = async (req, res) => {
             publicKey: process.env.MERCADO_PAGO_PUBLIC_KEY || '',
             email: reserva.Usu_Email || '',
             // Só existe para testes locais (mesma trava de simularAprovacao)
-            simuladoDisponivel: process.env.PAGAMENTO_SIMULADO === 'true'
+            simuladoDisponivel: simulacaoPermitida()
         });
     } catch (error) {
         console.error('Erro ao obter dados do checkout:', error);
@@ -491,6 +577,52 @@ async function registrarTentativaPagamento(reservaId, pagamentoMP, valor, pagame
 }
 
 /**
+ * Reaproveita um Pix ainda válido da mesma reserva em vez de gerar outro: evita vários Pix pagáveis ao
+ * mesmo tempo (cobrança em duplicidade). Qualquer dúvida ou falha na consulta gera um Pix novo.
+ * @returns {Promise<Object|null>} corpo de resposta do /processar, ou null
+ */
+async function localizarPixPendente(reserva, pagamentoExistente, valor) {
+    if (
+        !pagamentoExistente
+        || pagamentoExistente.Pag_Status !== 'PENDENTE'
+        || pagamentoExistente.Pag_Metodo !== 'PIX'
+        || !pagamentoExistente.Pag_TransacaoId
+        || String(pagamentoExistente.Pag_TransacaoId).startsWith('SIM_')
+    ) {
+        return null;
+    }
+    try {
+        const pagamentoMP = await consultarPagamento(pagamentoExistente.Pag_TransacaoId);
+        const transacao = pagamentoMP?.point_of_interaction?.transaction_data;
+        const expiraEm = pagamentoMP?.date_of_expiration ? new Date(pagamentoMP.date_of_expiration).getTime() : 0;
+        const aindaValido = expiraEm - Date.now() > 2 * 60 * 1000;
+        if (
+            pagamentoMP?.status === 'pending'
+            && pagamentoMP.payment_method_id === 'pix'
+            && String(pagamentoMP.external_reference) === String(reserva.Res_Id)
+            && Math.abs(Number(pagamentoMP.transaction_amount) - valor) <= 0.01
+            && transacao?.qr_code
+            && aindaValido
+        ) {
+            return {
+                status: 'pending',
+                reservaId: Number(reserva.Res_Id),
+                paymentId: String(pagamentoMP.id),
+                pix: {
+                    qrCode: transacao.qr_code,
+                    qrCodeBase64: transacao.qr_code_base64 || '',
+                    ticketUrl: transacao.ticket_url || '',
+                    expiraEm: pagamentoMP.date_of_expiration || null
+                }
+            };
+        }
+    } catch (erro) {
+        console.warn(`Não foi possível reaproveitar o Pix pendente da reserva ${reserva.Res_Id}:`, erro?.message || erro);
+    }
+    return null;
+}
+
+/**
  * Processa o pagamento enviado pelo Payment Brick (Checkout Transparente: cartão e Pix).
  * POST /api/pagamentos/processar/:reservaId
  */
@@ -507,6 +639,11 @@ exports.processarPagamento = async (req, res) => {
         const valor = Number(reserva.Res_ValorTotal);
         if (!Number.isFinite(valor) || valor <= 0) {
             return res.status(400).json({ error: 'Valor inválido para a reserva.' });
+        }
+
+        if (dados.ehPix) {
+            const pixExistente = await localizarPixPendente(reserva, pagamentoExistente, valor);
+            if (pixExistente) return res.status(200).json(pixExistente);
         }
 
         const corpo = {
@@ -549,7 +686,12 @@ exports.processarPagamento = async (req, res) => {
 
         if (statusMP === 'approved') {
             if (!(await valorPagoConfere(reserva.Res_Id, pagamentoMP))) {
-                return res.status(502).json({ error: 'Não foi possível confirmar o pagamento automaticamente. Nossa equipe vai verificar.' });
+                const estornado = await estornarPagamentoDivergente(reserva.Res_Id, pagamentoMP, { confiavel: true });
+                return res.status(502).json({
+                    error: estornado
+                        ? 'Não foi possível confirmar o pagamento e o valor será estornado. Tente novamente.'
+                        : 'Não foi possível confirmar o pagamento automaticamente. Nossa equipe vai verificar.'
+                });
             }
             const efetivacao = await efetivarAprovacaoPagamento(reserva.Res_Id, pagamentoMP.id, pagamentoMP, req.app);
             if (!efetivacao.confirmada) {
@@ -630,16 +772,20 @@ exports.consultarStatus = async (req, res) => {
         let reservaStatus = reservas[0].Res_Status;
 
         // Se ainda não estiver confirmada, verifica ativamente na API do Mercado Pago
-        if ((reservaStatus === 'PAGAMENTO_PENDENTE' || reservaStatus === 'PENDENTE') && process.env.NODE_ENV !== 'test') {
+        if (reservaStatus === 'PAGAMENTO_PENDENTE' && process.env.NODE_ENV !== 'test') {
             const pagamentoMP = await buscarPagamentoPorReserva(reservaId);
-            if (pagamentoMP && pagamentoMP.status === 'approved' && await valorPagoConfere(reservaId, pagamentoMP)) {
-                await efetivarAprovacaoPagamento(
-                    reservaId,
-                    pagamentoMP.id,
-                    pagamentoMP,
-                    req.app
-                );
-                reservaStatus = 'CONFIRMADA';
+            if (pagamentoMP && pagamentoMP.status === 'approved') {
+                if (await valorPagoConfere(reservaId, pagamentoMP)) {
+                    const efetivacao = await efetivarAprovacaoPagamento(
+                        reservaId,
+                        pagamentoMP.id,
+                        pagamentoMP,
+                        req.app
+                    );
+                    reservaStatus = efetivacao.confirmada ? 'CONFIRMADA' : 'CANCELADA';
+                } else {
+                    await estornarPagamentoDivergente(reservaId, pagamentoMP);
+                }
             }
         }
 
@@ -680,7 +826,9 @@ exports.receberWebhook = async (req, res) => {
     // Sem segredo configurado, só é tolerado fora de produção (desenvolvimento/testes).
     const assinatura = validarAssinaturaWebhook({ headers: req.headers, query, body });
     if (!assinatura.valida) {
-        if (assinatura.motivo === 'segredo_nao_configurado' && process.env.NODE_ENV !== 'production') {
+        // Tolerância só em desenvolvimento/teste explícitos: NODE_ENV ausente ou diferente conta como produção.
+        const ambienteLocal = ['development', 'test'].includes(process.env.NODE_ENV);
+        if (assinatura.motivo === 'segredo_nao_configurado' && ambienteLocal) {
             console.warn('Webhook do Mercado Pago aceito sem validação: defina MERCADO_PAGO_WEBHOOK_SECRET.');
         } else {
             console.error(`Webhook do Mercado Pago rejeitado: ${assinatura.motivo}.`);
@@ -693,7 +841,8 @@ exports.receberWebhook = async (req, res) => {
 
     try {
         // Identifica o ID da transação
-        const paymentId = query['data.id'] || query.id || body.data?.id;
+        // Mesmo id que entrou no manifesto assinado (data.id): nunca um id extra vindo de outro parâmetro.
+        const paymentId = query['data.id'] || body.data?.id;
         const type = query.type || body.type;
 
         if (!paymentId || (type && type !== 'payment')) {
@@ -710,7 +859,10 @@ exports.receberWebhook = async (req, res) => {
         if (!reservaId) return;
 
         if (statusMP === 'approved') {
-            if (!(await valorPagoConfere(reservaId, pagamentoMP))) return;
+            if (!(await valorPagoConfere(reservaId, pagamentoMP))) {
+                await estornarPagamentoDivergente(reservaId, pagamentoMP);
+                return;
+            }
             await efetivarAprovacaoPagamento(
                 reservaId,
                 paymentId,
@@ -745,7 +897,7 @@ exports.receberWebhook = async (req, res) => {
 exports.simularAprovacao = async (req, res) => {
     // Só existe para testes locais. Sem PAGAMENTO_SIMULADO=true no .env, a rota se comporta como inexistente,
     // impedindo que um hóspede confirme a própria reserva sem pagar em produção.
-    if (process.env.PAGAMENTO_SIMULADO !== 'true') {
+    if (!simulacaoPermitida()) {
         return res.status(404).json({ error: 'Rota não encontrada.' });
     }
 
@@ -769,6 +921,10 @@ exports.simularAprovacao = async (req, res) => {
         const reserva = reservas[0];
         if (reserva.Hos_Hospede_Usu_Id !== usuarioId && req.usuario.tipo !== 'proprietario') {
             return res.status(403).json({ error: 'Acesso negado.' });
+        }
+        const erroStatus = erroReservaNaoPagavel(reserva.Res_Status);
+        if (erroStatus) {
+            return res.status(erroStatus.status).json({ error: erroStatus.mensagem });
         }
 
         const transacaoSimulada = `SIM_${Date.now()}`;

@@ -145,7 +145,9 @@ async function reembolsarPagamento(paymentId, valorEstorno = null) {
  * Manifesto: "id:<data.id em minúsculas>;request-id:<x-request-id>;ts:<ts>;" assinado com HMAC-SHA256.
  * @returns {{ valida: boolean, motivo?: string }}
  */
-function validarAssinaturaWebhook({ headers = {}, query = {}, body = {} }, segredo = process.env.MERCADO_PAGO_WEBHOOK_SECRET) {
+const TOLERANCIA_WEBHOOK_MS = 5 * 60 * 1000;
+
+function validarAssinaturaWebhook({ headers = {}, query = {}, body = {} }, segredo = process.env.MERCADO_PAGO_WEBHOOK_SECRET, agora = Date.now()) {
     if (!segredo || !segredo.trim()) {
         return { valida: false, motivo: 'segredo_nao_configurado' };
     }
@@ -166,6 +168,15 @@ function validarAssinaturaWebhook({ headers = {}, query = {}, body = {} }, segre
     const b = Buffer.from(v1);
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
         return { valida: false, motivo: 'assinatura_invalida' };
+    }
+
+    // Janela de tempo: uma notificação assinada capturada não pode ser reenviada indefinidamente.
+    // O ts do Mercado Pago vem em milissegundos; aceita segundos por segurança.
+    const tsNumero = Number(ts);
+    if (!Number.isFinite(tsNumero)) return { valida: false, motivo: 'timestamp_invalido' };
+    const tsMs = tsNumero < 1e11 ? tsNumero * 1000 : tsNumero;
+    if (Math.abs(agora - tsMs) > TOLERANCIA_WEBHOOK_MS) {
+        return { valida: false, motivo: 'timestamp_fora_da_janela' };
     }
     return { valida: true };
 }

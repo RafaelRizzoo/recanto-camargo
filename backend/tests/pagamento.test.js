@@ -92,14 +92,21 @@ test('Pagamento: rejeita ID de reserva não numérico (400)', async () => {
 });
 
 test('Pagamento: webhook responde 200 OK mesmo para eventos sem dados', async () => {
-    const res = await fetch(`${base}/api/pagamentos/webhook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'test' })
-    });
-    assert.equal(res.status, 200);
-    const text = await res.text();
-    assert.equal(text, 'OK');
+    // Em teste o webhook sem segredo é tolerado; um segredo vindo do .env local não pode mudar o resultado.
+    const segredoAnterior = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+    delete process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+    try {
+        const res = await fetch(`${base}/api/pagamentos/webhook`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ type: 'test' })
+        });
+        assert.equal(res.status, 200);
+        const text = await res.text();
+        assert.equal(text, 'OK');
+    } finally {
+        if (segredoAnterior !== undefined) process.env.MERCADO_PAGO_WEBHOOK_SECRET = segredoAnterior;
+    }
 });
 
 test('Pagamento: consulta status de reserva com autenticação do hóspede titular (200)', async () => {
@@ -133,12 +140,32 @@ function assinar(segredo, { dataId, requestId, ts }) {
 }
 
 test('Webhook: aceita assinatura HMAC válida', () => {
-    const v1 = assinar('segredo-teste', { dataId: 'ABC123', requestId: 'req-1', ts: '1700000000' });
+    const ts = String(Date.now());
+    const v1 = assinar('segredo-teste', { dataId: 'ABC123', requestId: 'req-1', ts });
     const r = validarAssinaturaWebhook(
-        { headers: { 'x-signature': `ts=1700000000,v1=${v1}`, 'x-request-id': 'req-1' }, query: { 'data.id': 'ABC123' } },
+        { headers: { 'x-signature': `ts=${ts},v1=${v1}`, 'x-request-id': 'req-1' }, query: { 'data.id': 'ABC123' } },
         'segredo-teste'
     );
     assert.equal(r.valida, true);
+});
+
+test('Webhook: rejeita notificação assinada antiga (replay) e aceita o ts em segundos', () => {
+    const antigo = String(Date.now() - 10 * 60 * 1000);
+    const v1Antigo = assinar('segredo-teste', { dataId: '123', requestId: 'req-1', ts: antigo });
+    const replay = validarAssinaturaWebhook(
+        { headers: { 'x-signature': `ts=${antigo},v1=${v1Antigo}`, 'x-request-id': 'req-1' }, query: { 'data.id': '123' } },
+        'segredo-teste'
+    );
+    assert.equal(replay.valida, false);
+    assert.equal(replay.motivo, 'timestamp_fora_da_janela');
+
+    const emSegundos = String(Math.floor(Date.now() / 1000));
+    const v1Seg = assinar('segredo-teste', { dataId: '123', requestId: 'req-1', ts: emSegundos });
+    const ok = validarAssinaturaWebhook(
+        { headers: { 'x-signature': `ts=${emSegundos},v1=${v1Seg}`, 'x-request-id': 'req-1' }, query: { 'data.id': '123' } },
+        'segredo-teste'
+    );
+    assert.equal(ok.valida, true);
 });
 
 test('Webhook: rejeita assinatura adulterada, id trocado ou segredo errado', () => {
